@@ -1,0 +1,34 @@
+---
+services:
+  pihole:
+    image: ${IMAGE_PIHOLE:-pihole/pihole:latest}
+    container_name: ${CONTAINER_NAME_PIHOLE:-pihole}
+    hostname: ${APP_NAME_PIHOLE:-pihole}
+    restart: ${RESTART_PIHOLE:-always}
+    networks:
+      intranet:
+        ipv4_address: ${IP_PIHOLE:-192.168.1.2}
+    env_file:
+      - .env 
+      - ../env/host.env 
+      - ../env/homelabnet.env 
+      - ../env/dockerx86.env 
+    environment:
+      - TZ: ${TZ:-America/New_York}
+      - WEBPASSWORD: ${PIHOLE_PASSWORD:-Password123}
+      - PIHOLE_DNS_ : ${PIHOLE_DNS:-1.1.1.1}
+    volumes:
+      - ${DIR_HOMELAB}/${CONTAINER_NAME_PIHOLE:-pihole}/config/etc-pihole:/etc/pihole
+      - ${DIR_HOMELAB}/${CONTAINER_NAME_PIHOLE:-pihole}/config/etc-dnsmasq.d:/etc/dnsmasq.d 
+    ports:
+      - 53:53/tcp 
+      - 53:53/udp 
+      - ${PORT_PIHOLE_HOST:-8000}:${PORT_PIHOLE:-80}/tcp 
+
+network:
+  homelabnet:
+    driver: bridge
+    external: true 
+    ipam:
+      config:
+        - subnet: ${SUBNET:-192.168.1.0/24}
