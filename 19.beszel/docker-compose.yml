@@ -1,0 +1,68 @@
+name: ${STACK_BZ_BESZEL:-beszel}
+services:
+  beszel:
+    image: ${DOCKER_IMAGE_BZ_BESZEL:-henrygd/beszel:latest}
+    container_name: ${CONTAINER_NAME_BZ_BESZEL:-beszel}
+    hostname: ${HOST_NAME_BZ_BESZEL:-beszel}
+    restart: ${RESTART_BZ_BESZEL:-unless-stopped}
+    networks:
+      traefiknet:
+        ipv4_address: ${IP_BZ_BESZEL:-172.16.0.20}
+    deploy:
+      resources:
+        limits:
+          cpus: ${CPU_MAX_BZ_BESZEL}
+          memory: ${RAM_MAX_BZ_BESZEL}
+        reservations:
+          cpus: ${CPU_MIN_BZ_BESZEL:-0.05}
+          memory: ${RAM_MIN_BZ_BESZEL:-6M}
+    environment:
+    # external or internal URL of the app, if you are using traefik, then the below should be the external URL, otherwise the internal one
+      - APP_URL=https://${APP_NAME_BZ_BESZEL:-beszel}.${HOST_NAME}.${DOMAIN}
+      # internal URL, comment the above one and uncomment the below
+      - APP_URL=http://localhost:${PORT_BZ_BESZEL_INTERNAL:-8090}
+    env_file:
+      - .env
+      - ../00.env/host.env
+      - ../00.env/network.env
+    volumes:
+      - ${DIR_DATA}/${DIR_BESZEL:-beszel}/data:/beszel_data
+      - ${DIR_DATA}/${DIR_BESZEL:-beszel}/socket:/beszel_socket
+    ports:
+      - ${IP_TAILSCALE}:${PORT_BZ_BESZEL_EXTERNAL:-3013}:${PORT_BZ_BESZEL_INTERNAL:-8090}
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.${APP_NAME_BZ_BESZEL:-beszel}.entrypoints=http"
+      - "traefik.http.routers.${APP_NAME_BZ_BESZEL:-beszel}.rule=Host(`${APP_NAME_BZ_BESZEL:-beszel}.${HOST_NAME}.${DOMAIN}`)"
+      - "traefik.http.middlewares.${APP_NAME_BZ_BESZEL:-beszel}-https-redirect.redirectscheme.scheme=https"
+      - "traefik.http.routers.${APP_NAME_BZ_BESZEL:-beszel}.middlewares=${APP_NAME_BZ_BESZEL:-beszel}-https-redirect"
+      - "traefik.http.routers.${APP_NAME_BZ_BESZEL:-beszel}-secure.entrypoints=https"
+      - "traefik.http.routers.${APP_NAME_BZ_BESZEL:-beszel}-secure.rule=Host(`${APP_NAME_BZ_BESZEL:-beszel}.${HOST_NAME}.${DOMAIN}`)"
+      - "traefik.http.routers.${APP_NAME_BZ_BESZEL:-beszel}-secure.tls=true"
+      - "traefik.http.routers.${APP_NAME_BZ_BESZEL:-beszel}-secure.service=${APP_NAME_BZ_BESZEL:-beszel}"
+      - "traefik.http.services.${APP_NAME_BZ_BESZEL:-beszel}.loadbalancer.server.port=${PORT_BZ_BESZEL_INTERNAL}"
+      - "traefik.docker.network=${DOCKER_NETWORK:-traefiknet}"
+
+  # Commenting the below because adding beszel-agent separately as 19.beszel-agent so it can be used independently
+  # beszel-agent:
+  #   image: ${DOCKER_IMAGE_BZ_BESZEL_AGENT:-henrygd/beszel-agent:latest}
+  #   container_name: ${CONTAINER_NAME_BZ_BESZEL_AGENT:-beszel-agent}
+  #   restart: ${RESTART_BZ_BESZEL_AGENT:-unless-stopped}
+  #   network_mode: host
+  #   volumes:
+  #     - ${DIR_DATA}/${DIR_BESZEL_AGENT:-beszel_agent}/data:/var/lib/beszel-agent
+  #     - ${DIR_DATA}/${DIR_BESZEL:-beszel}/socket:/beszel_socket
+  #     - /var/run/docker.sock:/var/run/docker.sock:ro
+  #   environment:
+  #     - LISTEN=/beszel_socket/beszel.sock
+  #     # if you are using traefik, then the below should be the external URL, otherwise the internal one
+  #     - HUB_URL=https://${APP_NAME_BZ_BESZEL:-beszel}.${HOST_NAME}.${DOMAIN}
+  #     # internal URL, comment the above one and uncomment the below
+  #     # - HUB_URL=http://localhost:8090
+  #     - TOKEN=${BESZEL_AGENT_TOKEN}
+  #     - KEY=${BESZEL_AGENT_KEY}
+  
+networks:
+  traefiknet:
+    name: ${DOCKER_NETWORK:-traefiknet}
+    external: true

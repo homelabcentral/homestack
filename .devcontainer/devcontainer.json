@@ -1,0 +1,73 @@
+// For format details, see https://aka.ms/devcontainer.json. For config options, see the
+// README at: https://github.com/devcontainers/templates/tree/main/src/python
+{
+	"name": "Python 3.11",
+	"dockerComposeFile": "docker-compose.yml",
+	"service": "devcontainer",
+	"runServices": ["devcontainer", "api"],
+	"workspaceFolder": "/workspaces/compose",
+	"shutdownAction": "stopCompose",
+	"features": {
+		"ghcr.io/nils-geistmann/devcontainers-features/zsh:0": {
+			"setLocale": true,
+			"theme": "robbyrussell",
+			"plugins": "git docker",
+			"desiredLocale": "en_US.UTF-8 UTF-8"
+		},
+		"ghcr.io/devcontainer-community/devcontainer-features/astral.sh-uv:1": {
+			"shellautocompletion": true,
+			"version": "latest"
+		},
+		"ghcr.io/tobiaschc/devcontainer-features/starship:1": {
+			"username": "vscode",
+			"userShell": "zsh",
+			"nerdFont": "JetBrainsMono"
+		}
+	},
+
+	"containerEnv": {
+		"HOMESTACK_BASE_URL": "http://api:8043",
+		"HOMESTACK_LOG_LEVEL": "DEBUG"
+	},
+
+	"mounts": [
+		// The below binds the host's SSH agent socket into the container.
+		// "source=${localEnv:SSH_AUTH_SOCK},target=/ssh-agent,type=bind",
+		// The below binds the remote SSH agent socket into the container.
+		"source=${localEnv:HOME}/ssh-agent.sock,target=/ssh-agent,type=bind"
+	],
+
+	"remoteEnv": {
+		"SSH_AUTH_SOCK": "/ssh-agent"
+	},
+
+	// Features to add to the dev container. More info: https://containers.dev/features.
+	// "features": {},
+
+	// Don't need to forward the port if you don't intend to open on the host system. As I don't because internally the services can already access the ports.
+	// "forwardPorts": [8043],
+
+	// Use 'postCreateCommand' to run commands after the container is created.
+	"postCreateCommand": "[ -w /home/vscode/.local ] || sudo chown -R vscode:vscode /home/vscode/.local; cd ${containerWorkspaceFolder} && make uv-sync",
+
+	// Configure tool-specific properties.
+	// "customizations": {},
+	"customizations": {
+		"vscode": {
+			"settings": {
+				"python.defaultInterpreterPath": "${workspaceFolder}/00.homestack/.venv/bin/python3"
+			},
+			"extensions": [
+				"charliermarsh.ruff",
+				"donjayamanne.python-extension-pack",
+				"DavidAnson.vscode-markdownlint",
+				"yzhang.markdown-all-in-one",
+				"wenfangdu.snippet-generator"
+			]
+		}
+	},
+
+	// Uncomment to connect as root instead. More info: https://aka.ms/dev-containers-non-root.
+	"remoteUser": "vscode"
+
+}

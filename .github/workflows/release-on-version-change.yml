@@ -1,0 +1,173 @@
+name: Release On Version Change
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-on-version-change-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Read project version
+        id: project_version
+        run: |
+          set -euo pipefail
+          version="$(python -c "import tomllib, pathlib; print(tomllib.loads(pathlib.Path('00.homestack/pyproject.toml').read_text())['project']['version'])")"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "Project version: ${version}" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Read latest release or tag version
+        id: latest_version
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const normalize = (value) => {
+              if (!value) return "";
+              return value.startsWith("v") ? value.slice(1) : value;
+            };
+
+            let latest = "";
+
+            try {
+              const release = await github.rest.repos.getLatestRelease({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+              });
+              latest = normalize(release.data.tag_name);
+              core.info(`Latest release tag found: ${release.data.tag_name}`);
+            } catch (error) {
+              if (error.status !== 404) {
+                throw error;
+              }
+
+              core.info("No releases found. Trying tags as fallback.");
+              const tags = await github.rest.repos.listTags({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                per_page: 1,
+              });
+
+              if (tags.data.length > 0) {
+                latest = normalize(tags.data[0].name);
+                core.info(`Latest tag found: ${tags.data[0].name}`);
+              } else {
+                core.info("No tags found.");
+              }
+            }
+
+            core.setOutput("version", latest);
+
+      - name: Check if version changed
+        id: version_check
+        env:
+          PROJECT_VERSION: ${{ steps.project_version.outputs.version }}
+          LATEST_VERSION: ${{ steps.latest_version.outputs.version }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${LATEST_VERSION}" ]; then
+            echo "No previous release/tag found. Will publish ${PROJECT_VERSION}." >> "$GITHUB_STEP_SUMMARY"
+            echo "version_changed=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [ "${PROJECT_VERSION}" = "${LATEST_VERSION}" ]; then
+            echo "Version unchanged (${PROJECT_VERSION}). Skipping build and release." >> "$GITHUB_STEP_SUMMARY"
+            echo "version_changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "Version changed: ${LATEST_VERSION} -> ${PROJECT_VERSION}. Will build and release." >> "$GITHUB_STEP_SUMMARY"
+            echo "version_changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up uv
+        if: steps.version_check.outputs.version_changed == 'true'
+        uses: astral-sh/setup-uv@v5
+
+      - name: Build package artifacts
+        if: steps.version_check.outputs.version_changed == 'true'
+        run: |
+          set -euo pipefail
+          rm -rf 00.homestack/dist
+          cd 00.homestack
+          uv build
+
+      - name: Validate build artifacts
+        if: steps.version_check.outputs.version_changed == 'true'
+        run: |
+          set -euo pipefail
+          ls -1 00.homestack/dist/*.whl
+          ls -1 00.homestack/dist/*.tar.gz
+
+      - name: Create source zip
+        if: steps.version_check.outputs.version_changed == 'true'
+        env:
+          PROJECT_VERSION: ${{ steps.project_version.outputs.version }}
+        run: |
+          set -euo pipefail
+          zip_name="homestack-${PROJECT_VERSION}-source.zip"
+          git archive --format=zip --output "${zip_name}" HEAD
+          echo "Created ${zip_name}" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Prepare release metadata
+        if: steps.version_check.outputs.version_changed == 'true'
+        id: release_meta
+        env:
+          PROJECT_VERSION: ${{ steps.project_version.outputs.version }}
+          LATEST_VERSION: ${{ steps.latest_version.outputs.version }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          if [ -n "${LATEST_VERSION}" ]; then
+            prev_tag="v${LATEST_VERSION}"
+            curr_tag="v${PROJECT_VERSION}"
+            compare_url="https://github.com/${REPOSITORY}/compare/${prev_tag}...${curr_tag}"
+            compare_line="- Compare changes: [${prev_tag}...${curr_tag}](${compare_url})"
+          else
+            compare_line="- Compare changes: first tagged release (no previous tag)"
+          fi
+
+          echo "compare_line=${compare_line}" >> "$GITHUB_OUTPUT"
+
+      - name: Create or update release and upload assets
+        if: steps.version_check.outputs.version_changed == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.project_version.outputs.version }}
+          name: v${{ steps.project_version.outputs.version }}
+          generate_release_notes: true
+          append_body: true
+          body: |
+            ## Release Metadata
+
+            - Version: `${{ steps.project_version.outputs.version }}`
+            - Previous release/tag: `${{ steps.latest_version.outputs.version || 'none' }}`
+            - Commit: [${{ github.sha }}](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }})
+            - Trigger: `${{ github.event_name }}` on `${{ github.ref_name }}`
+            ${{ steps.release_meta.outputs.compare_line }}
+
+            ## Included Artifacts
+
+            - `homestack-${{ steps.project_version.outputs.version }}-source.zip` (source archive)
+            - `00.homestack/dist/*.whl` (wheel package)
+            - `00.homestack/dist/*.tar.gz` (source distribution)
+          fail_on_unmatched_files: true
+          files: |
+            homestack-${{ steps.project_version.outputs.version }}-source.zip
+            00.homestack/dist/*.whl
+            00.homestack/dist/*.tar.gz

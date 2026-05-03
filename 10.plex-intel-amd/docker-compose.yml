@@ -1,0 +1,66 @@
+name: ${STACK_PS_PLEX:-plex}
+services:
+  plex:
+    image: ${DOCKER_IMAGE_PS_PLEX:-linuxserver/plex:latest}
+    container_name: ${CONTAINER_NAME_PS_PLEXSERVER:-plex}
+    # user: ${UID}:${GID}
+    hostname: ${HOST_NAME_PS_PLEX:-plex}
+    restart: ${RESTART_POLICY_PS_PLEX:-unless-stopped}
+    # network_mode: host
+    networks:
+      traefiknet:
+        ipv4_address: ${IP_PS_PLEX:-172.16.0.11}
+    deploy:
+      resources:
+        limits:
+          cpus: ${CPU_MAX_PS_PLEX}
+          memory: ${RAM_MAX_PS_PLEX}
+        reservations:
+          cpus: ${CPU_MIN_PS_PLEX:-0.05}
+          memory: ${RAM_MIN_PS_PLEX:-6M}
+    env_file:
+      - .env
+      - ../00.env/host.env
+      - ../00.env/network.env
+    environment:
+      - PLEX_CLAIM=${PS_PLEX_CLAIM_TOKEN}
+      - ADVERTISE_IP=http://${IP_TAILSCALE}:${PORT_PS_PLEX_EXTERNAL}/
+      - PUID=${UID}
+      - PGID=${GID}
+      - VERSION=docker
+      - ALLOWED_NETWORKS=${ALLOWED_NETWORKS}
+      - TZ=${TZ}
+    devices:
+      - /dev/dri:/dev/dri # required for hardware transcoding for intel and amd gpus.
+    volumes:
+      - ${DIR_DATA}/${DIR_PS_PLEX}:/config
+      - ${DIR_MEDIA}/TV:/media/tv
+      - ${DIR_MEDIA}/Movies:/media/movies
+      - ${DIR_MEDIA}/Music:/media/music
+    ports:
+      - ${IP_TAILSCALE}:${PORT_PS_PLEX_EXTERNAL:-32400}:${PORT_PS_PLEX_INTERNAL:-32400}/tcp
+      - ${IP_TAILSCALE}:1900:1900/udp
+      # - 5353:5353/udp
+      - ${IP_TAILSCALE}:8324:8324
+      - ${IP_TAILSCALE}:32410:32410/udp
+      - ${IP_TAILSCALE}:32412:32412/udp
+      - ${IP_TAILSCALE}:32413:32413/udp
+      - ${IP_TAILSCALE}:32414:32414/udp
+      - ${IP_TAILSCALE}:32469:32469
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.${APP_NAME_PS_PLEX:-plex}.entrypoints=http"
+      - "traefik.http.routers.${APP_NAME_PS_PLEX:-plex}.rule=Host(`${APP_NAME_PS_PLEX:-plex}.${HOST_NAME}.${DOMAIN}`)"
+      - "traefik.http.middlewares.${APP_NAME_PS_PLEX:-plex}-https-redirect.redirectscheme.scheme=https"
+      - "traefik.http.routers.${APP_NAME_PS_PLEX:-plex}.middlewares=${APP_NAME_PS_PLEX:-plex}-https-redirect"
+      - "traefik.http.routers.${APP_NAME_PS_PLEX:-plex}-secure.entrypoints=https"
+      - "traefik.http.routers.${APP_NAME_PS_PLEX:-plex}-secure.rule=Host(`${APP_NAME_PS_PLEX:-plex}.${HOST_NAME}.${DOMAIN}`)"
+      - "traefik.http.routers.${APP_NAME_PS_PLEX:-plex}-secure.tls=true"
+      - "traefik.http.routers.${APP_NAME_PS_PLEX:-plex}-secure.service=${APP_NAME_PS_PLEX:-plex}"
+      - "traefik.http.services.${APP_NAME_PS_PLEX:-plex}.loadbalancer.server.port=${PORT_PS_PLEX_INTERNAL:-32400}"
+      - "traefik.docker.network=traefiknet"
+
+networks:
+  traefiknet:
+    name: ${DOCKER_NETWORK:-traefiknet}
+    external: true

@@ -1,0 +1,16 @@
+services:
+  devcontainer:
+    image: mcr.microsoft.com/devcontainers/python:3-3.14-trixie
+    container_name: devcontainer-hc
+    volumes:
+      - ..:/workspaces/compose:cached
+    command: sleep infinity
+
+  api:
+    image: pierrezemb/gostatic:latest
+    container_name: api-hc
+    volumes:
+      - ..:/srv/http:ro
+    ports:
+      - "8043:8043"
+    restart: unless-stopped

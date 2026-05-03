@@ -1,0 +1,76 @@
+name: ${STACK_LW_LINKWARDEN:-linkwarden}
+services:
+  linkwarden:
+    image: ${DOCKER_IMAGE_LW_LINKWARDEN:-ghcr.io/linkwarden/linkwarden:latest}
+    container_name: ${CONTAINER_NAME_LW_LINKWARDEN:-linkwarden}
+    hostname: ${HOST_NAME_LW_LINKWARDEN:-linkwarden}
+    restart: ${RESTART_LW_LINKWARDEN:-unless-stopped}
+    network_mode: service:lw-postgres
+    depends_on:
+      - lw-postgres
+      - lw-meilisearch
+    deploy:
+      resources:
+        limits:
+          cpus: ${CPU_MAX_LW_LINKWARDEN:-1.5}
+          memory: ${RAM_MAX_LW_LINKWARDEN:-512M}
+        reservations:
+          cpus: ${CPU_MIN_LW_LINKWARDEN:-0.05}
+          memory: ${RAM_MIN_LW_LINKWARDEN:-16M}
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USERNAME:-admin}:${POSTGRES_PASSWORD:-super-secret-password}@${HOST_NAME_LW_LINKWARDEN:-linkwarden}:5432/${POSTGRES_DB:-linkwarden}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-super-secret-password}
+    env_file:
+      - .env
+      - ../00.env/host.env
+      - ../00.env/network.env
+    # build: . # uncomment to build from source
+    # Uncomment this if not running traefik or other reverse proxy and want to access gatus directly via http://<IP_PUBLIC>:3000 or http://<IP_TAILSCALE>:3000
+    # You do not need to change the external port, it is designed to work nicely with other containers.
+    # ports:
+    #   - ${IP_TAILSCALE}:${PORT_LW_LINKWARDEN_EXTERNAL:-3003}:${PORT_LW_LINKWARDEN_INTERNAL:-3000}
+    # OR if you don't want to bind to a specific IP, you can use:
+    # ${PORT_LW_LINKWARDEN_EXTERNAL:-3003}:${PORT_LW_LINKWARDEN_INTERNAL:-3000}
+    volumes:
+      - ${DIR_DATA}/${DIR_LW_LINKWARDEN:-linkwarden}/linkwarden:/data/data
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.${APP_NAME_LW_LINKWARDEN:-linkwarden}.entrypoints=http"
+      - "traefik.http.routers.${APP_NAME_LW_LINKWARDEN:-linkwarden}.rule=Host(`${APP_NAME_LW_LINKWARDEN:-linkwarden}.${HOST_NAME}.${DOMAIN}`)"
+      - "traefik.http.middlewares.${APP_NAME_LW_LINKWARDEN:-linkwarden}-https-redirect.redirectscheme.scheme=https"
+      - "traefik.http.routers.${APP_NAME_LW_LINKWARDEN:-linkwarden}.middlewares=${APP_NAME_LW_LINKWARDEN:-linkwarden}-https-redirect"
+      - "traefik.http.routers.${APP_NAME_LW_LINKWARDEN:-linkwarden}-secure.entrypoints=https"
+      - "traefik.http.routers.${APP_NAME_LW_LINKWARDEN:-linkwarden}-secure.rule=Host(`${APP_NAME_LW_LINKWARDEN:-linkwarden}.${HOST_NAME}.${DOMAIN}`)"
+      - "traefik.http.routers.${APP_NAME_LW_LINKWARDEN:-linkwarden}-secure.tls=true"
+      - "traefik.http.routers.${APP_NAME_LW_LINKWARDEN:-linkwarden}-secure.service=${APP_NAME_LW_LINKWARDEN:-linkwarden}"
+      - "traefik.http.services.${APP_NAME_LW_LINKWARDEN:-linkwarden}.loadbalancer.server.port=${PORT_LW_LINKWARDEN_INTERNAL:-3000}"
+      - "traefik.docker.network=traefiknet"
+  lw-postgres:
+    image: ${DOCKER_IMAGE_LW_POSTGRES:-postgres:16-alpine}
+    container_name: ${CONTAINER_NAME_LW_POSTGRES:-lw-postgres}
+    restart: ${RESTART_LW_LINKWARDEN:-unless-stopped}
+    networks:
+      traefiknet:
+        ipv4_address: ${IP_LW_LINKWARDEN:-172.16.0.8}
+    environment:
+      - POSTGRES_USER=${POSTGRES_USERNAME:-admin}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-super-secret-password}
+      - POSTGRES_DB=${POSTGRES_DB:-linkwarden}
+    env_file:
+      - .env
+    volumes:
+      - ${DIR_DATA}/${DIR_LW_LINKWARDEN:-linkwarden}/postgres:/var/lib/postgresql/data
+  lw-meilisearch:
+    image: ${DOCKER_IMAGE_LW_MEILISEARCH:-getmeili/meilisearch:v1.12.8}
+    container_name: ${CONTAINER_NAME_LW_MEILISEARCH:-lw-meilisearch}
+    network_mode: service:lw-postgres
+    restart: ${RESTART_LW_LINKWARDEN:-unless-stopped}
+    env_file:
+      - .env
+    volumes:
+      - ${DIR_DATA}/${DIR_LW_LINKWARDEN:-linkwarden}/meili_data:/meili_data
+
+networks:
+  traefiknet:
+    name: ${DOCKER_NETWORK:-traefiknet}
+    external: true

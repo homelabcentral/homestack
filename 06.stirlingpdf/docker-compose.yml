@@ -1,0 +1,55 @@
+name: ${STACK_SP_STIRLINGPDF:-stirlingpdf}
+services:
+  stirlingpdf:
+    image: ${DOCKER_IMAGE_SP_STIRLINGPDF_LITE:-stirlingtools/stirling-pdf:latest-ultra-lite}
+    container_name: ${CONTAINER_NAME_SP_STIRLINGPDF:-stirlingpdf}
+    hostname: ${HOST_NAME_SP_STIRLINGPDF:-stirlingpdf}
+    restart: ${RESTART_SP_STIRLINGPDF:-unless-stopped}
+    networks:
+      traefiknet:
+        ipv4_address: ${IP_SP_STIRLINGPDF:-172.16.0.7}
+    deploy:
+      resources:
+        limits:
+          cpus: ${CPU_MAX_SP_STIRLINGPDF:-2}
+          memory: ${RAM_MAX_SP_STIRLINGPDF:-1G}
+        reservations:
+          cpus: ${CPU_MIN_SP_STIRLINGPDF:-0.05}
+          memory: ${RAM_MIN_SP_STIRLINGPDF:-16M}
+    environment:
+      - SECURITY_ENABLELOGIN=false    # Set true to enable user authentication
+      - LANGS=en_US
+      - SECURITY_INITIALLOGIN_USERNAME=${USERNAME_SP_STIRLINGPDF:-admin}
+      - SECURITY_INITIALLOGIN_PASSWORD=${PASSWORD_SP_STIRLINGPDF:-super-secret-password}
+    env_file:
+      - .env
+      - ../00.env/host.env
+      - ../00.env/network.env
+    volumes:
+      - ${DIR_DATA}/${DIR_NAME_STIRLINGPDF:-stirlingpdf}/tessdata:/usr/share/tessdata  # OCR language files
+      - ${DIR_DATA}/${DIR_NAME_STIRLINGPDF:-stirlingpdf}/configs:/configs               # Settings & database
+      - ${DIR_DATA}/${DIR_NAME_STIRLINGPDF:-stirlingpdf}/logs:/logs                     # Application logs
+      - ${DIR_DATA}/${DIR_NAME_STIRLINGPDF:-stirlingpdf}/pipeline:/pipeline 
+    # Uncomment this if not running traefik or other reverse proxy and want to access gatus directly via http://<IP_PUBLIC>:3000 or http://<IP_TAILSCALE>:3000
+    # You do not need to change the external port, it is designed to work nicely with other containers.
+    # ports:
+    #   - ${IP_TAILSCALE}:${PORT_SP_STIRLINGPDF_EXTERNAL:-3002}:${PORT_SP_STIRLINGPDF_INTERNAL:-8080}
+    # OR if you don't want to bind to a specific IP, you can use:
+    # ${PORT_SP_STIRLINGPDF_EXTERNAL:-3002}:${PORT_SP_STIRLINGPDF_INTERNAL:-8080}
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.${APP_NAME_SP_STIRLINGPDF:-pdf}.entrypoints=http"
+      - "traefik.http.routers.${APP_NAME_SP_STIRLINGPDF:-pdf}.rule=Host(`${APP_NAME_SP_STIRLINGPDF:-pdf}.${HOST_NAME}.${DOMAIN}`)"
+      - "traefik.http.middlewares.${APP_NAME_SP_STIRLINGPDF:-pdf}-https-redirect.redirectscheme.scheme=https"
+      - "traefik.http.routers.${APP_NAME_SP_STIRLINGPDF:-pdf}.middlewares=${APP_NAME_SP_STIRLINGPDF:-pdf}-https-redirect"
+      - "traefik.http.routers.${APP_NAME_SP_STIRLINGPDF:-pdf}-secure.entrypoints=https"
+      - "traefik.http.routers.${APP_NAME_SP_STIRLINGPDF:-pdf}-secure.rule=Host(`${APP_NAME_SP_STIRLINGPDF:-pdf}.${HOST_NAME}.${DOMAIN}`)"
+      - "traefik.http.routers.${APP_NAME_SP_STIRLINGPDF:-pdf}-secure.tls=true"
+      - "traefik.http.routers.${APP_NAME_SP_STIRLINGPDF:-pdf}-secure.service=${APP_NAME_SP_STIRLINGPDF:-pdf}"
+      - "traefik.http.services.${APP_NAME_SP_STIRLINGPDF:-pdf}.loadbalancer.server.port=${PORT_SP_STIRLINGPDF_INTERNAL:-8080}"
+      - "traefik.docker.network=traefiknet"
+
+networks:
+  traefiknet:
+    name: ${DOCKER_NETWORK:-traefiknet}
+    external: true

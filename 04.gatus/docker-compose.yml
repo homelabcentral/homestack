@@ -1,0 +1,43 @@
+services:
+  gatus:
+    image: ${DOCKER_IMAGE_GA_GATUS:-ghcr.io/twin/gatus}:${DOCKER_IMAGE_GA_GATUS_TAG:-v5.35.0}
+    container_name: ${CONTAINER_NAME_GA_GATUS:-gatus}
+    hostname: ${HOST_NAME_GA_GATUS:-gatus}
+    restart: ${RESTART_GA_GATUS:-always}
+    networks:
+      traefiknet:
+        ipv4_address: ${IP_GA_GATUS:-172.16.0.5}
+    deploy:
+      resources:
+        limits:
+          cpus: ${CPU_MAX_GA_GATUS:-1.5}
+          memory: ${RAM_MAX_GA_GATUS:-512M}
+        reservations:
+          cpus: ${CPU_MIN_GA_GATUS:-0.05}
+          memory: ${RAM_MIN_GA_GATUS:-6M}
+    volumes:
+      - ${DIR_COMPOSE}/${DIR_GA_GATUS}/config:/config
+      - ${DIR_DATA}/${DIR_GA_GATUS}:/data
+    # Uncomment this if not running traefik or other reverse proxy and want to access gatus directly via http://<IP_PUBLIC>:3000 or http://<IP_TAILSCALE>:3000
+    # You do not need to change the external port, it is designed to work nicely with other containers.
+    # ports:
+      # - ${IP_TAILSCALE}:${PORT_GA_GATUS_EXTERNAL:-3000}:${PORT_GA_GATUS_INTERNAL:-8080}
+      # OR if you don't want to bind to a specific IP, you can use:
+      # ${PORT_GA_GATUS_EXTERNAL:-3000}:${PORT_GA_GATUS_INTERNAL:-8080}
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.${APP_NAME_GA_GATUS:-gatus}.entrypoints=http"
+      - "traefik.http.routers.${APP_NAME_GA_GATUS:-gatus}.rule=Host(`${APP_NAME_GA_GATUS:-gatus}.${HOST_NAME}.${DOMAIN}`)"
+      - "traefik.http.middlewares.${APP_NAME_GA_GATUS:-gatus}-https-redirect.redirectscheme.scheme=https"
+      - "traefik.http.routers.${APP_NAME_GA_GATUS:-gatus}.middlewares=${APP_NAME_GA_GATUS:-gatus}-https-redirect"
+      - "traefik.http.routers.${APP_NAME_GA_GATUS:-gatus}-secure.entrypoints=https"
+      - "traefik.http.routers.${APP_NAME_GA_GATUS:-gatus}-secure.rule=Host(`${APP_NAME_GA_GATUS:-gatus}.${HOST_NAME}.${DOMAIN}`)"
+      - "traefik.http.routers.${APP_NAME_GA_GATUS:-gatus}-secure.tls=true"
+      - "traefik.http.routers.${APP_NAME_GA_GATUS:-gatus}-secure.service=${APP_NAME_GA_GATUS:-gatus}"
+      - "traefik.http.services.${APP_NAME_GA_GATUS:-gatus}.loadbalancer.server.port=${PORT_GA_GATUS_INTERNAL:-8080}"
+      - "traefik.docker.network=traefiknet"
+
+networks:
+  traefiknet:
+    name: ${DOCKER_NETWORK:-traefiknet}
+    external: true

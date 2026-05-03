@@ -1,0 +1,86 @@
+name: ${STACK_NAME_KK_KARAKEEP:-karakeep}
+services:
+  karakeep-web:
+    image: ${DOCKER_IMAGE_KK_KARAKEEP:-ghcr.io/karakeep-app/karakeep:release}
+    container_name: ${CONTAINER_NAME_KK_KARAKEEP:-karakeep}
+    hostname: ${HOST_NAME_KK_KARAKEEP:-karakeep}
+    restart: ${RESTART_KK_KARAKEEP:-unless-stopped}
+    networks:
+      traefiknet:
+        ipv4_address: ${IP_KK_KARAKEEP:-172.16.0.6}
+    deploy:
+      resources:
+        limits:
+          cpus: ${CPU_MAX_KK_KARAKEEP:-0.5}
+          memory: ${RAM_MAX_KK_KARAKEEP:-256M}
+        reservations:
+          cpus: ${CPU_MIN_KK_KARAKEEP:-0.05}
+          memory: ${RAM_MIN_KK_KARAKEEP:-6M}
+    environment:
+      # MEILI_ADDR: http://karakeep-meilisearch:7700
+      # BROWSER_WEB_URL: http://karakeep-chrome:9222
+      MEILI_ADDR: http://${HOST_NAME_KK_KARAKEEP:-karakeep}:7700
+      BROWSER_WEB_URL: http://${HOST_NAME_KK_KARAKEEP:-karakeep}:9222
+      DATA_DIR: /data # DON'T CHANGE THIS
+      DISABLE_SIGNUPS: true # Make this initially false and then after signing up your user change it to true
+      EMAIL_VERIFICATION_REQUIRED: true
+      CRAWLER_STORE_PDF: true
+      CRAWLER_FULL_PAGE_ARCHIVE: true
+      CRAWLER_VIDEO_DOWNLOAD: true
+      CRAWLER_VIDEO_DOWNLOAD_MAX_SIZE: -1 # -1 to disable the limit
+      CRAWLER_ENABLE_ADBLOCKER: true
+      # OPENAI_API_KEY: ...
+    env_file:
+      - .env
+      - ../00.env/host.env
+      - ../00.env/network.env
+    volumes:
+      - ${DIR_DATA}/${DIR_KK_KARAKEEP:-karakeep}:/data
+    # Uncomment this if not running traefik or other reverse proxy and want to access gatus directly via http://<IP_PUBLIC>:3000 or http://<IP_TAILSCALE>:3000
+    # You do not need to change the external port, it is designed to work nicely with other containers.
+    # ports:
+    #   - ${IP_TAILSCALE}:${PORT_KK_KARAKEEP_EXTERNAL:-3001}:${PORT_KK_KARAKEEP_INTERNAL:-3000}
+    # OR if you don't want to bind to a specific IP, you can use:
+    # ${PORT_KK_KARAKEEP_EXTERNAL:-3001}:${PORT_KK_KARAKEEP_INTERNAL:-3000}
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.${APP_NAME_KK_KARAKEEP:-karakeep}.entrypoints=http"
+      - "traefik.http.routers.${APP_NAME_KK_KARAKEEP:-karakeep}.rule=Host(`${APP_NAME_KK_KARAKEEP:-karakeep}.${HOST_NAME}.${DOMAIN}`)"
+      - "traefik.http.middlewares.${APP_NAME_KK_KARAKEEP:-karakeep}-https-redirect.redirectscheme.scheme=https"
+      - "traefik.http.routers.${APP_NAME_KK_KARAKEEP:-karakeep}.middlewares=${APP_NAME_KK_KARAKEEP:-karakeep}-https-redirect"
+      - "traefik.http.routers.${APP_NAME_KK_KARAKEEP:-karakeep}-secure.entrypoints=https"
+      - "traefik.http.routers.${APP_NAME_KK_KARAKEEP:-karakeep}-secure.rule=Host(`${APP_NAME_KK_KARAKEEP:-karakeep}.${HOST_NAME}.${DOMAIN}`)"
+      - "traefik.http.routers.${APP_NAME_KK_KARAKEEP:-karakeep}-secure.tls=true"
+      - "traefik.http.routers.${APP_NAME_KK_KARAKEEP:-karakeep}-secure.service=${APP_NAME_KK_KARAKEEP:-karakeep}"
+      - "traefik.http.services.${APP_NAME_KK_KARAKEEP:-karakeep}.loadbalancer.server.port=${PORT_KK_KARAKEEP_INTERNAL:-3000}"
+      - "traefik.docker.network=traefiknet"
+  karakeep-chrome:
+    image: ${DOCKER_IMAGE_KK_CHROME:-gcr.io/zenika-hub/alpine-chrome:124}
+    container_name: ${CONTAINER_NAME_KK_CHROME:-karakeep-chrome}
+    restart: ${RESTART_KK_CHROME:-unless-stopped}
+    command:
+      - --no-sandbox
+      - --disable-gpu
+      - --disable-dev-shm-usage
+      - --remote-debugging-address=0.0.0.0
+      - --remote-debugging-port=9222
+      - --hide-scrollbars
+    network_mode: service:karakeep-web
+    env_file:
+      - .env
+  karakeep-meilisearch:
+    image: ${DOCKER_IMAGE_KK_MEILISEARCH:-getmeili/meilisearch:v1.41.0}
+    container_name: ${CONTAINER_NAME_KK_MEILISEARCH:-karakeep-meilisearch}
+    restart: ${RESTART_KK_MEILISEARCH:-unless-stopped}
+    network_mode: service:karakeep-web
+    env_file:
+      - .env
+    environment:
+      MEILI_NO_ANALYTICS: "true"
+    volumes:
+      - ${DIR_DATA}/${DIR_KK_KARAKEEP:-karakeep}/meilisearch:/meili_data
+
+networks:
+  traefiknet:
+    name: ${DOCKER_NETWORK:-traefiknet}
+    external: true

@@ -1,0 +1,17 @@
+*.env
+host.env
+network.nev
+email.env
+containers.env
+.env
+!.*.example
+!00.env/
+*.pyc
+prompt.md
+.venv/
+__pycache__/
+__mypycache__/
+.pytest_cache/
+temp/
+dist/
+.ruff_cache/

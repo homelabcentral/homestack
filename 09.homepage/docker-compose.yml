@@ -1,0 +1,52 @@
+name: ${STACK_HP_HOMEPAGE:-homepage}
+services:
+  homepage:
+    image: ${DOCKER_IMAGE_HP_HOMEPAGE:-ghcr.io/gethomepage/homepage:latest}
+    container_name: ${CONTAINER_NAME_HP_HOMEPAGE:-homepage}
+    hostname: ${HOST_NAME_HP_HOMEPAGE:-homepage}
+    restart: ${RESTART_HP_HOMEPAGE:-unless-stopped}
+    networks:
+      traefiknet:
+        ipv4_address: ${IP_HP_HOMEPAGE:-172.16.0.10}
+    deploy:
+      resources:
+        limits:
+          cpus: ${CPU_MAX_HP_HOMEPAGE:-1.5}
+          memory: ${RAM_MAX_HP_HOMEPAGE:-512M}
+        reservations:
+          cpus: ${CPU_MIN_HP_HOMEPAGE:-0.05}
+          memory: ${RAM_MIN_HP_HOMEPAGE:-16M}
+    environment:
+      HOMEPAGE_ALLOWED_HOSTS: gethomepage.dev # required, may need port. See gethomepage.dev/installation/#homepage_allowed_hosts
+      PUID: ${UID} # optional, your user id
+      PGID: ${GID} # optional, your group id
+    env_file:
+      - .env
+      - ../00.env/host.env
+      - ../00.env/network.env
+    # Uncomment this if not running traefik or other reverse proxy and want to access gatus directly via http://<IP_PUBLIC>:3005 or http://<IP_TAILSCALE>:3005
+    # You do not need to change the external port, it is designed to work nicely with other containers.
+    # ports:
+    #   - ${IP_TAILSCALE}:${PORT_HP_HOMEPAGE_EXTERNAL:-3005}:${PORT_HP_HOMEPAGE_INTERNAL:-3000}
+    # OR if you don't want to bind to a specific IP, you can use:
+    # ${PORT_HP_HOMEPAGE_EXTERNAL:-3005}:${PORT_HP_HOMEPAGE_INTERNAL:-3000}
+    volumes:
+      - ${DIR_DATA}/${DIR_HP_HOMEPAGE:-homepage}:/app/config # Make sure your local config directory exists
+      - /var/run/docker.sock:/var/run/docker.sock:ro # optional, for docker integrations
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.${APP_NAME_HP_HOMEPAGE:-homepage}.entrypoints=http"
+      - "traefik.http.routers.${APP_NAME_HP_HOMEPAGE:-homepage}.rule=Host(`${APP_NAME_HP_HOMEPAGE:-homepage}.${HOST_NAME}.${DOMAIN}`)"
+      - "traefik.http.middlewares.${APP_NAME_HP_HOMEPAGE:-homepage}-https-redirect.redirectscheme.scheme=https"
+      - "traefik.http.routers.${APP_NAME_HP_HOMEPAGE:-homepage}.middlewares=${APP_NAME_HP_HOMEPAGE:-homepage}-https-redirect"
+      - "traefik.http.routers.${APP_NAME_HP_HOMEPAGE:-homepage}-secure.entrypoints=https"
+      - "traefik.http.routers.${APP_NAME_HP_HOMEPAGE:-homepage}-secure.rule=Host(`${APP_NAME_HP_HOMEPAGE:-homepage}.${HOST_NAME}.${DOMAIN}`)"
+      - "traefik.http.routers.${APP_NAME_HP_HOMEPAGE:-homepage}-secure.tls=true"
+      - "traefik.http.routers.${APP_NAME_HP_HOMEPAGE:-homepage}-secure.service=${APP_NAME_HP_HOMEPAGE:-homepage}"
+      - "traefik.http.services.${APP_NAME_HP_HOMEPAGE:-homepage}.loadbalancer.server.port=${PORT_HP_HOMEPAGE_INTERNAL:-3000}"
+      - "traefik.docker.network=traefiknet"
+
+networks:
+  traefiknet:
+    name: ${DOCKER_NETWORK:-traefiknet}
+    external: true

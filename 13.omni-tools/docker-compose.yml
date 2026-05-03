@@ -1,0 +1,45 @@
+name: ${STACK_OT_OMNI_TOOLS:-omni-tools}
+services:
+  omni-tools:
+    image: ${DOCKER_IMAGE_OT_OMNI_TOOLS:-iib0011/omni-tools:latest}
+    container_name: ${CONTAINER_NAME_OT_OMNI_TOOLS:-omni-tools}
+    hostname: ${HOST_NAME_OT_OMNI_TOOLS:-omni-tools}
+    restart: ${RESTART_POLICY_OT_OMNI_TOOLS:-unless-stopped}
+    networks:
+      traefiknet:
+        ipv4_address: ${IP_OT_OMNI_TOOLS:-172.16.0.14}
+    deploy:
+      resources:
+        limits:
+          cpus: ${CPU_MAX_OT_OMNI_TOOLS}
+          memory: ${RAM_MAX_OT_OMNI_TOOLS}
+        reservations:
+          cpus: ${CPU_MIN_OT_OMNI_TOOLS:-0.05}
+          memory: ${RAM_MIN_OT_OMNI_TOOLS:-6M}
+    env_file:
+      - .env
+      - ../00.env/host.env
+      - ../00.env/network.env
+    # Uncomment this if not running traefik or other reverse proxy and want to access gatus directly via http://<IP_PUBLIC>:3008 or http://<IP_TAILSCALE>:3008
+    # You do not need to change the external port, it is designed to work nicely with other containers.
+    # ports:
+    #   - ${IP_TAILSCALE}:${PORT_OT_OMNI_TOOLS_EXTERNAL:-3008}:${PORT_OT_OMNI_TOOLS_INTERNAL:-80}
+    # OR if you don't want to bind to a specific IP, you can use:
+    # ${PORT_OT_OMNI_TOOLS_EXTERNAL:-3008}:${PORT_OT_OMNI_TOOLS_INTERNAL:-80}
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.${APP_NAME_OT_OMNI_TOOLS:-omni-tools}.entrypoints=http"
+      - "traefik.http.routers.${APP_NAME_OT_OMNI_TOOLS:-omni-tools}.rule=Host(`${APP_NAME_OT_OMNI_TOOLS:-omni-tools}.${HOST_NAME}.${DOMAIN}`)"
+      - "traefik.http.middlewares.${APP_NAME_OT_OMNI_TOOLS:-omni-tools}-https-redirect.redirectscheme.scheme=https"
+      - "traefik.http.routers.${APP_NAME_OT_OMNI_TOOLS:-omni-tools}.middlewares=${APP_NAME_OT_OMNI_TOOLS:-omni-tools}-https-redirect"
+      - "traefik.http.routers.${APP_NAME_OT_OMNI_TOOLS:-omni-tools}-secure.entrypoints=https"
+      - "traefik.http.routers.${APP_NAME_OT_OMNI_TOOLS:-omni-tools}-secure.rule=Host(`${APP_NAME_OT_OMNI_TOOLS:-omni-tools}.${HOST_NAME}.${DOMAIN}`)"
+      - "traefik.http.routers.${APP_NAME_OT_OMNI_TOOLS:-omni-tools}-secure.tls=true"
+      - "traefik.http.routers.${APP_NAME_OT_OMNI_TOOLS:-omni-tools}-secure.service=${APP_NAME_OT_OMNI_TOOLS:-omni-tools}"
+      - "traefik.http.services.${APP_NAME_OT_OMNI_TOOLS:-omni-tools}.loadbalancer.server.port=${PORT_OT_OMNI_TOOLS_INTERNAL:-80}"
+      - "traefik.docker.network=traefiknet"
+
+networks:
+  traefiknet:
+    name: ${DOCKER_NETWORK:-traefiknet}
+    external: true

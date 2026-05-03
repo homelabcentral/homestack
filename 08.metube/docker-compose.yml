@@ -1,0 +1,47 @@
+name: ${STACK_MT_METUBE:-metube}
+services:
+  metube:
+    image: ${DOCKER_IMAGE_MT_METUBE:-alexta69/metube:latest}
+    container_name: ${CONTAINER_NAME_MT_METUBE:-metube}
+    hostname: ${HOST_NAME_MT_METUBE:-metube}
+    restart: ${RESTART_MT_METUBE:-unless-stopped}
+    networks:
+      traefiknet:
+        ipv4_address: ${IP_MT_METUBE:-172.16.0.9}
+    deploy:
+      resources:
+        limits:
+          cpus: ${CPU_MAX_MT_METUBE:-1.5}
+          memory: ${RAM_MAX_MT_METUBE:-512M}
+        reservations:
+          cpus: ${CPU_MIN_MT_METUBE:-0.05}
+          memory: ${RAM_MIN_MT_METUBE:-16M}
+    env_file:
+      - .env
+      - ../00.env/host.env
+      - ../00.env/network.env
+    # Uncomment this if not running traefik or other reverse proxy and want to access gatus directly via http://<IP_PUBLIC>:3004 or http://<IP_TAILSCALE>:3004
+    # You do not need to change the external port, it is designed to work nicely with other containers.
+    # ports:
+    #   - ${IP_TAILSCALE}:${PORT_MT_METUBE_EXTERNAL:-3004}:${PORT_MT_METUBE_INTERNAL:-8081}
+    # OR if you don't want to bind to a specific IP, you can use:
+    # ${PORT_MT_METUBE_EXTERNAL:-3004}:${PORT_MT_METUBE_INTERNAL:-8081}
+    volumes:
+      - ${DIR_DATA}/${DIR_MT_METUBE:-metube}:/downloads
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.${APP_NAME_MT_METUBE:-metube}.entrypoints=http"
+      - "traefik.http.routers.${APP_NAME_MT_METUBE:-metube}.rule=Host(`${APP_NAME_MT_METUBE:-metube}.${HOST_NAME}.${DOMAIN}`)"
+      - "traefik.http.middlewares.${APP_NAME_MT_METUBE:-metube}-https-redirect.redirectscheme.scheme=https"
+      - "traefik.http.routers.${APP_NAME_MT_METUBE:-metube}.middlewares=${APP_NAME_MT_METUBE:-metube}-https-redirect"
+      - "traefik.http.routers.${APP_NAME_MT_METUBE:-metube}-secure.entrypoints=https"
+      - "traefik.http.routers.${APP_NAME_MT_METUBE:-metube}-secure.rule=Host(`${APP_NAME_MT_METUBE:-metube}.${HOST_NAME}.${DOMAIN}`)"
+      - "traefik.http.routers.${APP_NAME_MT_METUBE:-metube}-secure.tls=true"
+      - "traefik.http.routers.${APP_NAME_MT_METUBE:-metube}-secure.service=${APP_NAME_MT_METUBE:-metube}"
+      - "traefik.http.services.${APP_NAME_MT_METUBE:-metube}.loadbalancer.server.port=${PORT_MT_METUBE_INTERNAL:-3000}"
+      - "traefik.docker.network=traefiknet"
+
+networks:
+  traefiknet:
+    name: ${DOCKER_NETWORK:-traefiknet}
+    external: true

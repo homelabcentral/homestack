@@ -1,0 +1,48 @@
+name: ${STACK_DZ_DOZZLE:-dozzle}
+services:
+  dozzle:
+    image: ${DOCKER_IMAGE_DZ_DOZZLE:-amir20/dozzle:latest}
+    container_name: ${CONTAINER_NAME_DZ_DOZZLE:-dozzle}
+    hostname: ${HOST_NAME_DZ_DOZZLE:-dozzle}
+    restart: ${RESTART_DZ_DOZZLE:-unless-stopped}
+    networks:
+      traefiknet:
+        ipv4_address: ${IP_DZ_DOZZLE:-172.16.0.19}
+    deploy:
+      resources:
+        limits:
+          cpus: ${CPU_MAX_DZ_DOZZLE}
+          memory: ${RAM_MAX_DZ_DOZZLE}
+        reservations:
+          cpus: ${CPU_MIN_DZ_DOZZLE:-0.05}
+          memory: ${RAM_MIN_DZ_DOZZLE:-6M}
+    env_file:
+      - .env
+      - ../00.env/host.env
+      - ../00.env/network.env
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ${DIR_DATA}/${DIR_DOZZLE:-dozzle}:/app/data
+    # Uncomment this if not running traefik or other reverse proxy and want to access gatus directly via http://<IP_PUBLIC>:3012 or http://<IP_TAILSCALE>:3012
+    # You do not need to change the external port, it is designed to work nicely with other containers.
+    # ports:
+    #   - ${IP_TAILSCALE}:${PORT_DZ_DOZZLE_EXTERNAL:-3012}:${PORT_DZ_DOZZLE_INTERNAL:-8080}
+    # OR if you don't want to bind to a specific IP, you can use:
+    # ${PORT_DZ_DOZZLE_EXTERNAL:-3012}:${PORT_DZ_DOZZLE_INTERNAL:-8080}
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.${APP_NAME_DZ_DOZZLE:-dozzle}.entrypoints=http"
+      - "traefik.http.routers.${APP_NAME_DZ_DOZZLE:-dozzle}.rule=Host(`${APP_NAME_DZ_DOZZLE:-dozzle}.${HOST_NAME}.${DOMAIN}`)"
+      - "traefik.http.middlewares.${APP_NAME_DZ_DOZZLE:-dozzle}-https-redirect.redirectscheme.scheme=https"
+      - "traefik.http.routers.${APP_NAME_DZ_DOZZLE:-dozzle}.middlewares=${APP_NAME_DZ_DOZZLE:-dozzle}-https-redirect"
+      - "traefik.http.routers.${APP_NAME_DZ_DOZZLE:-dozzle}-secure.entrypoints=https"
+      - "traefik.http.routers.${APP_NAME_DZ_DOZZLE:-dozzle}-secure.rule=Host(`${APP_NAME_DZ_DOZZLE:-dozzle}.${HOST_NAME}.${DOMAIN}`)"
+      - "traefik.http.routers.${APP_NAME_DZ_DOZZLE:-dozzle}-secure.tls=true"
+      - "traefik.http.routers.${APP_NAME_DZ_DOZZLE:-dozzle}-secure.service=${APP_NAME_DZ_DOZZLE:-dozzle}"
+      - "traefik.http.services.${APP_NAME_DZ_DOZZLE:-dozzle}.loadbalancer.server.port=${PORT_DZ_DOZZLE_INTERNAL:-8080}"
+      - "traefik.docker.network=${DOCKER_NETWORK:-traefiknet}"
+
+networks:
+  traefiknet:
+    name: ${DOCKER_NETWORK:-traefiknet}
+    external: true

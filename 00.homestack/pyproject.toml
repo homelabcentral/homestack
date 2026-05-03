@@ -1,0 +1,62 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "homestack"
+version = "0.1.10"
+description = "Make deploying selfhosted containers easy"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "bcrypt>=5.0.0",
+    "docker>=7.1.0",
+    "httpx>=0.28.1",
+    "platformdirs>=4.3.8",
+    "pydantic>=2.13.3",
+    "pydantic-settings>=2.14.0",
+    "pyyaml>=6.0",
+    "questionary>=2.1.1",
+    "rich>=15.0.0",
+    "sqlitedict>=2.1.0",
+    "typer>=0.24.2",
+    "xkcdpass>=1.30.0",
+]
+
+[project.scripts]
+homestack = "cli.cli:app"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-cov>=4.1.0",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
+exclude = [
+    "/src/server/sample.yml",
+    "/src/**/__pycache__",
+    "/src/**/*.pyc",
+]
+
+[tool.hatch.build.targets.sdist]
+exclude = [
+    "/tests",
+    "/src/server/sample.yml",
+    "/how.md",
+    "/questionary.md",
+    "/env.template.md",
+    "/.pytest_cache",
+]
+
+[tool.hatch.build.targets.wheel.sources]
+"src" = ""
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+addopts = "-v"
+markers = [
+    "integration: marks tests that require live external services (deselect with '-m not integration')",
+]

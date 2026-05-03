@@ -1,0 +1,607 @@
+name: ${STACK_AR_VPN:-arr-vpn}
+services:
+  gluetun:
+    image: ${DOCKER_IMAGE_AR_GLUETUN:-qmcgaw/gluetun}
+    container_name: ${CONTAINER_NAME_AR_GLUETUN:-gluetun}
+    hostname: ${HOST_NAME_AR_GLUETUN:-gluetun}
+    restart: ${RESTART_AR_GLUETUN:-unless-stopped}
+    networks:
+      traefiknet:
+        ipv4_address: ${IP_AR_GLUETUN:-172.16.0.18}
+    # It is better to let the containers manage the resources themselves.
+    # deploy:
+    #   resources:
+    #     limits:
+    #       cpus: ${CPU_MAX_AR_GLUETUN}
+    #       memory: ${RAM_MAX_AR_GLUETUN}
+    #     reservations:
+    #       cpus: ${CPU_MIN_AR_GLUETUN:-0.05}
+    #       memory: ${RAM_MIN_AR_GLUETUN:-6M}
+    env_file:
+      - .env
+      - ../00.env/host.env
+      - ../00.env/network.env
+      - ../00.env/vpn.env
+    environment:
+      - PUID=${UID}
+      - PGID=${GID}
+      - TZ=${TZ}
+      - VPN_SERVICE_PROVIDER=${VPN_SERVICE_PROVIDER}
+      - VPN_TYPE=${VPN_TYPE}
+      # OPENVPN settings
+      # - OPENVPN_CUSTOM_CONFIG=/gluetun/custom.ovpn
+      - OPENVPN_USER=${OPENVPN_USER}
+      - OPENVPN_PASSWORD=${OPENVPN_PASSWORD}
+      - OPENVPN_ENDPOINT_PORT=${OPENVPN_PORT}
+      # WIREGUARD settings
+      # - WIREGUARD_PRIVATE_KEY=${WIREGUARD_PRIVATE_KEY}
+      # - WIREGUARD_PUBLIC_KEY=${WIREGUARD_PUBLIC_KEY}
+      # - WIREGUARD_PRESHARED_KEY=${WIREGUARD_PRESHARED_KEY}
+      # - WIREGUARD_ADDRESSES=${WIREGUARD_ADDRESSES}
+      # - WIREGUARD_PORT=${WIREGUARD_PORT}
+      - SERVER_REGIONS=${SERVER_REGIONS}
+      - SERVER_CITIES=${SERVER_CITIES}
+      - TZ=${TZ}
+      # Uncomment the below line if you want to access the VPN through the host.
+      # - SHADOWSOCKS=on
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    volumes:
+      - ${DIR_DATA}/${DIR_ARR:-arr-vpn}/gluetun:/gluetun
+    # Uncomment this if not running traefik or other reverse proxy and want to access gatus directly via http://<IP_PUBLIC>:<PORT> or http://<IP_TAILSCALE>:<PORT>
+    # You do not need to change the external port, it is designed to work nicely with other containers.
+    ports:
+      - ${IP_TAILSCALE}:4000:8000/tcp # gluetun web API
+      - ${IP_TAILSCALE}:4001:8888/tcp # HTTP intranet
+      - ${IP_TAILSCALE}:4002:8388/tcp # Shadowsocks
+      - ${IP_TAILSCALE}:4002:8388/udp # Shadowsocks
+      # - ${IP_TAILSCALE}:4004:8080 # qbittorrent
+      - ${IP_TAILSCALE}:4005:6881/tcp # qbittorrent
+      - ${IP_TAILSCALE}:4005:6881/udp # qbittorrent
+      # - 4006:5055 # oversearr
+      # - 4007:8989/tcp # sonarr
+      # - 4008:7878/tcp # radarr
+      # - 4009:8686/tcp # lidarr
+      # - 4010:8787/tcp # readarr
+      # - 4011:6767 # bazarr
+      # - 4012:9696 # prowlarr
+      # - 4013:80 # speedtest
+      # - 4014:3000 # firefox
+      # - 4015:8081 # metube
+      # - 4016:8191 # flaresolverr
+      # - 4545:4545 # requestrr
+      - ${IP_TAILSCALE}:6881:6881 # deluge
+      - ${IP_TAILSCALE}:6881:6881/udp # deluge
+      - ${IP_TAILSCALE}:58846:58846 # deluge
+      # OR if you don't want to bind to a specific IP, you can use:
+      # 4000:8000/tcp # gluetun web API
+      # 4001:8888/tcp # HTTP intranet
+      # 4002:8388/tcp # Shadowsocks
+      # 4002:8388/udp # Shadowsocks
+      # 4004:8080 # qbittorrent
+      # 4005:6881/tcp # qbittorrent
+      # 4005:6881/udp # qbittorrent
+      # 4006:5055 # oversearr
+      # 4007:8989/tcp # sonarr
+      # 4008:7878/tcp # radarr
+      # 4009:8686/tcp # lidarr
+      # 4010:8787/tcp # readarr
+      # 4011:6767 # bazarr
+      # 4012:9696 # prowlarr
+      # 4013:80 # speedtest
+      # 4014:3000 # firefox
+      # 4015:8081 # metube
+      # 4016:8191 # flaresolverr
+      # 4545:4545 # requestrr
+      # - 6881:6881 # deluge
+      # - 6881:6881/udp # deluge
+      # - 58846:58846 # deluge
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=traefiknet
+      - traefik.http.routers.${APP_NAME_AR_QBITTORRENT:-qbittorrent}.entrypoints=http
+      - traefik.http.routers.${APP_NAME_AR_QBITTORRENT:-qbittorrent}.rule=Host(`${APP_NAME_AR_QBITTORRENT:-qbittorrent}.${HOST_NAME}.${DOMAIN}`)
+      - traefik.http.middlewares.${APP_NAME_AR_QBITTORRENT:-qbittorrent}-https-redirect.redirectscheme.scheme=https
+      - traefik.http.routers.${APP_NAME_AR_QBITTORRENT:-qbittorrent}.middlewares=${APP_NAME_AR_QBITTORRENT:-qbittorrent}-https-redirect
+      - traefik.http.routers.${APP_NAME_AR_QBITTORRENT:-qbittorrent}-secure.entrypoints=https
+      - traefik.http.routers.${APP_NAME_AR_QBITTORRENT:-qbittorrent}-secure.rule=Host(`${APP_NAME_AR_QBITTORRENT:-qbittorrent}.${HOST_NAME}.${DOMAIN}`)
+      - traefik.http.routers.${APP_NAME_AR_QBITTORRENT:-qbittorrent}-secure.tls=true
+      - traefik.http.routers.${APP_NAME_AR_QBITTORRENT:-qbittorrent}-secure.service=${APP_NAME_AR_QBITTORRENT:-qbittorrent}
+      - traefik.http.services.${APP_NAME_AR_QBITTORRENT:-qbittorrent}.loadbalancer.server.port=${PORT_AR_QBITTORRENT_INTERNAL:-8080}
+      - traefik.http.routers.${APP_NAME_AR_FIREFOX:-firefox}.rule=Host(`${APP_NAME_AR_FIREFOX:-firefox}.${HOST_NAME}.${DOMAIN}`)
+      - traefik.http.middlewares.${APP_NAME_AR_FIREFOX:-firefox}-https-redirect.redirectscheme.scheme=https
+      - traefik.http.routers.${APP_NAME_AR_FIREFOX:-firefox}.middlewares=${APP_NAME_AR_FIREFOX:-firefox}-https-redirect
+      - traefik.http.routers.${APP_NAME_AR_FIREFOX:-firefox}-secure.entrypoints=https
+      - traefik.http.routers.${APP_NAME_AR_FIREFOX:-firefox}-secure.rule=Host(`${APP_NAME_AR_FIREFOX:-firefox}.${HOST_NAME}.${DOMAIN}`)
+      - traefik.http.routers.${APP_NAME_AR_FIREFOX:-firefox}-secure.tls=true
+      - traefik.http.routers.${APP_NAME_AR_FIREFOX:-firefox}-secure.service=${APP_NAME_AR_FIREFOX:-firefox}
+      - traefik.http.services.${APP_NAME_AR_FIREFOX:-firefox}.loadbalancer.server.port=${PORT_AR_FIREFOX_INTERNAL:-3000}
+      - traefik.http.routers.${APP_NAME_AR_SPEEDTEST:-speedtest}.rule=Host(`${APP_NAME_AR_SPEEDTEST:-speedtest}.${HOST_NAME}.${DOMAIN}`)
+      - traefik.http.middlewares.${APP_NAME_AR_SPEEDTEST:-speedtest}-https-redirect.redirectscheme.scheme=https
+      - traefik.http.routers.${APP_NAME_AR_SPEEDTEST:-speedtest}.middlewares=${APP_NAME_AR_SPEEDTEST:-speedtest}-https-redirect
+      - traefik.http.routers.${APP_NAME_AR_SPEEDTEST:-speedtest}-secure.entrypoints=https
+      - traefik.http.routers.${APP_NAME_AR_SPEEDTEST:-speedtest}-secure.rule=Host(`${APP_NAME_AR_SPEEDTEST:-speedtest}.${HOST_NAME}.${DOMAIN}`)
+      - traefik.http.routers.${APP_NAME_AR_SPEEDTEST:-speedtest}-secure.tls=true
+      - traefik.http.routers.${APP_NAME_AR_SPEEDTEST:-speedtest}-secure.service=${APP_NAME_AR_SPEEDTEST:-speedtest}
+      - traefik.http.services.${APP_NAME_AR_SPEEDTEST:-speedtest}.loadbalancer.server.port=${PORT_AR_SPEEDTEST_INTERNAL:-80}
+      - traefik.http.routers.${APP_NAME_AR_PROWLARR:-prowlarr}.rule=Host(`${APP_NAME_AR_PROWLARR:-prowlarr}.${HOST_NAME}.${DOMAIN}`)
+      - traefik.http.middlewares.${APP_NAME_AR_PROWLARR:-prowlarr}-https-redirect.redirectscheme.scheme=https
+      - traefik.http.routers.${APP_NAME_AR_PROWLARR:-prowlarr}.middlewares=${APP_NAME_AR_PROWLARR:-prowlarr}-https-redirect
+      - traefik.http.routers.${APP_NAME_AR_PROWLARR:-prowlarr}-secure.entrypoints=https
+      - traefik.http.routers.${APP_NAME_AR_PROWLARR:-prowlarr}-secure.rule=Host(`${APP_NAME_AR_PROWLARR:-prowlarr}.${HOST_NAME}.${DOMAIN}`)
+      - traefik.http.routers.${APP_NAME_AR_PROWLARR:-prowlarr}-secure.tls=true
+      - traefik.http.routers.${APP_NAME_AR_PROWLARR:-prowlarr}-secure.service=${APP_NAME_AR_PROWLARR:-prowlarr}
+      - traefik.http.services.${APP_NAME_AR_PROWLARR:-prowlarr}.loadbalancer.server.port=${PORT_AR_PROWLARR_INTERNAL:-9696}
+      - traefik.http.routers.${APP_NAME_AR_BAZARR:-bazarr}.rule=Host(`${APP_NAME_AR_BAZARR:-bazarr}.${HOST_NAME}.${DOMAIN}`)
+      - traefik.http.middlewares.${APP_NAME_AR_BAZARR:-bazarr}-https-redirect.redirectscheme.scheme=https
+      - traefik.http.routers.${APP_NAME_AR_BAZARR:-bazarr}.middlewares=${APP_NAME_AR_BAZARR:-bazarr}-https-redirect
+      - traefik.http.routers.${APP_NAME_AR_BAZARR:-bazarr}-secure.entrypoints=https
+      - traefik.http.routers.${APP_NAME_AR_BAZARR:-bazarr}-secure.rule=Host(`${APP_NAME_AR_BAZARR:-bazarr}.${HOST_NAME}.${DOMAIN}`)
+      - traefik.http.routers.${APP_NAME_AR_BAZARR:-bazarr}-secure.tls=true
+      - traefik.http.routers.${APP_NAME_AR_BAZARR:-bazarr}-secure.service=${APP_NAME_AR_BAZARR:-bazarr}
+      - traefik.http.services.${APP_NAME_AR_BAZARR:-bazarr}.loadbalancer.server.port=${PORT_AR_BAZARR_INTERNAL:-6767}
+      - traefik.http.routers.${APP_NAME_AR_READARR:-readarr}.rule=Host(`${APP_NAME_AR_READARR:-readarr}.${HOST_NAME}.${DOMAIN}`)
+      - traefik.http.middlewares.${APP_NAME_AR_READARR:-readarr}-https-redirect.redirectscheme.scheme=https
+      - traefik.http.routers.${APP_NAME_AR_READARR:-readarr}.middlewares=${APP_NAME_AR_READARR:-readarr}-https-redirect
+      - traefik.http.routers.${APP_NAME_AR_READARR:-readarr}-secure.entrypoints=https
+      - traefik.http.routers.${APP_NAME_AR_READARR:-readarr}-secure.rule=Host(`${APP_NAME_AR_READARR:-readarr}.${HOST_NAME}.${DOMAIN}`)
+      - traefik.http.routers.${APP_NAME_AR_READARR:-readarr}-secure.tls=true
+      - traefik.http.routers.${APP_NAME_AR_READARR:-readarr}-secure.service=${APP_NAME_AR_READARR:-readarr}
+      - traefik.http.services.${APP_NAME_AR_READARR:-readarr}.loadbalancer.server.port=${PORT_AR_READARR_INTERNAL:-8787}
+      - traefik.http.routers.${APP_NAME_AR_LIDARR:-lidarr}.rule=Host(`${APP_NAME_AR_LIDARR:-lidarr}.${HOST_NAME}.${DOMAIN}`)
+      - traefik.http.middlewares.${APP_NAME_AR_LIDARR:-lidarr}-https-redirect.redirectscheme.scheme=https
+      - traefik.http.routers.${APP_NAME_AR_LIDARR:-lidarr}.middlewares=${APP_NAME_AR_LIDARR:-lidarr}-https-redirect
+      - traefik.http.routers.${APP_NAME_AR_LIDARR:-lidarr}-secure.entrypoints=https
+      - traefik.http.routers.${APP_NAME_AR_LIDARR:-lidarr}-secure.rule=Host(`${APP_NAME_AR_LIDARR:-lidarr}.${HOST_NAME}.${DOMAIN}`)
+      - traefik.http.routers.${APP_NAME_AR_LIDARR:-lidarr}-secure.tls=true
+      - traefik.http.routers.${APP_NAME_AR_LIDARR:-lidarr}-secure.service=${APP_NAME_AR_LIDARR:-lidarr}
+      - traefik.http.services.${APP_NAME_AR_LIDARR:-lidarr}.loadbalancer.server.port=${PORT_AR_LIDARR_INTERNAL:-8686}
+      - traefik.http.routers.${APP_NAME_AR_RADARR:-radarr}.rule=Host(`${APP_NAME_AR_RADARR:-radarr}.${HOST_NAME}.${DOMAIN}`)
+      - traefik.http.middlewares.${APP_NAME_AR_RADARR:-radarr}-https-redirect.redirectscheme.scheme=https
+      - traefik.http.routers.${APP_NAME_AR_RADARR:-radarr}.middlewares=${APP_NAME_AR_RADARR:-radarr}-https-redirect
+      - traefik.http.routers.${APP_NAME_AR_RADARR:-radarr}-secure.entrypoints=https
+      - traefik.http.routers.${APP_NAME_AR_RADARR:-radarr}-secure.rule=Host(`${APP_NAME_AR_RADARR:-radarr}.${HOST_NAME}.${DOMAIN}`)
+      - traefik.http.routers.${APP_NAME_AR_RADARR:-radarr}-secure.tls=true
+      - traefik.http.routers.${APP_NAME_AR_RADARR:-radarr}-secure.service=${APP_NAME_AR_RADARR:-radarr}
+      - traefik.http.services.${APP_NAME_AR_RADARR:-radarr}.loadbalancer.server.port=${PORT_AR_RADARR_INTERNAL:-7878}
+      - traefik.http.routers.${APP_NAME_AR_SONARR:-sonarr}.rule=Host(`${APP_NAME_AR_SONARR:-sonarr}.${HOST_NAME}.${DOMAIN}`)
+      - traefik.http.middlewares.${APP_NAME_AR_SONARR:-sonarr}-https-redirect.redirectscheme.scheme=https
+      - traefik.http.routers.${APP_NAME_AR_SONARR:-sonarr}.middlewares=${APP_NAME_AR_SONARR:-sonarr}-https-redirect
+      - traefik.http.routers.${APP_NAME_AR_SONARR:-sonarr}-secure.entrypoints=https
+      - traefik.http.routers.${APP_NAME_AR_SONARR:-sonarr}-secure.rule=Host(`${APP_NAME_AR_SONARR:-sonarr}.${HOST_NAME}.${DOMAIN}`)
+      - traefik.http.routers.${APP_NAME_AR_SONARR:-sonarr}-secure.tls=true
+      - traefik.http.routers.${APP_NAME_AR_SONARR:-sonarr}-secure.service=${APP_NAME_AR_SONARR:-sonarr}
+      - traefik.http.services.${APP_NAME_AR_SONARR:-sonarr}.loadbalancer.server.port=${PORT_AR_SONARR_INTERNAL:-8989}
+      - traefik.http.routers.${APP_NAME_AR_OVERSEERR:-overseerr}.rule=Host(`${APP_NAME_AR_OVERSEERR:-overseerr}.${HOST_NAME}.${DOMAIN}`)
+      - traefik.http.middlewares.${APP_NAME_AR_OVERSEERR:-overseerr}-https-redirect.redirectscheme.scheme=https
+      - traefik.http.routers.${APP_NAME_AR_OVERSEERR:-overseerr}.middlewares=${APP_NAME_AR_OVERSEERR:-overseerr}-https-redirect
+      - traefik.http.routers.${APP_NAME_AR_OVERSEERR:-overseerr}-secure.entrypoints=https
+      - traefik.http.routers.${APP_NAME_AR_OVERSEERR:-overseerr}-secure.rule=Host(`${APP_NAME_AR_OVERSEERR:-overseerr}.${HOST_NAME}.${DOMAIN}`)
+      - traefik.http.routers.${APP_NAME_AR_OVERSEERR:-overseerr}-secure.tls=true
+      - traefik.http.routers.${APP_NAME_AR_OVERSEERR:-overseerr}-secure.service=${APP_NAME_AR_OVERSEERR:-overseerr}
+      - traefik.http.services.${APP_NAME_AR_OVERSEERR:-overseerr}.loadbalancer.server.port=${PORT_AR_OVERSEERR_INTERNAL:-5055}
+      - traefik.http.routers.${APP_NAME_AR_VIDS:-vids}.rule=Host(`${APP_NAME_AR_VIDS:-vids}.${HOST_NAME}.${DOMAIN}`)
+      - traefik.http.middlewares.${APP_NAME_AR_VIDS:-vids}-https-redirect.redirectscheme.scheme=https
+      - traefik.http.routers.${APP_NAME_AR_VIDS:-vids}.middlewares=${APP_NAME_AR_VIDS:-vids}-https-redirect
+      - traefik.http.routers.${APP_NAME_AR_VIDS:-vids}-secure.entrypoints=https
+      - traefik.http.routers.${APP_NAME_AR_VIDS:-vids}-secure.rule=Host(`${APP_NAME_AR_VIDS:-vids}.${HOST_NAME}.${DOMAIN}`)
+      - traefik.http.routers.${APP_NAME_AR_VIDS:-vids}-secure.tls=true
+      - traefik.http.routers.${APP_NAME_AR_VIDS:-vids}-secure.service=${APP_NAME_AR_VIDS:-vids}
+      - traefik.http.services.${APP_NAME_AR_VIDS:-vids}.loadbalancer.server.port=${PORT_AR_VIDS_INTERNAL:-8081}
+      - traefik.http.routers.${APP_NAME_AR_FLARE:-flare}.rule=Host(`${APP_NAME_AR_FLARE:-flare}.${HOST_NAME}.${DOMAIN}`)
+      - traefik.http.middlewares.${APP_NAME_AR_FLARE:-flare}-https-redirect.redirectscheme.scheme=https
+      - traefik.http.routers.${APP_NAME_AR_FLARE:-flare}.middlewares=${APP_NAME_AR_FLARE:-flare}-https-redirect
+      - traefik.http.routers.${APP_NAME_AR_FLARE:-flare}-secure.entrypoints=https
+      - traefik.http.routers.${APP_NAME_AR_FLARE:-flare}-secure.rule=Host(`${APP_NAME_AR_FLARE:-flare}.${HOST_NAME}.${DOMAIN}`)
+      - traefik.http.routers.${APP_NAME_AR_FLARE:-flare}-secure.tls=true
+      - traefik.http.routers.${APP_NAME_AR_FLARE:-flare}-secure.service=${APP_NAME_AR_FLARE:-flare}
+      - traefik.http.services.${APP_NAME_AR_FLARE:-flare}.loadbalancer.server.port=${PORT_AR_FLARE_INTERNAL:-8191}
+      - traefik.http.routers.${APP_NAME_AR_REQUESTRR:-requestrr}.rule=Host(`${APP_NAME_AR_REQUESTRR:-requestrr}.${HOST_NAME}.${DOMAIN}`)
+      - traefik.http.middlewares.${APP_NAME_AR_REQUESTRR:-requestrr}-https-redirect.redirectscheme.scheme=https
+      - traefik.http.routers.${APP_NAME_AR_REQUESTRR:-requestrr}.middlewares=${APP_NAME_AR_REQUESTRR:-requestrr}-https-redirect
+      - traefik.http.routers.${APP_NAME_AR_REQUESTRR:-requestrr}-secure.entrypoints=https
+      - traefik.http.routers.${APP_NAME_AR_REQUESTRR:-requestrr}-secure.rule=Host(`${APP_NAME_AR_REQUESTRR:-requestrr}.${HOST_NAME}.${DOMAIN}`)
+      - traefik.http.routers.${APP_NAME_AR_REQUESTRR:-requestrr}-secure.tls=true
+      - traefik.http.routers.${APP_NAME_AR_REQUESTRR:-requestrr}-secure.service=${APP_NAME_AR_REQUESTRR:-requestrr}
+      - traefik.http.services.${APP_NAME_AR_REQUESTRR:-requestrr}.loadbalancer.server.port=${PORT_AR_REQUESTRR_INTERNAL:-4545}
+      - traefik.http.routers.${APP_NAME_AR_DELUGE}.entrypoints=http
+      - traefik.http.routers.${APP_NAME_AR_DELUGE}.rule=Host(`${APP_NAME_AR_DELUGE}.${HOST_NAME}.${DOMAIN}`)
+      - traefik.http.middlewares.${APP_NAME_AR_DELUGE}-https-redirect.redirectscheme.scheme=https
+      - traefik.http.routers.${APP_NAME_AR_DELUGE}.middlewares=${APP_NAME_AR_DELUGE}-https-redirect
+      - traefik.http.routers.${APP_NAME_AR_DELUGE}-secure.entrypoints=https
+      - traefik.http.routers.${APP_NAME_AR_DELUGE}-secure.rule=Host(`${APP_NAME_AR_DELUGE}.${HOST_NAME}.${DOMAIN}`)
+      - traefik.http.routers.${APP_NAME_AR_DELUGE}-secure.tls=true
+      - traefik.http.routers.${APP_NAME_AR_DELUGE}-secure.service=${APP_NAME_AR_DELUGE}
+      - traefik.http.services.${APP_NAME_AR_DELUGE}.loadbalancer.server.port=${PORT_AR_DELUGE_INTERNAL:-8112}
+  qbittorent:
+    image: ${DOCKER_IMAGE_AR_QBITTORRENT:-lscr.io/linuxserver/qbittorrent:latest}
+    container_name: ${CONTAINER_NAME_AR_QBITTORRENT:-qbittorrent}
+    restart: ${RESTART_AR_GLUETUN:-unless-stopped}
+    network_mode: service:gluetun
+    # deploy:
+    #   resources:
+    #     limits:
+    #       cpus: ${CPU_MAX_QBITTORRENT}
+    #       memory: ${MEM_MAX_QBITTORRENT}
+    #     reservations:
+    #       cpus: ${CPU_MIN_QBITTORRENT}
+    #       memory: ${MEM_MIN_QBITTORRENT}
+    env_file:
+      - .env
+      - ../00.env/network.env
+      - ../00.env/host.env
+    depends_on:
+      - gluetun
+    environment:
+      - PUID=${UID}
+      - PGID=${GID}
+      - TZ=${TZ}
+      - WEBUI_PORT=8080
+      - TORRENTING_PORT=6881
+      # - DOCKER_MODS=ghcr.io/vuetorrent/vuetorrent-lsio-mod:latest
+    volumes:
+      - ${DIR_DATA}/${DIR_ARR:-arr-vpn}/qbittorrent:/config
+      - ${DIR_DOWNLOADS}/${DIR_ARR:-arr-vpn}/qbittorrent:/downloads
+  firefox:
+    image: ${DOCKER_IMAGE_AR_FIREFOX:-lscr.io/linuxserver/firefox:latest}
+    container_name: ${CONTAINER_NAME_AR_FIREFOX:-firefox}
+    network_mode: service:gluetun
+    restart: ${RESTART_AR_GLUETUN:-unless-stopped}
+    # deploy:
+    #   resources:
+    #     limits:
+    #       cpus: ${CPU_MAX_FIREFOX}
+    #       memory: ${MEM_MAX_FIREFOX}
+    #     reservations:
+    #       cpus: ${CPU_MIN_FIREFOX}
+    #       memory: ${MEM_MIN_FIREFOX}
+    env_file:
+      - .env
+      - ../00.env/network.env
+      - ../00.env/host.env
+    depends_on:
+      - gluetun
+    security_opt:
+      - seccomp:unconfined
+    environment:
+      - PUID=${UID}
+      - PGID=${GID}
+      - TZ=${TZ}
+    volumes:
+      - ${DIR_DATA}/${DIR_ARR:-arr-vpn}/firefox:/config
+      - ${DIR_DOWNLOADS}/${DIR_ARR:-arr-vpn}/firefox:/config/Downloads
+    shm_size: 2gb
+  speedtest:
+    image: ${DOCKER_IMAGE_AR_SPEEDTEST:-henrywhitaker3/speedtest-tracker}
+    container_name: ${CONTAINER_NAME_AR_SPEEDTEST:-speedtest}
+    network_mode: service:gluetun
+    restart: ${RESTART_AR_GLUETUN:-unless-stopped}
+    # deploy:
+    #   resources:
+    #     limits:
+    #       cpus: ${CPU_MAX_SPEEDTEST}
+    #       memory: ${MEM_MAX_SPEEDTEST}
+    #     reservations:
+    #       cpus: ${CPU_MIN_SPEEDTEST}
+    #       memory: ${MEM_MIN_SPEEDTEST}
+    env_file:
+      - .env
+      - ../00.env/network.env
+      - ../00.env/host.env
+    depends_on:
+      - gluetun
+    volumes:
+      - ${DIR_DATA}/${DIR_ARR:-arr-vpn}/speedtest:/config
+    environment:
+      - TZ=${TZ}
+      - PGID=${GID}
+      - PUID=${UID}
+      - OOKLA_EULA_GDPR=true
+      - INFLUXDB_RETENTION=5d
+    logging:
+      driver: json-file
+      options:
+        max-file: "10"
+        max-size: 200k
+  prowlarr:
+    image: ${DOCKER_IMAGE_AR_PROWLARR:-lscr.io/linuxserver/prowlarr:develop}
+    container_name: ${CONTAINER_NAME_AR_PROWLARR:-prowlarr}
+    network_mode: service:gluetun
+    restart: ${RESTART_AR_GLUETUN:-unless-stopped}
+    # deploy:
+    #   resources:
+    #     limits:
+    #       cpus: ${CPU_MAX_PROWLARR}
+    #       memory: ${MEM_MAX_PROWLARR}
+    #     reservations:
+    #       cpus: ${CPU_MIN_PROWLARR}
+    #       memory: ${MEM_MIN_PROWLARR}
+    env_file:
+      - .env
+      - ../00.env/network.env
+      - ../00.env/host.env
+    depends_on:
+      - gluetun
+    environment:
+      - PUID=${UID}
+      - PGID=${GID}
+      - TZ=${TZ}
+    volumes:
+      - ${DIR_DATA}/${DIR_ARR:-arr-vpn}/prowlarr:/config
+  bazarr:
+    image: ${DOCKER_IMAGE_AR_BAZARR:-lscr.io/linuxserver/bazarr:latest}
+    container_name: ${CONTAINER_NAME_AR_BAZARR:-bazarr}
+    network_mode: service:gluetun
+    restart: ${RESTART_AR_GLUETUN:-unless-stopped}
+    # deploy:
+    #   resources:
+    #     limits:
+    #       cpus: ${CPU_MAX_BAZARR}
+    #       memory: ${MEM_MAX_BAZARR}
+    #     reservations:
+    #       cpus: ${CPU_MIN_BAZARR}
+    #       memory: ${MEM_MIN_BAZARR}
+    env_file:
+      - .env
+      - ../00.env/network.env
+      - ../00.env/host.env
+    depends_on:
+      - gluetun
+    environment:
+      - PUID=${UID}
+      - PGID=${GID}
+      - TZ=${TZ}
+    volumes:
+      - ${DIR_DATA}/${DIR_ARR:-arr-vpn}/bazarr:/config
+      - ${DIR_MEDIA}/Movies:/movies
+      - ${DIR_MEDIA}/TV:/tv
+  # readarr has been deprecated
+  readarr:
+    image: ${DOCKER_IMAGE_AR_READARR:-lscr.io/linuxserver/readarr:develop}
+    container_name: ${CONTAINER_NAME_AR_READARR:-readarr}
+    network_mode: service:gluetun
+    restart: ${RESTART_AR_GLUETUN:-unless-stopped}
+    # deploy:
+    #   resources:
+    #     limits:
+    #       cpus: ${CPU_MAX_READARR}
+    #       memory: ${MEM_MAX_READARR}
+    #     reservations:
+    #       cpus: ${CPU_MIN_READARR}
+    #       memory: ${MEM_MIN_READARR}
+    env_file:
+      - .env
+      - ../00.env/network.env
+      - ../00.env/host.env
+    depends_on:
+      - gluetun
+    environment:
+      - PUID=${UID}
+      - PGID=${GID}
+      - TZ=${TZ}
+    volumes:
+      - ${DIR_DATA}/${DIR_ARR:-arr-vpn}/readarr:/config
+      - ${DIR_DATA}/${DIR_ARR:-arr-vpn}/readarr/books:/books
+      - ${DIR_DOWNLOADS}/${DIR_ARR:-arr-vpn}/qbittorrent:/downloads
+  lidarr:
+    image: ${DOCKER_IMAGE_AR_LIDARR:-lscr.io/linuxserver/lidarr:latest}
+    container_name: ${CONTAINER_NAME_AR_LIDARR:-lidarr}
+    network_mode: service:gluetun
+    restart: ${RESTART_AR_GLUETUN:-unless-stopped}
+    # deploy:
+    #   resources:
+    #     limits:
+    #       cpus: ${CPU_MAX_LIDARR}
+    #       memory: ${MEM_MAX_LIDARR}
+    #     reservations:
+    #       cpus: ${CPU_MIN_LIDARR}
+    #       memory: ${MEM_MIN_LIDARR}
+    env_file:
+      - .env
+      - ../00.env/network.env
+      - ../00.env/host.env
+    depends_on:
+      - gluetun
+    environment:
+      - PUID=${UID}
+      - PGID=${GID}
+      - TZ=${TZ}
+    volumes:
+      - ${DIR_DATA}/${DIR_ARR:-arr-vpn}/lidarr/config:/config
+      - ${DIR_MEDIA}/Music:/music
+      - ${DIR_DOWNLOADS}/torrents/qbittorrent:/downloads
+  radarr:
+    image: ${DOCKER_IMAGE_AR_RADARR:-lscr.io/linuxserver/radarr:latest}
+    container_name: ${CONTAINER_NAME_AR_RADARR:-radarr}
+    network_mode: service:gluetun
+    restart: ${RESTART_AR_GLUETUN:-unless-stopped}
+    # deploy:
+    #   resources:
+    #     limits:
+    #       cpus: ${CPU_MAX_RADARR}
+    #       memory: ${MEM_MAX_RADARR}
+    #     reservations:
+    #       cpus: ${CPU_MIN_RADARR}
+    #       memory: ${MEM_MIN_RADARR}
+    env_file:
+      - .env
+      - ../00.env/network.env
+      - ../00.env/host.env
+    depends_on:
+      - gluetun
+    environment:
+      - PUID=${UID}
+      - PGID=${GID}
+      - TZ=${TZ}
+    volumes:
+      - ${DIR_DATA}/${DIR_ARR:-arr-vpn}/radarr:/config
+      - ${DIR_MEDIA}/Movies:/movies
+      - ${DIR_DOWNLOADS}/${DIR_ARR:-arr-vpn}/qbittorrent:/downloads
+      - ${DIR_DOWNLOADS}/${DIR_ARR:-arr-vpn}/firefox:/firefox
+  sonarr:
+    image: ${DOCKER_IMAGE_AR_SONARR:-lscr.io/linuxserver/sonarr:latest}
+    container_name: ${CONTAINER_NAME_AR_SONARR:-sonarr}
+    network_mode: service:gluetun
+    restart: ${RESTART_AR_GLUETUN:-unless-stopped}
+    # deploy:
+    #   resources:
+    #     limits:
+    #       cpus: ${CPU_MAX_SONARR}
+    #       memory: ${MEM_MAX_SONARR}
+    #     reservations:
+    #       cpus: ${CPU_MIN_SONARR}
+    #       memory: ${MEM_MIN_SONARR}
+    env_file:
+      - .env
+      - ../00.env/host.env
+      - ../00.env/network.env
+    depends_on:
+      - gluetun
+    environment:
+      - PUID=${UID}
+      - PGID=${GID}
+      - TZ=${TZ}
+    volumes:
+      - ${DIR_DATA}/${DIR_ARR:-arr-vpn}/sonarr:/config
+      - ${DIR_MEDIA}/TV:/tv
+      - ${DIR_DOWNLOADS}/${DIR_ARR:-arr-vpn}/qbittorrent:/downloads
+      - ${DIR_DOWNLOADS}/${DIR_ARR:-arr-vpn}/firefox:/firefox
+  overseerr:
+    image: ${DOCKER_IMAGE_AR_OVERSEERR:-lscr.io/linuxserver/overseerr:latest}
+    container_name: ${CONTAINER_NAME_AR_OVERSEERR:-overseerr}
+    network_mode: service:gluetun
+    restart: ${RESTART_AR_GLUETUN:-unless-stopped}
+    # deploy:
+    #   resources:
+    #     limits:
+    #       cpus: ${CPU_MAX_OVERSEERR}
+    #       memory: ${MEM_MAX_OVERSEERR}
+    #     reservations:
+    #       cpus: ${CPU_MIN_OVERSEERR}
+    #       memory: ${MEM_MIN_OVERSEERR}
+    env_file:
+      - .env
+      - ../00.env/network.env
+      - ../00.env/host.env
+    depends_on:
+      - gluetun
+    environment:
+      - PUID=${UID}
+      - PGID=${GID}
+      - TZ=${TZ}
+    volumes:
+      - ${DIR_DATA}/${DIR_ARR:-arr-vpn}/overseerr:/config
+  vids:
+    image: ${DOCKER_IMAGE_AR_METUBE:-alexta69/metube:latest}
+    container_name: ${CONTAINER_NAME_AR_METUBE:-vids}
+    user: ${UID}:${GID}
+    network_mode: service:gluetun
+    restart: ${RESTART_AR_GLUETUN:-unless-stopped}
+    # deploy:
+    #   resources:
+    #     limits:
+    #       cpus: ${CPU_MAX_METUBE}
+    #       memory: ${MEM_MAX_METUBE}
+    #     reservations:
+    #       cpus: ${CPU_MIN_METUBE}
+    #       memory: ${MEM_MIN_METUBE}
+    env_file:
+      - .env 
+      - ../00.env/network.env 
+      - ../00.env/host.env
+    depends_on:
+      - gluetun
+    volumes:
+      - ${DIR_DOWNLOADS}/${DIR_ARR:-arr-vpn}/metube:/downloads
+    environment:
+      - TZ=${TZ}
+  flaresolverr:
+    image: ${DOCKER_IMAGE_AR_FLARESOLVERR:-ghcr.io/flaresolverr/flaresolverr:latest}
+    container_name: ${CONTAINER_NAME_AR_FLARESOLVERR:-flaresolverr}
+    network_mode: service:gluetun
+    restart: ${RESTART_AR_GLUETUN:-unless-stopped}
+    # deploy:
+    #   resources:
+    #     limits:
+    #       cpus: ${CPU_MAX_FLARESOLVERR}
+    #       memory: ${MEM_MAX_FLARESOLVERR}
+    #     reservations:
+    #       cpus: ${CPU_MIN_FLARESOLVERR}
+    #       memory: ${MEM_MIN_FLARESOLVERR}
+    env_file:
+      - .env
+      - ../00.env/network.env
+      - ../00.env/host.env
+    depends_on:
+      - gluetun
+    environment:
+      - PUID=${UID}
+      - PGID=${GID}
+      - TZ=${TZ}
+      - LOG_LEVEL=info
+      - TEST_URL=${FLARESOLVERR_TEST_URL:-https://google.com}
+    # ports:
+    #     - '8191:8191'
+  requestrr:
+    image: ${DOCKER_IMAGE_AR_REQUESTRR:-thomst08/requestrr}
+    container_name: ${CONTAINER_NAME_AR_REQUESTRR:-requestrr}
+    network_mode: service:gluetun
+    restart: ${RESTART_AR_GLUETUN:-unless-stopped}
+    env_file:
+      - .env
+      - ../00.env/network.env
+      - ../00.env/host.env
+    environment:
+      - PGID=${GID}
+      - PUID=${UID}
+      - REQUESTRR_BASEURL=https://requestrr.${HOST_NAME}.${DOMAIN}
+      - TZ=${TZ}
+    depends_on:
+      - gluetun
+    volumes:
+      - ${DIR_DATA}/${DIR_ARR:-arr-vpn}/requestrr:/root/config
+  deluge:
+    image: ${DOCKER_IMAGE_AR_DELUGE:-lscr.io/linuxserver/deluge:latest}
+    container_name: ${CONTAINER_NAME_AR_DELUGE:-deluge}
+    network_mode: service:gluetun
+    restart: ${RESTART_AR_GLUETUN:-unless-stopped}
+    env_file:
+      - .env
+      - ../00.env/network.env
+      - ../00.env/host.env
+    depends_on:
+      - gluetun
+    environment:
+      - PUID=${UID}
+      - PGID=${GID}
+      - TZ=${TZ}
+      - DELUGE_LOGLEVEL=info # Available options: error, warning, info, debug
+    volumes:
+      - ${DIR_DATA}/${DIR_ARR:-arr-vpn}/deluge:/config # Make sure your local config directory exists
+      - ${DIR_DOWNLOADS}/${DIR_ARR:-arr-vpn}/deluge:/downloads
+    # DO NOT UNCOMMENT THIS, This is already included int the gluetun container,
+    # If you want these ports on your host machine, uncomment them in the gluetun container container not here.
+    # ports:
+    #   - 8112:8112 # web ui
+    #   - 6881:6881
+    #   - 6881:6881/udp
+    #   - 58846:58846
+  renamarr:
+    image: ${DOCKER_IMAGE_AR_RENAMARR:-ghcr.io/hollanbm/renamarr:latest} # Disable certification validation for local addresses in radarr, sonarr > settings > general, under API key
+    container_name: ${CONTAINER_NAME_AR_RENAMARR:-renamarr}
+    network_mode: service:gluetun
+    restart: ${RESTART_AR_GLUETUN:-unless-stopped}
+    user: ${UID}:${GID}
+    env_file:
+      - .env
+      - ../00.env/network.env
+      - ../00.env/host.env
+    depends_on:
+      - gluetun
+    volumes:
+      - ${DIR_DATA}/${DIR_ARR:-arr-vpn}/renamarr:/config
+
+networks:
+  traefiknet:
+    name: ${DOCKER_NETWORK:-traefiknet}
+    external: true

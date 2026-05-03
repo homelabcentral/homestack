@@ -1,0 +1,35 @@
+storage:
+  type: sqlite
+  path: /data/data.db
+
+endpoints:
+  - name: My Website
+    url: "https://example.com"
+    interval: 60s
+    conditions:
+      - "[STATUS] == 200"
+      - "[RESPONSE_TIME] < 1000"
+      - "[CERTIFICATE_EXPIRATION] > 72h"
+
+  - name: API Health
+    url: "https://api.example.com/health"
+    interval: 30s
+    conditions:
+      - "[STATUS] == 200"
+      - "[BODY].status == UP"
+      - "[RESPONSE_TIME] < 500"
+
+  - name: Database
+    url: "tcp://db-server:5432"
+    interval: 30s
+    conditions:
+      - "[CONNECTED] == true"
+
+  - name: DNS Resolution
+    url: "dns://8.8.8.8"
+    interval: 120s
+    dns:
+      query-name: "example.com"
+      query-type: "A"
+    conditions:
+      - "[DNS_RCODE] == NOERROR"

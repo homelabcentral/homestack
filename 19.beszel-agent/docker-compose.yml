@@ -1,0 +1,34 @@
+name: ${STACK_BA_BESZEL_AGENT:-beszel-agent}
+services:
+  beszel-agent:
+    image: ${DOCKER_IMAGE_BA_BESZEL_AGENT:-henrygd/beszel-agent}
+    container_name: ${CONTAINER_NAME_BA_BESZEL_AGENT:-beszel-agent}
+    # hostname: ${HOST_NAME_BA_BESZEL_AGENT:-beszel-agent}
+    restart: ${RESTART_BA_BESZEL_AGENT:-unless-stopped}
+    network_mode: host
+    deploy:
+      resources:
+        limits:
+          cpus: ${CPU_MAX_BA_BESZEL_AGENT}
+          memory: ${RAM_MAX_BA_BESZEL_AGENT}
+        reservations:
+          cpus: ${CPU_MIN_BA_BESZEL_AGENT:-0.05}
+          memory: ${RAM_MIN_BA_BESZEL_AGENT:-6M}
+    environment:
+      - LISTEN=/beszel_socket/beszel.sock
+      # if you are using traefik, then the below should be the external URL, otherwise the internal one
+      - HUB_URL=${HUB_URL_BA_BESZEL_AGENT:-http://localhost:8090}
+      # internal URL, comment the above one and uncomment the below
+      # - HUB_URL=http://localhost:8090
+      - TOKEN=${BESZEL_AGENT_TOKEN}
+      - KEY=${BESZEL_AGENT_KEY}
+    env_file:
+      - .env
+      - ../00.env/host.env
+      - ../00.env/network.env
+    # ports:
+    #   - ${IP_TAILSCALE}:${PORT_BA_BESZEL_AGENT_EXTERNAL}:${PORT_BA_BESZEL_AGENT_INTERNAL}
+    volumes:
+      - ${DIR_DATA}/${DIR_BESZEL_AGENT:-beszel_agent}/data:/var/lib/beszel-agent
+      - ${DIR_DATA}/${DIR_BESZEL:-beszel}/socket:/beszel_socket
+      - /var/run/docker.sock:/var/run/docker.sock:ro

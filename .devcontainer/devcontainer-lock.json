@@ -1,0 +1,19 @@
+{
+  "features": {
+    "ghcr.io/devcontainer-community/devcontainer-features/astral.sh-uv:1": {
+      "version": "1.0.6",
+      "resolved": "ghcr.io/devcontainer-community/devcontainer-features/astral.sh-uv@sha256:36f95b90080248a05aba7b1b3cecf8018bb6d7222f6274f03f050b502abd4fe7",
+      "integrity": "sha256:36f95b90080248a05aba7b1b3cecf8018bb6d7222f6274f03f050b502abd4fe7"
+    },
+    "ghcr.io/nils-geistmann/devcontainers-features/zsh:0": {
+      "version": "0.0.8",
+      "resolved": "ghcr.io/nils-geistmann/devcontainers-features/zsh@sha256:fd57a61a5187480b5e73f8041be5b67005be48f06503736df6cfdd8d0f38f3c4",
+      "integrity": "sha256:fd57a61a5187480b5e73f8041be5b67005be48f06503736df6cfdd8d0f38f3c4"
+    },
+    "ghcr.io/tobiaschc/devcontainer-features/starship:1": {
+      "version": "1.0.0",
+      "resolved": "ghcr.io/tobiaschc/devcontainer-features/starship@sha256:168f352105d382e579f80b74c083f42b9954235255a27723a1514ef34b1b5a40",
+      "integrity": "sha256:168f352105d382e579f80b74c083f42b9954235255a27723a1514ef34b1b5a40"
+    }
+  }
+}

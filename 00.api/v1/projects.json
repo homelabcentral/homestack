@@ -1,0 +1,1242 @@
+[
+  {
+    "project_index": 1,
+    "project_name": "Pihole with Unbound",
+    "dir_name": "01.pihole-unbound",
+    "compose": "docker-compose.yml",
+    "env": ".env.template",
+    "readme": "readme.md",
+    "description": "A network wide ad blocker with unbound DNS resolver.",
+    "project_description": "A network wide ad blocker with unbound DNS resolver.",
+    "author": "Homelab Central",
+    "project_source": "https://github.com/mpgirro/docker-pihole-unbound",
+    "project_website": "https://github.com/mpgirro/docker-pihole-unbound",
+    "project_docs": "https://github.com/mpgirro/docker-pihole-unbound",
+    "project_status": "Active",
+    "stable_images": [
+      "mpgirro/pihole-unbound:2026.04.0",
+      "ghcr.io/mpgirro/docker-pihole-unbound:2026.04.0"
+    ],
+    "stable_versions": [
+      "2026.04.0"
+    ],
+    "latest_images": [
+      "mpgirro/pihole-unbound:latest",
+      "ghcr.io/mpgirro/docker-pihole-unbound:latest"
+    ],
+    "latest_versions": [
+      "2026.04.0"
+    ],
+    "warning": "none",
+    "date": "2026-04-22",
+    "last_updated": "2026-04-22",
+    "required_env_files": [
+      "host.env",
+      "network.env"
+    ],
+    "supported_architecture": [
+      "amd64",
+      "x86",
+      "arm64"
+    ],
+    "ready_to_deploy": true,
+    "config_files": null,
+    "pre_install_steps": null,
+    "post_install_steps": null,
+    "post_setup_steps": null
+  },
+  {
+    "project_index": 2,
+    "project_name": "Traefik",
+    "dir_name": "02.traefik",
+    "compose": "docker-compose.yml",
+    "env": ".env.template",
+    "readme": "readme.md",
+    "description": "The Cloud Native Application Proxy",
+    "project_description": "The Cloud Native Application Proxy",
+    "author": "Homelab Central",
+    "project_source": "https://github.com/traefik/traefik",
+    "project_website": "https://traefik.io/",
+    "project_docs": "https://doc.traefik.io/traefik/",
+    "project_status": "Active",
+    "stable_images": [
+      "traefik:v3.6.14",
+      "traefik:v3.6"
+    ],
+    "stable_versions": [
+      "v3.6.14"
+    ],
+    "latest_images": [
+      "traefik:latest"
+    ],
+    "latest_versions": [
+      "latest"
+    ],
+    "warning": "none",
+    "date": "2026-04-23",
+    "last_updated": "2026-04-23",
+    "required_env_files": [
+      "host.env",
+      "network.env"
+    ],
+    "supported_architecture": [
+      "amd64",
+      "x86",
+      "arm64"
+    ],
+    "ready_to_deploy": true,
+    "config_files": [
+      {
+        "path": "data/acme.json",
+        "constant": true
+      },
+      {
+        "path": "data/traefik.yml",
+        "constant": false
+      },
+      {
+        "path": "data/config.yml",
+        "constant": false,
+        "keys": {
+          "key1": "value1",
+          "key2": "value2"
+        }
+      }
+    ],
+    "pre_install_steps": [
+      {
+        "number": 1,
+        "description": "Description of step 1",
+        "todo": "Todo for step 1"
+      }
+    ],
+    "post_install_steps": [
+      {
+        "number": 1,
+        "description": "Description of post-install step 1",
+        "todo": "Todo for post-install step 1"
+      }
+    ],
+    "post_setup_steps": [
+      {
+        "number": 1,
+        "description": "Description for post setup",
+        "todo": "Todo for post setup steps"
+      }
+    ]
+  },
+  {
+    "project_index": 3,
+    "project_name": "Nebula Sync",
+    "dir_name": "03.nebula-sync",
+    "compose": "docker-compose.yml",
+    "env": ".env.template",
+    "readme": "readme.md",
+    "description": "Synchronize Pi-hole v6.x configuration to replicas.",
+    "project_description": "Synchronize Pi-hole v6.x configuration to replicas.",
+    "author": "Homelab Central",
+    "project_source": "https://github.com/lovelaze/nebula-sync",
+    "project_website": "https://github.com/lovelaze/nebula-sync",
+    "project_docs": "https://github.com/lovelaze/nebula-sync",
+    "project_status": "Active",
+    "stable_images": [
+      "ghcr.io/lovelaze/nebula-sync:v0.11.1",
+      "lovelaze/nebula-sync:v0.11.1"
+    ],
+    "stable_versions": [
+      "v0.11.1"
+    ],
+    "latest_images": [
+      "ghcr.io/lovelaze/nebula-sync:latest",
+      "lovelaze/nebula-sync:latest"
+    ],
+    "latest_versions": [
+      "v0.11.1"
+    ],
+    "warning": "This project is not a part of the official Pi-hole project, but uses the api provided by Pi-hole instances to perform the synchronization actions.",
+    "date": "2026-04-23",
+    "last_updated": "2026-04-23",
+    "required_env_files": [
+      "host.env",
+      "network.env"
+    ],
+    "supported_architecture": [
+      "amd64",
+      "x86",
+      "arm64"
+    ],
+    "ready_to_deploy": true,
+    "config_files": null,
+    "pre_install_steps": [
+      {
+        "number": 1,
+        "description": "Update Cron Job",
+        "todo": "Update the environment variable `CRON` in `docker-compose.yml` to run sync however frequently you want. Use https://crontab.guru/ if you need help to set this."
+      }
+    ],
+    "post_install_steps": [
+      {
+        "number": 1,
+        "description": "Check Docker Logs",
+        "todo": "Check docker logs for this container using `docker logs nebula-sync`"
+      }
+    ],
+    "post_setup_steps": [
+      {
+        "number": 1,
+        "description": "Delete this step",
+        "todo": "Delete this step"
+      }
+    ]
+  },
+  {
+    "project_index": 4,
+    "project_name": "Gatus",
+    "dir_name": "04.gatus",
+    "compose": "docker-compose.yml",
+    "env": ".env.template",
+    "readme": "readme.md",
+    "description": "Automated developer-oriented status page with alerting and incident support.",
+    "project_description": "Automated developer-oriented status page with alerting and incident support.",
+    "author": "Homelab Central",
+    "project_source": "https://github.com/TwiN/gatus",
+    "project_website": "https://gatus.io/",
+    "project_docs": "https://github.com/TwiN/gatus#configuration",
+    "project_status": "Active",
+    "stable_images": [
+      "ghcr.io/twin/gatus:stable",
+      "twinproduction/gatus:stable"
+    ],
+    "stable_versions": [
+      "v5.35.0"
+    ],
+    "latest_images": [
+      "ghcr.io/twin/gatus:latest",
+      "twinproduction/gatus:latest"
+    ],
+    "latest_versions": [
+      "latest"
+    ],
+    "warning": "none",
+    "date": "2026-04-23",
+    "last_updated": "2026-04-23",
+    "required_env_files": [
+      "host.env",
+      "network.env"
+    ],
+    "supported_architecture": [
+      "amd64",
+      "x86",
+      "arm64"
+    ],
+    "ready_to_deploy": true,
+    "config_files": [
+      {
+        "path": "config/config.yml",
+        "constant": true
+      }
+    ],
+    "pre_install_steps": [
+      {
+        "number": 1,
+        "description": "Configure config.yml",
+        "todo": "Configure config.yml according to your needs as to what you want to monitor. Docs are here - https://github.com/TwiN/gatus#configuration"
+      }
+    ],
+    "post_install_steps": null,
+    "post_setup_steps": null
+  },
+  {
+    "project_index": 5,
+    "project_name": "Karakeep",
+    "dir_name": "05.karakeep",
+    "compose": "docker-compose.yml",
+    "env": ".env.template",
+    "readme": "readme.md",
+    "description": "A self-hostable bookmark-everything app (links, notes and images) with AI-based automatic tagging and full text search.",
+    "project_description": "A self-hostable bookmark-everything app (links, notes and images) with AI-based automatic tagging and full text search.",
+    "author": "Homelab Central",
+    "project_source": "https://github.com/karakeep-app/karakeep",
+    "project_website": "https://karakeep.app/",
+    "project_docs": "https://docs.karakeep.app/",
+    "project_status": "Active",
+    "stable_images": [
+      "ghcr.io/karakeep-app/karakeep:release"
+    ],
+    "stable_versions": [
+      "0.30.1"
+    ],
+    "latest_images": [
+      "ghcr.io/karakeep-app/karakeep:latest"
+    ],
+    "latest_versions": [
+      "latest"
+    ],
+    "warning": "none",
+    "date": "2026-04-23",
+    "last_updated": "2026-04-23",
+    "required_env_files": [
+      "host.env",
+      "network.env"
+    ],
+    "supported_architecture": [
+      "amd64",
+      "x86",
+      "arm64"
+    ],
+    "ready_to_deploy": true,
+    "config_files": null,
+    "pre_install_steps": [
+      {
+        "number": 1,
+        "description": "Add NEXTAUTH_SECRET in .env",
+        "todo": "Add a random string for `NEXTAUTH_SECRET` in .env file. Use `openssl rand -base64 36` command in a different terminal to generate this string. You do not need to save this elsewhere."
+      },
+      {
+        "number": 2,
+        "description": "Add MEILI_MASTER_KEY in .env",
+        "todo": "Add a random string for `MEILI_MASTER_KEY` in .env file. Use `openssl rand -base64 36` command in a different terminal to generate this string. You do not need to save this elsewhere."
+      },
+      {
+        "number": 3,
+        "description": "Add NEXTAUTH_URL in .env",
+        "todo": "Add external URL for `NEXTAUTH_URL` in .env file. This has to be the external URL if you have one or internal if you don't."
+      },
+      {
+        "number": 4,
+        "description": "Add OPENAI_API_KEY key",
+        "todo": "Add the API key for OPENAI as `OPENAI_API_KEY` in .env file. Or if you are using Ollama or other providers use"
+      }
+    ],
+    "post_install_steps": [
+      {
+        "number": 1,
+        "description": "Description of post-install step 1",
+        "todo": "Todo for post-install step 1"
+      }
+    ],
+    "post_setup_steps": [
+      {
+        "number": 1,
+        "description": "Description for post setup",
+        "todo": "Todo for post setup steps"
+      }
+    ]
+  },
+  {
+    "project_index": 6,
+    "project_name": "StirlingPDF",
+    "dir_name": "06.stirlingpdf",
+    "compose": "docker-compose.yml",
+    "env": ".env.template",
+    "readme": "readme.md",
+    "description": "No.1 PDF Application on GitHub that lets you edit PDFs on any device anywhere",
+    "project_description": "No.1 PDF Application on GitHub that lets you edit PDFs on any device anywhere",
+    "author": "Homelab Central",
+    "project_source": "https://github.com/Stirling-Tools/Stirling-PDF",
+    "project_website": "https://www.stirling.com/",
+    "project_docs": "https://docs.stirlingpdf.com/",
+    "project_status": "Active",
+    "stable_images": [
+      "stirlingtools/stirling-pdf:2.9.2-ultra-lite",
+      "stirlingtools/stirling-pdf:2.9.2-fat",
+      "stirlingtools/stirling-pdf:2.9.2"
+    ],
+    "stable_versions": [
+      "2.9.2"
+    ],
+    "latest_images": [
+      "stirlingtools/stirling-pdf:latest-ultra-lite",
+      "stirlingtools/stirling-pdf:latest-fat",
+      "stirlingtools/stirling-pdf:latest"
+    ],
+    "latest_versions": [
+      "latest",
+      "latest-fat",
+      "latest-ultra-lite"
+    ],
+    "warning": "none",
+    "date": "2026-04-23",
+    "last_updated": "2026-04-23",
+    "required_env_files": [
+      "host.env",
+      "network.env"
+    ],
+    "supported_architecture": [
+      "amd64",
+      "x86",
+      "arm64"
+    ],
+    "ready_to_deploy": true,
+    "config_files": null,
+    "pre_install_steps": [
+      {
+        "number": 1,
+        "description": "Set username",
+        "todo": "Set your preferred username as `USERNAME_SP_STIRLINGPDF` in the .env"
+      },
+      {
+        "number": 2,
+        "description": "Set password",
+        "todo": "Set your preferred password as `PASSWORD_SP_STIRLINGPDF` in the .env"
+      }
+    ],
+    "post_install_steps": null,
+    "post_setup_steps": null
+  },
+  {
+    "project_index": 7,
+    "project_name": "Linkwarden",
+    "dir_name": "07.linkwarden",
+    "compose": "docker-compose.yml",
+    "env": ".env.template",
+    "readme": "readme.md",
+    "description": "Self-hosted collaborative bookmark manager to collect, read, annotate, and fully preserve what matters, all in one place.",
+    "project_description": "Self-hosted collaborative bookmark manager to collect, read, annotate, and fully preserve what matters, all in one place.",
+    "author": "Homelab Central",
+    "project_source": "https://github.com/linkwarden/linkwarden",
+    "project_website": "https://linkwarden.app/",
+    "project_docs": "https://docs.linkwarden.app/",
+    "project_status": "Active",
+    "stable_images": [
+      "ghcr.io/linkwarden/linkwarden:v2.14.1"
+    ],
+    "stable_versions": [
+      "v2.14.1"
+    ],
+    "latest_images": [
+      "ghcr.io/linkwarden/linkwarden:latest"
+    ],
+    "latest_versions": [
+      "latest"
+    ],
+    "warning": "none",
+    "date": "2026-04-23",
+    "last_updated": "2026-04-23",
+    "required_env_files": [
+      "host.env",
+      "network.env"
+    ],
+    "supported_architecture": [
+      "amd64",
+      "x86",
+      "arm64"
+    ],
+    "ready_to_deploy": true,
+    "config_files": null,
+    "pre_install_steps": [
+      {
+        "number": 1,
+        "description": "Change some .env variables",
+        "todo": "Change `NEXTAUTH_URL` to the external URL of the app, if you don't have one then internal URL is fine. Change `NEXTAUTH_SECRET` and `MEILI_MASTER_KEY` using `openssl rand -base64 32` to do this."
+      }
+    ],
+    "post_install_steps": null,
+    "post_setup_steps": null
+  },
+  {
+    "project_index": 8,
+    "project_name": "Metube",
+    "dir_name": "08.metube",
+    "compose": "docker-compose.yml",
+    "env": ".env.template",
+    "readme": "readme.md",
+    "description": "Self-hosted video downloader for YouTube and other sites (web UI for youtube-dl / yt-dlp)",
+    "project_description": "Self-hosted video downloader for YouTube and other sites (web UI for youtube-dl / yt-dlp)",
+    "author": "Homelab Central",
+    "project_source": "https://github.com/alexta69/metube",
+    "project_website": "https://github.com/alexta69/metube",
+    "project_docs": "https://github.com/alexta69/metube",
+    "project_status": "Active",
+    "stable_images": [
+      "alexta69/metube:2026.04.26",
+      "ghcr.io/alexta69/metube:2026.04.26"
+    ],
+    "stable_versions": [
+      "Stable Version 1"
+    ],
+    "latest_images": [
+      "alexta69/metube:latest",
+      "ghcr.io/alexta69/metube:latest"
+    ],
+    "latest_versions": [
+      "latest"
+    ],
+    "warning": "none",
+    "date": "2026-04-28",
+    "last_updated": "2026-04-28",
+    "required_env_files": [
+      "host.env",
+      "network.env"
+    ],
+    "supported_architecture": [
+      "amd64",
+      "x86",
+      "arm64"
+    ],
+    "ready_to_deploy": true,
+    "config_files": null,
+    "pre_install_steps": null,
+    "post_install_steps": null,
+    "post_setup_steps": null
+  },
+  {
+    "project_index": 9,
+    "project_name": "Homepage",
+    "dir_name": "09.homepage",
+    "compose": "docker-compose.yml",
+    "env": ".env.template",
+    "readme": "readme.md",
+    "description": "A highly customizable homepage (or startpage / application dashboard) with Docker and service API integrations.",
+    "project_description": "A highly customizable homepage (or startpage / application dashboard) with Docker and service API integrations.",
+    "author": "Homelab Central",
+    "project_source": "https://github.com/gethomepage/homepage",
+    "project_website": "https://gethomepage.dev/",
+    "project_docs": "https://gethomepage.dev/configs/",
+    "project_status": "Active",
+    "stable_images": [
+      "ghcr.io/gethomepage/homepage:v1.12.3",
+      "gethomepage/homepage:v1.12.3"
+    ],
+    "stable_versions": [
+      "v1.12.3",
+      "v1.12"
+    ],
+    "latest_images": [
+      "ghcr.io/gethomepage/homepage:latest",
+      "gethomepage/homepage:latest"
+    ],
+    "latest_versions": [
+      "latest"
+    ],
+    "warning": "none",
+    "date": "2026-04-30",
+    "last_updated": "2026-04-30",
+    "required_env_files": [
+      "host.env",
+      "network.env"
+    ],
+    "supported_architecture": [
+      "amd64",
+      "x86",
+      "arm64"
+    ],
+    "ready_to_deploy": true,
+    "config_files": null,
+    "pre_install_steps": null,
+    "post_install_steps": null,
+    "post_setup_steps": [
+      {
+        "number": 1,
+        "description": "Configure your dashboard",
+        "todo": "Read the docs website to see as to how to customize the homepage"
+      }
+    ]
+  },
+  {
+    "project_index": 10,
+    "project_name": "Plex CPU",
+    "dir_name": "10.plex",
+    "compose": "docker-compose.yml",
+    "env": ".env.template",
+    "readme": "readme.md",
+    "description": "Plex Server With CPU Transcoding",
+    "project_description": "Plex Server With CPU Transcoding",
+    "author": "Homelab Central",
+    "project_source": "https://github.com/linuxserver/docker-plex",
+    "project_website": "https://github.com/linuxserver/docker-plex",
+    "project_docs": "https://docs.linuxserver.io/images/docker-plex/#via-docker-compose",
+    "project_status": "Active",
+    "stable_images": [
+      "lscr.io/linuxserver/plex:1.43.1"
+    ],
+    "stable_versions": [
+      "1.43.1"
+    ],
+    "latest_images": [
+      "lscr.io/linuxserver/plex:latest"
+    ],
+    "latest_versions": [
+      "latest"
+    ],
+    "warning": "none",
+    "date": "2026-04-30",
+    "last_updated": "2026-04-30",
+    "required_env_files": [
+      "host.env",
+      "network.env"
+    ],
+    "supported_architecture": [
+      "amd64",
+      "x86",
+      "arm64"
+    ],
+    "ready_to_deploy": true,
+    "config_files": null,
+    "pre_install_steps": null,
+    "post_install_steps": null,
+    "post_setup_steps": [
+      {
+        "number": 1,
+        "description": "Update plex settings",
+        "todo": "After the container is up, go to settings -> network -> Custom server access URLs -> add \"http://<ip_address>:32400,https://<ip_address>:32400\" without quotes, where IP address is the ip address of the server hosting plex OR tailscale IP address."
+      },
+      {
+        "number": 2,
+        "description": "Update LAN networks IP addresses",
+        "todo": "Go to plex settings -> network -> LAN networks -> add your subnet -> eg. \"192.168.0.1/24,10.0.0.1/24\" etc. without quotes."
+      }
+    ]
+  },
+  {
+    "project_index": 10,
+    "project_name": "Plex Intel and AMD",
+    "dir_name": "10.plex-intel-amd",
+    "compose": "docker-compose.yml",
+    "env": ".env.template",
+    "readme": "readme.md",
+    "description": "Plex Server with Intel and AMD transcoding",
+    "project_description": "Plex Server with Intel and AMD transcoding",
+    "author": "Homelab Central",
+    "project_source": "https://github.com/linuxserver/docker-plex",
+    "project_website": "https://github.com/linuxserver/docker-plex",
+    "project_docs": "https://docs.linuxserver.io/images/docker-plex/#via-docker-compose",
+    "project_status": "Active",
+    "stable_images": [
+      "lscr.io/linuxserver/plex:1.43.1"
+    ],
+    "stable_versions": [
+      "1.43.1"
+    ],
+    "latest_images": [
+      "lscr.io/linuxserver/plex:latest"
+    ],
+    "latest_versions": [
+      "latest"
+    ],
+    "warning": "none",
+    "date": "2026-04-30",
+    "last_updated": "2026-04-30",
+    "required_env_files": [
+      "host.env",
+      "network.env"
+    ],
+    "supported_architecture": [
+      "amd64",
+      "x86",
+      "arm64"
+    ],
+    "ready_to_deploy": true,
+    "config_files": null,
+    "pre_install_steps": null,
+    "post_install_steps": null,
+    "post_setup_steps": [
+      {
+        "number": 1,
+        "description": "Update plex settings",
+        "todo": "After the container is up, go to settings -> network -> Custom server access URLs -> add \"http://<ip_address>:32400,https://<ip_address>:32400\" without quotes, where IP address is the ip address of the server hosting plex OR tailscale IP address."
+      },
+      {
+        "number": 2,
+        "description": "Update LAN networks IP addresses",
+        "todo": "Go to plex settings -> network -> LAN networks -> add your subnet -> eg. \"192.168.0.1/24,10.0.0.1/24\" etc. without quotes."
+      }
+    ]
+  },
+  {
+    "project_index": 10,
+    "project_name": "Plex Nvidia",
+    "dir_name": "10.plex-nvidia",
+    "compose": "docker-compose.yml",
+    "env": ".env.template",
+    "readme": "readme.md",
+    "description": "Plex Server With Nvidia Transcoding",
+    "project_description": "Plex Server With Nvidia Transcoding",
+    "author": "Homelab Central",
+    "project_source": "https://github.com/linuxserver/docker-plex",
+    "project_website": "https://github.com/linuxserver/docker-plex",
+    "project_docs": "https://docs.linuxserver.io/images/docker-plex/#via-docker-compose",
+    "project_status": "Active",
+    "stable_images": [
+      "lscr.io/linuxserver/plex:1.43.1"
+    ],
+    "stable_versions": [
+      "1.43.1"
+    ],
+    "latest_images": [
+      "lscr.io/linuxserver/plex:latest"
+    ],
+    "latest_versions": [
+      "latest"
+    ],
+    "warning": "none",
+    "date": "2026-04-30",
+    "last_updated": "2026-04-30",
+    "required_env_files": [
+      "host.env",
+      "network.env"
+    ],
+    "supported_architecture": [
+      "amd64",
+      "x86",
+      "arm64"
+    ],
+    "ready_to_deploy": true,
+    "config_files": null,
+    "pre_install_steps": null,
+    "post_install_steps": null,
+    "post_setup_steps": [
+      {
+        "number": 1,
+        "description": "Update plex settings",
+        "todo": "After the container is up, go to settings -> network -> Custom server access URLs -> add \"http://<ip_address>:32400,https://<ip_address>:32400\" without quotes, where IP address is the ip address of the server hosting plex OR tailscale IP address."
+      },
+      {
+        "number": 2,
+        "description": "Update LAN networks IP addresses",
+        "todo": "Go to plex settings -> network -> LAN networks -> add your subnet -> eg. \"192.168.0.1/24,10.0.0.1/24\" etc. without quotes."
+      }
+    ]
+  },
+  {
+    "project_index": 11,
+    "project_name": "Filebrowser",
+    "dir_name": "11.filebrowser",
+    "compose": "docker-compose.yml",
+    "env": ".env.template",
+    "readme": "readme.md",
+    "description": "Web File Browser",
+    "project_description": "Web File Browser",
+    "author": "Homelab Central",
+    "project_source": "https://github.com/filebrowser/filebrowser",
+    "project_website": "https://filebrowser.org/installation.html",
+    "project_docs": "https://filebrowser.org/installation.html",
+    "project_status": "Maintainance",
+    "stable_images": [
+      "filebrowser/filebrowser:s6",
+      "filebrowser/filebrowser"
+    ],
+    "stable_versions": [
+      "s6"
+    ],
+    "latest_images": null,
+    "latest_versions": null,
+    "warning": "none",
+    "date": "2026-04-30",
+    "last_updated": "2026-04-30",
+    "required_env_files": [
+      "host.env",
+      "network.env"
+    ],
+    "supported_architecture": [
+      "amd64",
+      "x86",
+      "arm64"
+    ],
+    "ready_to_deploy": true,
+    "config_files": null,
+    "pre_install_steps": [
+      {
+        "number": 1,
+        "description": "Notedown password",
+        "todo": "Please note down the password, it won't be displayed again. If you forget or lose the password, you need to manually delete the database and start filebrowser again."
+      }
+    ],
+    "post_install_steps": null,
+    "post_setup_steps": null
+  },
+  {
+    "project_index": 12,
+    "project_name": "It-tools",
+    "dir_name": "12.it-tools",
+    "compose": "docker-compose.yml",
+    "env": ".env.template",
+    "readme": "readme.md",
+    "description": "Collection of handy online tools for developers, with great UX.",
+    "project_description": "Collection of handy online tools for developers, with great UX.",
+    "author": "Homelab Central",
+    "project_source": "https://github.com/sharevb/it-tools",
+    "project_website": "https://sharevb-it-tools.vercel.app/",
+    "project_docs": "https://github.com/sharevb/it-tools",
+    "project_status": "Active",
+    "stable_images": [
+      "sharevb/it-tools:latest",
+      "ghcr.io/sharevb/it-tools:stable",
+      "ghcr.io/sharevb/it-tools:2026.1.4",
+      "sharevb/it-tools:2026.1.4"
+    ],
+    "stable_versions": [
+      "2026.1.4"
+    ],
+    "latest_images": [
+      "sharevb/it-tools:latest",
+      "ghcr.io/sharevb/it-tools:latest"
+    ],
+    "latest_versions": [
+      "latest"
+    ],
+    "warning": "none",
+    "date": "2026-04-30",
+    "last_updated": "2026-04-30",
+    "required_env_files": [
+      "host.env",
+      "network.env"
+    ],
+    "supported_architecture": [
+      "amd64",
+      "x86",
+      "arm64"
+    ],
+    "ready_to_deploy": true,
+    "config_files": null,
+    "pre_install_steps": null,
+    "post_install_steps": null,
+    "post_setup_steps": null
+  },
+  {
+    "project_index": 13,
+    "project_name": "Omni Tools",
+    "dir_name": "13.omni-tools",
+    "compose": "docker-compose.yml",
+    "env": ".env.template",
+    "readme": "readme.md",
+    "description": "Self-hosted collection of powerful web-based tools for everyday tasks. No ads, no tracking, just fast, accessible utilities right from your browser!",
+    "project_description": "Self-hosted collection of powerful web-based tools for everyday tasks. No ads, no tracking, just fast, accessible utilities right from your browser!",
+    "author": "Homelab Central",
+    "project_source": "https://github.com/iib0011/omni-tools",
+    "project_website": "https://omnitools.app/",
+    "project_docs": "https://github.com/iib0011/omni-tools",
+    "project_status": "Active",
+    "stable_images": [
+      "iib0011/omni-tools:latest"
+    ],
+    "stable_versions": [
+      "latest"
+    ],
+    "latest_images": [
+      "iib0011/omni-tools:latest"
+    ],
+    "latest_versions": [
+      "latest"
+    ],
+    "warning": "none",
+    "date": "2026-05-01",
+    "last_updated": "2026-05-01",
+    "required_env_files": [
+      "host.env",
+      "network.env"
+    ],
+    "supported_architecture": [
+      "amd64",
+      "x86",
+      "arm64"
+    ],
+    "ready_to_deploy": true,
+    "config_files": null,
+    "pre_install_steps": null,
+    "post_install_steps": null,
+    "post_setup_steps": null
+  },
+  {
+    "project_index": 14,
+    "project_name": "Hat.sh",
+    "dir_name": "14.hat.sh",
+    "compose": "docker-compose.yml",
+    "env": ".env.template",
+    "readme": "readme.md",
+    "description": "Encrypt and Decrypt files securely in your browser.",
+    "project_description": "Encrypt and Decrypt files securely in your browser.",
+    "author": "Homelab Central",
+    "project_source": "https://github.com/sh-dv/hat.sh",
+    "project_website": "https://hat.sh",
+    "project_docs": "https://github.com/sh-dv/hat.sh",
+    "project_status": "Not Active",
+    "stable_images": [
+      "shdv/hat.sh"
+    ],
+    "stable_versions": [
+      "latest"
+    ],
+    "latest_images": [
+      "shdv/hat.sh"
+    ],
+    "latest_versions": [
+      "latest"
+    ],
+    "warning": "Maintenance",
+    "date": "2026-04-30",
+    "last_updated": "2026-04-30",
+    "required_env_files": [
+      "host.env",
+      "network.env"
+    ],
+    "supported_architecture": [
+      "amd64",
+      "x86",
+      "arm64"
+    ],
+    "ready_to_deploy": true,
+    "config_files": null,
+    "pre_install_steps": null,
+    "post_install_steps": null,
+    "post_setup_steps": null
+  },
+  {
+    "project_index": 15,
+    "project_name": "Vaultwarden",
+    "dir_name": "15.vaultwarden",
+    "compose": "docker-compose.yml",
+    "env": ".env.template",
+    "readme": "readme.md",
+    "description": "Unofficial Bitwarden compatible server written in Rust, formerly known as bitwarden_rs",
+    "project_description": "Unofficial Bitwarden compatible server written in Rust, formerly known as bitwarden_rs",
+    "author": "Homelab Central",
+    "project_source": "https://github.com/dani-garcia/vaultwarden",
+    "project_website": "https://github.com/dani-garcia/vaultwarden",
+    "project_docs": "https://github.com/dani-garcia/vaultwarden/wiki",
+    "project_status": "Active",
+    "stable_images": [
+      "vaultwarden/server:1.35.8",
+      "ghcr.io/dani-garcia/vaultwarden:1.35.8"
+    ],
+    "stable_versions": [
+      "1.35.8"
+    ],
+    "latest_images": [
+      "ghcr.io/dani-garcia/vaultwarden:latest",
+      "vaultwarden/server:latest"
+    ],
+    "latest_versions": [
+      "latest"
+    ],
+    "warning": "none",
+    "date": "2026-04-30",
+    "last_updated": "2026-04-30",
+    "required_env_files": [
+      "host.env",
+      "network.env",
+      "email.env"
+    ],
+    "supported_architecture": [
+      "amd64",
+      "x86",
+      "arm64"
+    ],
+    "ready_to_deploy": true,
+    "config_files": null,
+    "pre_install_steps": null,
+    "post_install_steps": null,
+    "post_setup_steps": null
+  },
+  {
+    "project_index": 16,
+    "project_name": "Uptime Kuma",
+    "dir_name": "16.uptimekuma",
+    "compose": "docker-compose.yml",
+    "env": ".env.template",
+    "readme": "readme.md",
+    "description": "A fancy self-hosted monitoring tool",
+    "project_description": "A fancy self-hosted monitoring tool",
+    "author": "Homelab Central",
+    "project_source": "https://github.com/louislam/uptime-kuma",
+    "project_website": "https://uptime.kuma.pet/",
+    "project_docs": "https://github.com/louislam/uptime-kuma/wiki",
+    "project_status": "Active",
+    "stable_images": [
+      "ghcr.io/louislam/uptime-kuma:2.2.1-rootless",
+      "ghcr.io/louislam/uptime-kuma:2-rootless"
+    ],
+    "stable_versions": [
+      "2.2.1"
+    ],
+    "latest_images": [
+      "ghcr.io/louislam/uptime-kuma:2-rootless",
+      "ghcr.io/louislam/uptime-kuma:2.2.1-rootless"
+    ],
+    "latest_versions": [
+      "2.2.1"
+    ],
+    "warning": "none",
+    "date": "2026-04-30",
+    "last_updated": "2026-04-30",
+    "required_env_files": [
+      "host.env",
+      "network.env"
+    ],
+    "supported_architecture": [
+      "amd64",
+      "x86",
+      "arm64"
+    ],
+    "ready_to_deploy": true,
+    "config_files": null,
+    "pre_install_steps": null,
+    "post_install_steps": null,
+    "post_setup_steps": null
+  },
+  {
+    "project_index": 17,
+    "project_name": "Arr stack with Gluetun VPN",
+    "dir_name": "17.arr-vpn",
+    "compose": "docker-compose.yml",
+    "env": ".env.template",
+    "readme": "readme.md",
+    "description": "A full arr stack - sonarr, radarr, readarr, lidarr, bazarr, prowlarr, requestrr, flaresolverr with downloader qbittorrent and deluge along with firefox, metube and speedtest.",
+    "project_description": "A full arr stack - sonarr, radarr, readarr, lidarr, bazarr, prowlarr, requestrr, flaresolverr with downloader qbittorrent and deluge along with firefox, metube and speedtest.",
+    "author": "Homelab Central",
+    "project_source": "Multiple Sources",
+    "project_website": "Multiple Websites",
+    "project_docs": "Multiple Docs",
+    "project_status": "Active",
+    "stable_images": [
+      "qmcgaw/gluetun",
+      "lscr.io/linuxserver/qbittorrent:latest",
+      "lscr.io/linuxserver/firefox:latest",
+      "henrywhitaker3/speedtest-tracker",
+      "lscr.io/linuxserver/prowlarr:develop",
+      "lscr.io/linuxserver/bazarr:latest",
+      "lscr.io/linuxserver/readarr:develop",
+      "lscr.io/linuxserver/lidarr:latest",
+      "lscr.io/linuxserver/radarr:latest",
+      "lscr.io/linuxserver/sonarr:latest",
+      "lscr.io/linuxserver/overseerr:latest",
+      "alexta69/metube:latest",
+      "ghcr.io/flaresolverr/flaresolverr:latest",
+      "thomst08/requestrr",
+      "lscr.io/linuxserver/deluge:latest",
+      "ghcr.io/hollanbm/renamarr:latest"
+    ],
+    "stable_versions": null,
+    "latest_images": [
+      "qmcgaw/gluetun",
+      "lscr.io/linuxserver/qbittorrent:latest",
+      "lscr.io/linuxserver/firefox:latest",
+      "henrywhitaker3/speedtest-tracker",
+      "lscr.io/linuxserver/prowlarr:develop",
+      "lscr.io/linuxserver/bazarr:latest",
+      "lscr.io/linuxserver/readarr:develop",
+      "lscr.io/linuxserver/lidarr:latest",
+      "lscr.io/linuxserver/radarr:latest",
+      "lscr.io/linuxserver/sonarr:latest",
+      "lscr.io/linuxserver/overseerr:latest",
+      "alexta69/metube:latest",
+      "ghcr.io/flaresolverr/flaresolverr:latest",
+      "thomst08/requestrr",
+      "lscr.io/linuxserver/deluge:latest",
+      "ghcr.io/hollanbm/renamarr:latest"
+    ],
+    "latest_versions": null,
+    "warning": "none",
+    "date": "2026-05-01",
+    "last_updated": "2026-05-01",
+    "required_env_files": [
+      "host.env",
+      "network.env",
+      "vpn.env"
+    ],
+    "supported_architecture": [
+      "amd64",
+      "x86",
+      "arm64"
+    ],
+    "ready_to_deploy": true,
+    "config_files": null,
+    "pre_install_steps": null,
+    "post_install_steps": null,
+    "post_setup_steps": null
+  },
+  {
+    "project_index": 18,
+    "project_name": "Dozzle",
+    "dir_name": "18.dozzle",
+    "compose": "docker-compose.yml",
+    "env": ".env.template",
+    "readme": "readme.md",
+    "description": "Realtime log viewer for containers. Supports Docker, Swarm and K8s.",
+    "project_description": "Realtime log viewer for containers. Supports Docker, Swarm and K8s.",
+    "author": "Homelab Central",
+    "project_source": "https://github.com/amir20/dozzle",
+    "project_website": "https://dozzle.dev/",
+    "project_docs": "https://dozzle.dev/guide/what-is-dozzle",
+    "project_status": "Active",
+    "stable_images": [
+      "amir20/dozzle:latest"
+    ],
+    "stable_versions": [
+      "latest"
+    ],
+    "latest_images": [
+      "amir20/dozzle:latest"
+    ],
+    "latest_versions": [
+      "latest"
+    ],
+    "warning": "none",
+    "date": "2026-05-01",
+    "last_updated": "2026-05-01",
+    "required_env_files": [
+      "host.env",
+      "network.env"
+    ],
+    "supported_architecture": [
+      "amd64",
+      "x86",
+      "arm64"
+    ],
+    "ready_to_deploy": true,
+    "config_files": null,
+    "pre_install_steps": null,
+    "post_install_steps": null,
+    "post_setup_steps": null
+  },
+  {
+    "project_index": 19,
+    "project_name": "Beszel",
+    "dir_name": "19.beszel",
+    "compose": "docker-compose.yml",
+    "env": ".env.template",
+    "readme": "readme.md",
+    "description": "Beszel Hub for monitoring systems and Docker workloads, with agents deployed separately per host.",
+    "project_description": "Beszel Hub for monitoring systems and Docker workloads, with agents deployed separately per host.",
+    "author": "Homelab Central",
+    "project_source": "https://github.com/henrygd/beszel",
+    "project_website": "https://beszel.dev/",
+    "project_docs": "https://beszel.dev/guide/getting-started",
+    "project_status": "Active",
+    "stable_images": [
+      "henrygd/beszel:latest"
+    ],
+    "stable_versions": [
+      "latest"
+    ],
+    "latest_images": [
+      "henrygd/beszel:latest"
+    ],
+    "latest_versions": [
+      "latest"
+    ],
+    "warning": "This stack deploys only Beszel Hub. Deploy Beszel Agent separately on each system you want to monitor.",
+    "date": "2026-05-02",
+    "last_updated": "2026-05-02",
+    "required_env_files": [
+      "host.env",
+      "network.env"
+    ],
+    "supported_architecture": [
+      "amd64",
+      "x86",
+      "arm64"
+    ],
+    "ready_to_deploy": true,
+    "config_files": null,
+    "pre_install_steps": null,
+    "post_install_steps": [
+      {
+        "number": 1,
+        "description": "Connect a monitored system",
+        "todo": "After Beszel Hub is running, open the Beszel UI, choose Add system, copy the token and public key, then deploy `homestack deploy beszel-agent` on the target host and provide those values during setup."
+      }
+    ],
+    "post_setup_steps": null
+  },
+  {
+    "project_index": 19,
+    "project_name": "Beszel Agent",
+    "dir_name": "19.beszel-agent",
+    "compose": "docker-compose.yml",
+    "env": ".env.template",
+    "readme": "readme.md",
+    "description": "Beszel Agent for collecting host and Docker metrics and forwarding them to Beszel Hub.",
+    "project_description": "Beszel Agent for collecting host and Docker metrics and forwarding them to Beszel Hub.",
+    "author": "Homelab Central",
+    "project_source": "https://github.com/henrygd/beszel",
+    "project_website": "https://beszel.dev/",
+    "project_docs": "https://beszel.dev/guide/getting-started",
+    "project_status": "Active",
+    "stable_images": [
+      "henrygd/beszel-agent:latest"
+    ],
+    "stable_versions": [
+      "latest"
+    ],
+    "latest_images": [
+      "henrygd/beszel-agent:latest"
+    ],
+    "latest_versions": [
+      "latest"
+    ],
+    "warning": "none",
+    "date": "2026-05-02",
+    "last_updated": "2026-05-02",
+    "required_env_files": [
+      "host.env",
+      "network.env"
+    ],
+    "supported_architecture": [
+      "amd64",
+      "x86",
+      "arm64"
+    ],
+    "ready_to_deploy": true,
+    "config_files": null,
+    "pre_install_steps": [
+      {
+        "number": 1,
+        "description": "Get token and public key from Beszel Hub",
+        "todo": "In Beszel Hub, choose Add system, copy the token and public key, then run `homestack deploy beszel-agent` on the host to monitor and enter those values when prompted."
+      }
+    ],
+    "post_install_steps": null,
+    "post_setup_steps": null
+  },
+  {
+    "project_index": 20,
+    "project_name": "Immich",
+    "dir_name": "20.immich",
+    "compose": "docker-compose.yml",
+    "env": ".env.template",
+    "readme": "readme.md",
+    "description": "High performance self-hosted photo and video management solution.",
+    "project_description": "High performance self-hosted photo and video management solution.",
+    "author": "Homelab Central",
+    "project_source": "https://github.com/immich-app/immich",
+    "project_website": "https://immich.app/",
+    "project_docs": "https://docs.immich.app",
+    "project_status": "Active",
+    "stable_images": [
+      "ghcr.io/immich-app/immich-server:release",
+      "ghcr.io/immich-app/immich-machine-learning:release",
+      "docker.io/valkey/valkey:9@sha256:3b55fbaa0cd93cf0d9d961f405e4dfcc70efe325e2d84da207a0a8e6d8fde4f9",
+      "ghcr.io/immich-app/postgres:14-vectorchord0.4.3-pgvectors0.2.0@sha256:bcf63357191b76a916ae5eb93464d65c07511da41e3bf7a8416db519b40b1c23"
+    ],
+    "stable_versions": [
+      "v2"
+    ],
+    "latest_images": [
+      "ghcr.io/immich-app/immich-server:release",
+      "ghcr.io/immich-app/immich-machine-learning:release",
+      "docker.io/valkey/valkey:9@sha256:3b55fbaa0cd93cf0d9d961f405e4dfcc70efe325e2d84da207a0a8e6d8fde4f9",
+      "ghcr.io/immich-app/postgres:14-vectorchord0.4.3-pgvectors0.2.0@sha256:bcf63357191b76a916ae5eb93464d65c07511da41e3bf7a8416db519b40b1c23"
+    ],
+    "latest_versions": [
+      "release"
+    ],
+    "warning": "none",
+    "date": "2026-05-02",
+    "last_updated": "2026-05-02",
+    "required_env_files": [
+      "host.env",
+      "network.env"
+    ],
+    "supported_architecture": [
+      "amd64",
+      "x86",
+      "arm64"
+    ],
+    "ready_to_deploy": true,
+    "config_files": null,
+    "pre_install_steps": null,
+    "post_install_steps": null,
+    "post_setup_steps": null
+  }
+]

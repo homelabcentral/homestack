@@ -1,0 +1,46 @@
+name: ${STACK_IT_TOOLS:-it-tools}
+services:
+  it-tools:
+    image: ${DOCKER_IMAGE_IT_TOOLS:-sharevb/it-tools:latest}
+    container_name: ${CONTAINER_NAME_IT_TOOLS:-it-tools}
+    hostname: ${HOST_NAME_IT_TOOLS:-it-tools}
+    restart: ${RESTART_POLICY_IT_TOOLS:-unless-stopped}
+    # pull_policy: ${PULL_POLICY_IT_TOOLS:-always}
+    networks:
+      traefiknet:
+        ipv4_address: ${IP_IT_TOOLS:-172.16.0.13}
+    deploy:
+      resources:
+        limits:
+          cpus: ${CPU_MAX_IT_TOOLS}
+          memory: ${RAM_MAX_IT_TOOLS}
+        reservations:
+          cpus: ${CPU_MIN_IT_TOOLS:-0.05}
+          memory: ${RAM_MIN_IT_TOOLS:-6M}
+    env_file:
+      - .env
+      - ../00.env/host.env
+      - ../00.env/network.env
+    # Uncomment this if not running traefik or other reverse proxy and want to access gatus directly via http://<IP_PUBLIC>:3007 or http://<IP_TAILSCALE>:3007
+    # You do not need to change the external port, it is designed to work nicely with other containers.
+    # ports:
+    #   - ${IP_TAILSCALE}:${PORT_IT_TOOLS_EXTERNAL:-3007}:${PORT_IT_TOOLS_INTERNAL:-8080}
+    # OR if you don't want to bind to a specific IP, you can use:
+    # ${PORT_IT_TOOLS_EXTERNAL:-3007}:${PORT_IT_TOOLS_INTERNAL:-8080}
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.${APP_NAME_IT_TOOLS:-it-tools}.entrypoints=http"
+      - "traefik.http.routers.${APP_NAME_IT_TOOLS:-it-tools}.rule=Host(`${APP_NAME_IT_TOOLS:-it-tools}.${HOST_NAME}.${DOMAIN}`)"
+      - "traefik.http.middlewares.${APP_NAME_IT_TOOLS:-it-tools}-https-redirect.redirectscheme.scheme=https"
+      - "traefik.http.routers.${APP_NAME_IT_TOOLS:-it-tools}.middlewares=${APP_NAME_IT_TOOLS:-it-tools}-https-redirect"
+      - "traefik.http.routers.${APP_NAME_IT_TOOLS:-it-tools}-secure.entrypoints=https"
+      - "traefik.http.routers.${APP_NAME_IT_TOOLS:-it-tools}-secure.rule=Host(`${APP_NAME_IT_TOOLS:-it-tools}.${HOST_NAME}.${DOMAIN}`)"
+      - "traefik.http.routers.${APP_NAME_IT_TOOLS:-it-tools}-secure.tls=true"
+      - "traefik.http.routers.${APP_NAME_IT_TOOLS:-it-tools}-secure.service=${APP_NAME_IT_TOOLS:-it-tools}"
+      - "traefik.http.services.${APP_NAME_IT_TOOLS:-it-tools}.loadbalancer.server.port=${PORT_IT_TOOLS_INTERNAL:-8080}"
+      - "traefik.docker.network=traefiknet"
+
+networks:
+  traefiknet:
+    name: ${DOCKER_NETWORK:-traefiknet}
+    external: true

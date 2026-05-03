@@ -1,0 +1,46 @@
+name: ${STACK_UK_UPTIMEKUMA:-uptimekuma}
+services:
+  uptimekuma:
+    image: ${DOCKER_IMAGE_UK_UPTIMEKUMA:-louislam/uptime-kuma:2-rootless}
+    container_name: ${CONTAINER_NAME_UK_UPTIMEKUMA:-uptimekuma}
+    hostname: ${HOST_NAME_UK_UPTIMEKUMA:-uptimekuma}
+    restart: ${RESTART_UK_UPTIMEKUMA:-unless-stopped}
+    networks:
+      traefiknet:
+        ipv4_address: ${IP_UK_UPTIMEKUMA:-172.16.0.17}
+    deploy:
+      resources:
+        limits:
+          cpus: ${CPU_MAX_UK_UPTIMEKUMA}
+          memory: ${RAM_MAX_UK_UPTIMEKUMA}
+        reservations:
+          cpus: ${CPU_MIN_UK_UPTIMEKUMA:-0.05}
+          memory: ${RAM_MIN_UK_UPTIMEKUMA:-6M}
+    env_file:
+      - .env
+      - ../00.env/host.env
+      - ../00.env/network.env
+    volumes:
+      - ${DIR_DATA}/${DIR_UK_UPTIMEKUMA:-uptimekuma}:/app/data
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    # Uncomment this if not running traefik or other reverse proxy and want to access gatus directly via http://<IP_PUBLIC>:3011 or http://<IP_TAILSCALE>:3011
+    # You do not need to change the external port, it is designed to work nicely with other containers.
+    # ports:
+    #   - ${IP_TAILSCALE}:${PORT_UK_UPTIMEKUMA_EXTERNAL:-3011}:${PORT_UK_UPTIMEKUMA_INTERNAL:-3001}
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.${APP_NAME_UK_UPTIMEKUMA:-uptimekuma}.entrypoints=http"
+      - "traefik.http.routers.${APP_NAME_UK_UPTIMEKUMA:-uptimekuma}.rule=Host(`${APP_NAME_UK_UPTIMEKUMA:-uptimekuma}.${HOST_NAME}.${DOMAIN}`)"
+      - "traefik.http.middlewares.${APP_NAME_UK_UPTIMEKUMA:-uptimekuma}-https-redirect.redirectscheme.scheme=https"
+      - "traefik.http.routers.${APP_NAME_UK_UPTIMEKUMA:-uptimekuma}.middlewares=${APP_NAME_UK_UPTIMEKUMA:-uptimekuma}-https-redirect"
+      - "traefik.http.routers.${APP_NAME_UK_UPTIMEKUMA:-uptimekuma}-secure.entrypoints=https"
+      - "traefik.http.routers.${APP_NAME_UK_UPTIMEKUMA:-uptimekuma}-secure.rule=Host(`${APP_NAME_UK_UPTIMEKUMA:-uptimekuma}.${HOST_NAME}.${DOMAIN}`)"
+      - "traefik.http.routers.${APP_NAME_UK_UPTIMEKUMA:-uptimekuma}-secure.tls=true"
+      - "traefik.http.routers.${APP_NAME_UK_UPTIMEKUMA:-uptimekuma}-secure.service=${APP_NAME_UK_UPTIMEKUMA:-uptimekuma}"
+      - "traefik.http.services.${APP_NAME_UK_UPTIMEKUMA:-uptimekuma}.loadbalancer.server.port=${PORT_UK_UPTIMEKUMA_INTERNAL:-3001}"
+      - "traefik.docker.network=traefiknet"
+
+networks:
+  traefiknet:
+    name: ${DOCKER_NETWORK:-traefiknet}
+    external: true

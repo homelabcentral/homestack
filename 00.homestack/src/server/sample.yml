@@ -1,0 +1,27 @@
+env:
+  - file_name: host.env
+    description: Host related environment variables. These variables are used to configure the host machine, including its timezone, and other system-level configurations.
+    required: true
+  - file_name: network.env
+    description: Network related environment variables. These variables are used to configure the Docker network, including its name and subnet.
+    required: true
+  - file_name: email.env
+    description: Email related environment variables. These variables are used to configure email notifications, including the SMTP server, port, username, and password.
+    required: false
+  - file_name: vpn.env
+    description: VPN related environment variables. These variables are used to configure the VPN client, including the VPN server address, username, and password.
+    required: false
+projects:
+  - project:
+      name: pihole
+      dir: 01.pihole
+      files:
+        compose: docker-compose.yml
+        env: .env.template
+  - project:
+      name: traefik
+      dir: 02.traefik
+      files:
+        compose: docker-compose.yml
+        env: .env.template
+  
