@@ -177,49 +177,49 @@ ready_to_deploy: true
 
 @pytest.fixture
 def temp_project_dir(tmp_path):
-  """Create a deterministic temporary project directory structure with multiple readmes."""
-  projects = [
-    {
-      "dir_name": "00.project1",
-      "project_name": "Project 1",
-      "author": "Author 1",
-      "project_source": "https://github.com/test/project1",
-    },
-    {
-      "dir_name": "01.project2",
-      "project_name": "Project 2",
-      "author": "Author 2",
-      "project_source": "https://github.com/test/project2",
-    },
-  ]
+    """Create a deterministic temporary project directory structure with multiple readmes."""
+    projects = [
+        {
+            "dir_name": "00.project1",
+            "project_name": "Project 1",
+            "author": "Author 1",
+            "project_source": "https://github.com/test/project1",
+        },
+        {
+            "dir_name": "01.project2",
+            "project_name": "Project 2",
+            "author": "Author 2",
+            "project_source": "https://github.com/test/project2",
+        },
+    ]
 
-  for project in projects:
-    project_dir = tmp_path / project["dir_name"]
-    project_dir.mkdir()
-    readme_file = project_dir / "readme.md"
-    readme_file.write_text(
-      "\n".join(
-        [
-          "---",
-          f"author: {project['author']}",
-          f"project_name: {project['project_name']}",
-          f"project_source: {project['project_source']}",
-          "stable_images:",
-          "  - example:1.0.0",
-          "date: 2026-01-01",
-          "last_updated: 2026-01-01",
-          "supported_architecture:",
-          "  - amd64",
-          "ready_to_deploy: true",
-          "---",
-          f"# {project['project_name']}",
-          "",
-        ]
-      ),
-      encoding="utf-8",
-    )
+    for project in projects:
+        project_dir = tmp_path / project["dir_name"]
+        project_dir.mkdir()
+        readme_file = project_dir / "readme.md"
+        readme_file.write_text(
+            "\n".join(
+                [
+                    "---",
+                    f"author: {project['author']}",
+                    f"project_name: {project['project_name']}",
+                    f"project_source: {project['project_source']}",
+                    "stable_images:",
+                    "  - example:1.0.0",
+                    "date: 2026-01-01",
+                    "last_updated: 2026-01-01",
+                    "supported_architecture:",
+                    "  - amd64",
+                    "ready_to_deploy: true",
+                    "---",
+                    f"# {project['project_name']}",
+                    "",
+                ]
+            ),
+            encoding="utf-8",
+        )
 
-  api_dir = tmp_path / "00.api" / "v1"
-  api_dir.mkdir(parents=True, exist_ok=True)
+    api_dir = tmp_path / "00.api" / "v1"
+    api_dir.mkdir(parents=True, exist_ok=True)
 
-  yield tmp_path
+    yield tmp_path

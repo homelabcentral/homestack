@@ -6,7 +6,9 @@ from rich.panel import Panel
 from utils.project_table import ProjectTableBuilder
 
 
-def test_build_table_has_expected_columns(real_project_items: list[ProjectItem]) -> None:
+def test_build_table_has_expected_columns(
+    real_project_items: list[ProjectItem],
+) -> None:
     projects = [real_project_items[0]]
 
     panel = ProjectTableBuilder.build(projects, title="Deployable Projects")
@@ -23,7 +25,9 @@ def test_build_table_has_expected_columns(real_project_items: list[ProjectItem])
     ]
 
 
-def test_build_table_uses_fallback_values(real_project_items: list[ProjectItem]) -> None:
+def test_build_table_uses_fallback_values(
+    real_project_items: list[ProjectItem],
+) -> None:
     source = real_project_items[1]
     projects = [
         ProjectItem(

@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from api.client import APIClient
 from cli import cli as cli_module
 from cli.cli import app
 from client.downloader import BatchDownloadError, DownloadHTTPError
+from models.generated_env import GeneratedEnv
 from models.projects import ProjectItem
 from parsers import EnvTemplateParser
 from typer.testing import CliRunner
@@ -85,7 +86,9 @@ def test_parse_env_template_from_real_download(tmp_path: Path):
     compose_dir = tmp_path / "compose"
     compose_dir.mkdir(parents=True, exist_ok=True)
 
-    project_dir, _, _ = cli_module._pull_project_files(selected, compose_dir, force=False)
+    project_dir, _, _ = cli_module._pull_project_files(
+        selected, compose_dir, force=False
+    )
 
     parser = EnvTemplateParser(project_dir / selected.env)
     parsed = parser.parse()
@@ -99,7 +102,9 @@ def test_pull_with_force_overwrites_local_files(tmp_path: Path):
     compose_dir = tmp_path / "compose"
     compose_dir.mkdir(parents=True, exist_ok=True)
 
-    project_dir, _, _ = cli_module._pull_project_files(selected, compose_dir, force=False)
+    project_dir, _, _ = cli_module._pull_project_files(
+        selected, compose_dir, force=False
+    )
     compose_path = project_dir / selected.compose
     compose_path.write_text("modified\n", encoding="utf-8")
 
@@ -130,11 +135,15 @@ def test_resolve_project_config_destination_validates_paths(tmp_path: Path) -> N
     project_dir = tmp_path / "myproject"
     project_dir.mkdir()
 
-    valid = cli_module._resolve_project_config_destination(project_dir, "config/settings.yml")
+    valid = cli_module._resolve_project_config_destination(
+        project_dir, "config/settings.yml"
+    )
     assert valid == (project_dir / "config" / "settings.yml").resolve()
 
 
-def test_resolve_project_config_destination_rejects_absolute_path(tmp_path: Path) -> None:
+def test_resolve_project_config_destination_rejects_absolute_path(
+    tmp_path: Path,
+) -> None:
     project_dir = tmp_path / "myproject"
     project_dir.mkdir()
 
@@ -142,12 +151,16 @@ def test_resolve_project_config_destination_rejects_absolute_path(tmp_path: Path
         cli_module._resolve_project_config_destination(project_dir, "/etc/passwd")
 
 
-def test_resolve_project_config_destination_rejects_path_traversal(tmp_path: Path) -> None:
+def test_resolve_project_config_destination_rejects_path_traversal(
+    tmp_path: Path,
+) -> None:
     project_dir = tmp_path / "myproject"
     project_dir.mkdir()
 
     with pytest.raises(ValueError, match="escapes"):
-        cli_module._resolve_project_config_destination(project_dir, "../../../etc/shadow")
+        cli_module._resolve_project_config_destination(
+            project_dir, "../../../etc/shadow"
+        )
 
 
 def test_pull_warns_and_skips_missing_optional_config_files(
@@ -182,10 +195,12 @@ def test_pull_warns_and_skips_missing_optional_config_files(
         )
 
     with patch("cli.cli._download_jobs", side_effect=fake_jobs):
-        project_dir, downloaded_count, skipped_existing = cli_module._pull_project_files(
-            project,
-            compose_dir,
-            force=False,
+        project_dir, downloaded_count, skipped_existing = (
+            cli_module._pull_project_files(
+                project,
+                compose_dir,
+                force=False,
+            )
         )
 
     output = capsys.readouterr().out
@@ -234,10 +249,12 @@ def test_pull_force_preserves_existing_optional_config_when_remote_missing(
         )
 
     with patch("cli.cli._download_jobs", side_effect=fake_jobs):
-        project_dir, downloaded_count, skipped_existing = cli_module._pull_project_files(
-            project,
-            compose_dir,
-            force=True,
+        project_dir, downloaded_count, skipped_existing = (
+            cli_module._pull_project_files(
+                project,
+                compose_dir,
+                force=True,
+            )
         )
 
     output = capsys.readouterr().out
@@ -387,9 +404,7 @@ def test_pull_rejects_unsafe_config_path(tmp_path: Path) -> None:
     project_dir.mkdir(parents=True)
 
     with pytest.raises(ValueError, match="escapes"):
-        cli_module._resolve_project_config_destination(
-            project_dir, "../../etc/passwd"
-        )
+        cli_module._resolve_project_config_destination(project_dir, "../../etc/passwd")
 
 
 # ---------------------------------------------------------------------------
@@ -463,7 +478,9 @@ def test_deploy_fails_when_compose_config_is_invalid(tmp_path: Path) -> None:
     assert "failed" in result.output.lower() or "Docker" in result.output
 
 
-def test_deploy_fails_when_required_env_files_metadata_is_missing(tmp_path: Path) -> None:
+def test_deploy_fails_when_required_env_files_metadata_is_missing(
+    tmp_path: Path,
+) -> None:
     install_dir = str(tmp_path / "homestack")
     project = _project_item(required_env_files=None)
     project_dir = tmp_path / "homestack" / "compose" / "pihole-with-unbound"
@@ -535,7 +552,9 @@ def test_stop_fails_when_no_installed_projects(tmp_path: Path) -> None:
         result = runner.invoke(app, ["stop", "pihole"])
 
     assert result.exit_code == 1
-    assert "No locally installed" in result.output or "not found" in result.output.lower()
+    assert (
+        "No locally installed" in result.output or "not found" in result.output.lower()
+    )
 
 
 def test_stop_uses_project_required_env_files(tmp_path: Path) -> None:
@@ -602,7 +621,9 @@ def test_start_runs_docker_runtime(tmp_path: Path) -> None:
     assert start_called[0]
 
 
-def test_start_fails_when_required_env_files_metadata_is_missing(tmp_path: Path) -> None:
+def test_start_fails_when_required_env_files_metadata_is_missing(
+    tmp_path: Path,
+) -> None:
     install_dir = str(tmp_path / "homestack")
     project = _project_item(required_env_files=None)
     compose_dir = tmp_path / "homestack" / "compose"
@@ -650,3 +671,419 @@ def test_remove_runs_runtime_and_deletes_project_dir(tmp_path: Path) -> None:
     assert result.exit_code == 0
     assert remove_called[0]
     assert not project_dir.exists()
+
+
+# ---------------------------------------------------------------------------
+# Pull: command-level error paths
+# ---------------------------------------------------------------------------
+
+
+def test_pull_exits_with_error_when_download_fails_with_non_404(tmp_path: Path) -> None:
+    install_dir = str(tmp_path / "homestack")
+    project = _project_item()
+
+    async def fake_jobs(jobs, **_):
+        raise BatchDownloadError(
+            [(jobs[0], DownloadHTTPError(jobs[0].url, 503, "Service Unavailable"))]
+        )
+
+    with (
+        patch("cli.cli._require_init_or_exit", return_value=_host_prefs(install_dir)),
+        patch("cli.cli.settings") as mock_settings,
+        patch("cli.cli._load_cached_projects", return_value=[project]),
+        patch("cli.cli._select_project_from_query", return_value=project),
+        patch("cli.cli._download_jobs", side_effect=fake_jobs),
+    ):
+        mock_settings.cache_api_dir = tmp_path / "cache"
+        result = runner.invoke(app, ["pull", "pihole"])
+
+    assert result.exit_code == 1
+    assert "Traceback" not in result.output
+    assert "Pull failed" in result.output or "503" in result.output
+
+
+# ---------------------------------------------------------------------------
+# Deploy: error paths
+# ---------------------------------------------------------------------------
+
+
+def test_deploy_exits_when_env_template_is_missing_after_pull(tmp_path: Path) -> None:
+    install_dir = str(tmp_path / "homestack")
+    project = _project_item(required_env_files=[])
+    project_dir = tmp_path / "homestack" / "compose" / "pihole-with-unbound"
+    project_dir.mkdir(parents=True, exist_ok=True)
+    # Stage compose but NOT the env template
+    (project_dir / project.compose).write_text("version: '3'\n", encoding="utf-8")
+    (project_dir / project.readme).write_text("# Readme\n", encoding="utf-8")
+
+    with (
+        patch("cli.cli._require_init_or_exit", return_value=_host_prefs(install_dir)),
+        patch("cli.cli.settings") as mock_settings,
+        patch("cli.cli._load_cached_projects", return_value=[project]),
+        patch("cli.cli._select_project_from_query", return_value=project),
+        patch("cli.cli._pull_project_files", return_value=(project_dir, 2, [])),
+    ):
+        mock_settings.cache_api_dir = tmp_path / "cache"
+        result = runner.invoke(app, ["deploy", "pihole"])
+
+    assert result.exit_code == 1
+    assert "Traceback" not in result.output
+    assert "env template" in result.output.lower() or "No env template" in result.output
+
+
+def test_deploy_docker_failure_on_new_deploy_path(tmp_path: Path) -> None:
+    install_dir = str(tmp_path / "homestack")
+    project = _project_item(required_env_files=[])
+    project_dir = tmp_path / "homestack" / "compose" / "pihole-with-unbound"
+    _stage_project_files(project_dir, project)
+    # No .env so it takes new-deploy path
+
+    with (
+        patch("cli.cli._require_init_or_exit", return_value=_host_prefs(install_dir)),
+        patch("cli.cli.settings") as mock_settings,
+        patch("cli.cli._load_cached_projects", return_value=[project]),
+        patch("cli.cli._select_project_from_query", return_value=project),
+        patch(
+            "cli.cli.build_form_from_template",
+            return_value=GeneratedEnv(values={"MY_VAR": "test"}),
+        ),
+        patch("cli.cli.print_secrets_summary"),
+        patch("cli.cli._validate_project_compose_config"),
+        patch(
+            "cli.cli.deploy_project_stack",
+            side_effect=DockerRuntimeError("container failed to start"),
+        ),
+    ):
+        mock_settings.cache_api_dir = tmp_path / "cache"
+        result = runner.invoke(app, ["deploy", "pihole"])
+
+    assert result.exit_code == 1
+    assert "Traceback" not in result.output
+    assert "Docker deploy failed" in result.output or "failed" in result.output.lower()
+
+
+def test_deploy_missing_required_shared_env_file(tmp_path: Path) -> None:
+    install_dir = str(tmp_path / "homestack")
+    project = _project_item(required_env_files=["network.env"])
+    project_dir = tmp_path / "homestack" / "compose" / "pihole-with-unbound"
+    _stage_project_files(project_dir, project)
+    (project_dir / ".env").write_text("MY_VAR=value\n", encoding="utf-8")
+    # network.env is NOT created under compose/00.env/
+
+    with (
+        patch("cli.cli._require_init_or_exit", return_value=_host_prefs(install_dir)),
+        patch("cli.cli.settings") as mock_settings,
+        patch("cli.cli._load_cached_projects", return_value=[project]),
+        patch("cli.cli._select_project_from_query", return_value=project),
+        patch("cli.cli.validate_compose_config"),
+    ):
+        mock_settings.cache_api_dir = tmp_path / "cache"
+        result = runner.invoke(app, ["deploy", "pihole"])
+
+    assert result.exit_code == 1
+    assert "Traceback" not in result.output
+    assert (
+        "Required env file not found" in result.output or "network.env" in result.output
+    )
+
+
+def test_deploy_aborts_when_form_is_interrupted(tmp_path: Path) -> None:
+    install_dir = str(tmp_path / "homestack")
+    project = _project_item(required_env_files=[])
+    project_dir = tmp_path / "homestack" / "compose" / "pihole-with-unbound"
+    _stage_project_files(project_dir, project)
+
+    with (
+        patch("cli.cli._require_init_or_exit", return_value=_host_prefs(install_dir)),
+        patch("cli.cli.settings") as mock_settings,
+        patch("cli.cli._load_cached_projects", return_value=[project]),
+        patch("cli.cli._select_project_from_query", return_value=project),
+        patch("cli.cli.build_form_from_template", side_effect=KeyboardInterrupt),
+    ):
+        mock_settings.cache_api_dir = tmp_path / "cache"
+        result = runner.invoke(app, ["deploy", "pihole"])
+
+    assert result.exit_code == 1
+    assert "Traceback" not in result.output
+    assert "Aborted" in result.output
+
+
+# ---------------------------------------------------------------------------
+# Start: error paths
+# ---------------------------------------------------------------------------
+
+
+def test_start_fails_when_env_file_is_missing(tmp_path: Path) -> None:
+    install_dir = str(tmp_path / "homestack")
+    project = _project_item(required_env_files=[])
+    compose_dir = tmp_path / "homestack" / "compose"
+    project_dir = compose_dir / "pihole-with-unbound"
+    project_dir.mkdir(parents=True, exist_ok=True)
+    (project_dir / project.compose).write_text("version: '3'\n", encoding="utf-8")
+    # .env is intentionally absent
+
+    with (
+        patch("cli.cli._require_init_or_exit", return_value=_host_prefs(install_dir)),
+        patch("cli.cli.settings") as mock_settings,
+        patch("cli.cli._load_cached_projects", return_value=[project]),
+        patch("cli.cli._select_project_from_query", return_value=project),
+    ):
+        mock_settings.cache_api_dir = tmp_path / "cache"
+        result = runner.invoke(app, ["start", "pihole"])
+
+    assert result.exit_code == 1
+    assert "Traceback" not in result.output
+    assert "No .env found" in result.output
+
+
+def test_start_fails_when_compose_file_is_missing(tmp_path: Path) -> None:
+    install_dir = str(tmp_path / "homestack")
+    project = _project_item(required_env_files=[])
+    compose_dir = tmp_path / "homestack" / "compose"
+    project_dir = compose_dir / "pihole-with-unbound"
+    project_dir.mkdir(parents=True, exist_ok=True)
+    (project_dir / ".env").write_text("MY_VAR=value\n", encoding="utf-8")
+
+    with (
+        patch("cli.cli._require_init_or_exit", return_value=_host_prefs(install_dir)),
+        patch("cli.cli.settings") as mock_settings,
+        patch("cli.cli._load_cached_projects", return_value=[project]),
+        patch("cli.cli._select_project_from_query", return_value=project),
+    ):
+        mock_settings.cache_api_dir = tmp_path / "cache"
+        result = runner.invoke(app, ["start", "pihole"])
+
+    assert result.exit_code == 1
+    assert "Traceback" not in result.output
+    assert "No docker-compose.yml found" in result.output
+
+
+def test_start_fails_on_docker_runtime_error(tmp_path: Path) -> None:
+    install_dir = str(tmp_path / "homestack")
+    project = _project_item(required_env_files=[])
+    compose_dir = tmp_path / "homestack" / "compose"
+    _install_project(compose_dir, project)
+
+    with (
+        patch("cli.cli._require_init_or_exit", return_value=_host_prefs(install_dir)),
+        patch("cli.cli.settings") as mock_settings,
+        patch("cli.cli._load_cached_projects", return_value=[project]),
+        patch("cli.cli._select_project_from_query", return_value=project),
+        patch("cli.cli.validate_compose_config"),
+        patch(
+            "cli.cli.start_project_stack",
+            side_effect=DockerRuntimeError("containers crashed"),
+        ),
+    ):
+        mock_settings.cache_api_dir = tmp_path / "cache"
+        result = runner.invoke(app, ["start", "pihole"])
+
+    assert result.exit_code == 1
+    assert "Traceback" not in result.output
+    assert "Docker start failed" in result.output or "crashed" in result.output
+
+
+def test_start_fails_when_required_shared_env_file_is_missing(tmp_path: Path) -> None:
+    install_dir = str(tmp_path / "homestack")
+    project = _project_item(required_env_files=["network.env"])
+    compose_dir = tmp_path / "homestack" / "compose"
+    _install_project(compose_dir, project)
+    # network.env is NOT created
+
+    with (
+        patch("cli.cli._require_init_or_exit", return_value=_host_prefs(install_dir)),
+        patch("cli.cli.settings") as mock_settings,
+        patch("cli.cli._load_cached_projects", return_value=[project]),
+        patch("cli.cli._select_project_from_query", return_value=project),
+    ):
+        mock_settings.cache_api_dir = tmp_path / "cache"
+        result = runner.invoke(app, ["start", "pihole"])
+
+    assert result.exit_code == 1
+    assert "Traceback" not in result.output
+    assert (
+        "Required env file not found" in result.output or "network.env" in result.output
+    )
+
+
+# ---------------------------------------------------------------------------
+# Stop: error paths
+# ---------------------------------------------------------------------------
+
+
+def test_stop_fails_on_docker_runtime_error(tmp_path: Path) -> None:
+    install_dir = str(tmp_path / "homestack")
+    project = _project_item(required_env_files=[])
+    compose_dir = tmp_path / "homestack" / "compose"
+    _install_project(compose_dir, project)
+
+    with (
+        patch("cli.cli._require_init_or_exit", return_value=_host_prefs(install_dir)),
+        patch("cli.cli.settings") as mock_settings,
+        patch("cli.cli._load_cached_projects", return_value=[project]),
+        patch("cli.cli._select_project_from_query", return_value=project),
+        patch("cli.cli.validate_compose_config"),
+        patch(
+            "cli.cli.stop_project_stack",
+            side_effect=DockerRuntimeError("docker daemon unreachable"),
+        ),
+    ):
+        mock_settings.cache_api_dir = tmp_path / "cache"
+        result = runner.invoke(app, ["stop", "pihole"])
+
+    assert result.exit_code == 1
+    assert "Traceback" not in result.output
+    assert "Docker stop failed" in result.output or "unreachable" in result.output
+
+
+def test_stop_fails_when_env_file_is_missing(tmp_path: Path) -> None:
+    install_dir = str(tmp_path / "homestack")
+    project = _project_item(required_env_files=[])
+    compose_dir = tmp_path / "homestack" / "compose"
+    project_dir = compose_dir / "pihole-with-unbound"
+    project_dir.mkdir(parents=True, exist_ok=True)
+    (project_dir / project.compose).write_text("version: '3'\n", encoding="utf-8")
+    # .env is intentionally absent
+
+    with (
+        patch("cli.cli._require_init_or_exit", return_value=_host_prefs(install_dir)),
+        patch("cli.cli.settings") as mock_settings,
+        patch("cli.cli._load_cached_projects", return_value=[project]),
+        patch("cli.cli._select_project_from_query", return_value=project),
+    ):
+        mock_settings.cache_api_dir = tmp_path / "cache"
+        result = runner.invoke(app, ["stop", "pihole"])
+
+    assert result.exit_code == 1
+    assert "Traceback" not in result.output
+    assert "No .env found" in result.output
+
+
+def test_stop_fails_when_compose_file_is_missing(tmp_path: Path) -> None:
+    install_dir = str(tmp_path / "homestack")
+    project = _project_item(required_env_files=[])
+    compose_dir = tmp_path / "homestack" / "compose"
+    project_dir = compose_dir / "pihole-with-unbound"
+    project_dir.mkdir(parents=True, exist_ok=True)
+    (project_dir / ".env").write_text("MY_VAR=value\n", encoding="utf-8")
+
+    with (
+        patch("cli.cli._require_init_or_exit", return_value=_host_prefs(install_dir)),
+        patch("cli.cli.settings") as mock_settings,
+        patch("cli.cli._load_cached_projects", return_value=[project]),
+        patch("cli.cli._select_project_from_query", return_value=project),
+    ):
+        mock_settings.cache_api_dir = tmp_path / "cache"
+        result = runner.invoke(app, ["stop", "pihole"])
+
+    assert result.exit_code == 1
+    assert "Traceback" not in result.output
+    assert "No docker-compose.yml found" in result.output
+
+
+# ---------------------------------------------------------------------------
+# Remove: error paths
+# ---------------------------------------------------------------------------
+
+
+def test_remove_fails_on_docker_runtime_error(tmp_path: Path) -> None:
+    install_dir = str(tmp_path / "homestack")
+    project = _project_item(required_env_files=[])
+    compose_dir = tmp_path / "homestack" / "compose"
+    project_dir = _install_project(compose_dir, project)
+
+    with (
+        patch("cli.cli._require_init_or_exit", return_value=_host_prefs(install_dir)),
+        patch("cli.cli.settings") as mock_settings,
+        patch("cli.cli._load_cached_projects", return_value=[project]),
+        patch("cli.cli._select_project_from_query", return_value=project),
+        patch("cli.cli.validate_compose_config"),
+        patch(
+            "cli.cli.remove_project_stack",
+            side_effect=DockerRuntimeError("image removal failed"),
+        ),
+    ):
+        mock_settings.cache_api_dir = tmp_path / "cache"
+        result = runner.invoke(app, ["remove", "pihole"])
+
+    assert result.exit_code == 1
+    assert "Traceback" not in result.output
+    assert (
+        "Docker remove failed" in result.output
+        or "image removal failed" in result.output
+    )
+    assert project_dir.exists()  # directory should NOT have been deleted
+
+
+def test_remove_fails_when_directory_deletion_raises(tmp_path: Path) -> None:
+    install_dir = str(tmp_path / "homestack")
+    project = _project_item(required_env_files=[])
+    compose_dir = tmp_path / "homestack" / "compose"
+    _install_project(compose_dir, project)
+
+    with (
+        patch("cli.cli._require_init_or_exit", return_value=_host_prefs(install_dir)),
+        patch("cli.cli.settings") as mock_settings,
+        patch("cli.cli._load_cached_projects", return_value=[project]),
+        patch("cli.cli._select_project_from_query", return_value=project),
+        patch("cli.cli.validate_compose_config"),
+        patch("cli.cli.remove_project_stack"),
+        patch("cli.cli.shutil.rmtree", side_effect=OSError("permission denied")),
+    ):
+        mock_settings.cache_api_dir = tmp_path / "cache"
+        result = runner.invoke(app, ["remove", "pihole"])
+
+    assert result.exit_code == 1
+    assert "Traceback" not in result.output
+    assert (
+        "Failed to remove project directory" in result.output
+        or "permission denied" in result.output
+    )
+
+
+def test_remove_fails_when_env_file_is_missing(tmp_path: Path) -> None:
+    install_dir = str(tmp_path / "homestack")
+    project = _project_item(required_env_files=[])
+    compose_dir = tmp_path / "homestack" / "compose"
+    project_dir = compose_dir / "pihole-with-unbound"
+    project_dir.mkdir(parents=True, exist_ok=True)
+    (project_dir / project.compose).write_text("version: '3'\n", encoding="utf-8")
+
+    with (
+        patch("cli.cli._require_init_or_exit", return_value=_host_prefs(install_dir)),
+        patch("cli.cli.settings") as mock_settings,
+        patch("cli.cli._load_cached_projects", return_value=[project]),
+        patch("cli.cli._select_project_from_query", return_value=project),
+    ):
+        mock_settings.cache_api_dir = tmp_path / "cache"
+        result = runner.invoke(app, ["remove", "pihole"])
+
+    assert result.exit_code == 1
+    assert "Traceback" not in result.output
+    assert "No .env found" in result.output
+
+
+def test_deploy_missing_required_shared_env_file_uses_explicit_mock_object(
+    tmp_path: Path,
+) -> None:
+    install_dir = str(tmp_path / "homestack")
+    project = _project_item(required_env_files=["network.env"])
+    project_dir = tmp_path / "homestack" / "compose" / "pihole-with-unbound"
+    _stage_project_files(project_dir, project)
+
+    generated_env = MagicMock()
+    generated_env.to_env_string.return_value = "MY_VAR=value\n"
+
+    with (
+        patch("cli.cli._require_init_or_exit", return_value=_host_prefs(install_dir)),
+        patch("cli.cli.settings") as mock_settings,
+        patch("cli.cli._load_cached_projects", return_value=[project]),
+        patch("cli.cli._select_project_from_query", return_value=project),
+        patch("cli.cli.build_form_from_template", return_value=generated_env),
+        patch("cli.cli.print_secrets_summary"),
+    ):
+        mock_settings.cache_api_dir = tmp_path / "cache"
+        result = runner.invoke(app, ["deploy", "pihole"])
+
+    assert result.exit_code == 1
+    assert "Required env file not found" in result.output

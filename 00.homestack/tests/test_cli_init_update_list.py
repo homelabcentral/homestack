@@ -7,12 +7,13 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from api.client import APIClient
-from api.exceptions import APIHTTPError, APINetworkError
+from api.exceptions import APIHTTPError, APINetworkError, APITimeoutError
 from cli import cli as cli_module
 from cli.cli import app
 from models.projects import ProjectItem
 from typer.testing import CliRunner
-from utils.shared_pref import HostPreferences, SharedPreferences
+from utils.docker_runtime import DockerNetworkConflictError
+from utils.shared_pref import HostPreferences, SharedPreferences, SharedPrefsIOError
 
 runner = CliRunner()
 
@@ -292,7 +293,9 @@ def test_update_http_404_shows_friendly_message_no_traceback(tmp_path: Path) -> 
     assert "404" in result.output or "not found" in result.output.lower()
 
 
-def test_update_network_error_shows_friendly_message_no_traceback(tmp_path: Path) -> None:
+def test_update_network_error_shows_friendly_message_no_traceback(
+    tmp_path: Path,
+) -> None:
     install_dir = str(tmp_path / "homestack")
     cache_dir = tmp_path / "cache" / "api" / "v1"
     cache_dir.mkdir(parents=True, exist_ok=True)
@@ -395,32 +398,38 @@ def test_cache_fallback_when_missing(tmp_path: Path) -> None:
     def fake_update_writes_cache():
         # Simulate update filling the cache
         (cache_dir / "projects.json").write_text(
-            json.dumps([
-                {
-                    "project_index": 1,
-                    "project_name": "Pihole with Unbound",
-                    "dir_name": "01.pihole-unbound",
-                    "compose": "docker-compose.yml",
-                    "env": ".env.template",
-                    "readme": "readme.md",
-                    "config_files": [],
-                    "required_env_files": ["network.env"],
-                    "project_description": "DNS",
-                    "supported_architecture": ["amd64"],
-                    "ready_to_deploy": True,
-                }
-            ]),
+            json.dumps(
+                [
+                    {
+                        "project_index": 1,
+                        "project_name": "Pihole with Unbound",
+                        "dir_name": "01.pihole-unbound",
+                        "compose": "docker-compose.yml",
+                        "env": ".env.template",
+                        "readme": "readme.md",
+                        "config_files": [],
+                        "required_env_files": ["network.env"],
+                        "project_description": "DNS",
+                        "supported_architecture": ["amd64"],
+                        "ready_to_deploy": True,
+                    }
+                ]
+            ),
             encoding="utf-8",
         )
 
     with patch("cli.cli.update", side_effect=fake_update_writes_cache):
-        projects = cli_module._load_cached_projects(cache_dir, check_remote_change=False)
+        projects = cli_module._load_cached_projects(
+            cache_dir, check_remote_change=False
+        )
 
     assert len(projects) >= 1
     assert projects[0].project_name == "Pihole with Unbound"
 
 
-def test_list_prefers_api_layer_refresh_and_falls_back_to_local_cache(tmp_path: Path) -> None:
+def test_list_prefers_api_layer_refresh_and_falls_back_to_local_cache(
+    tmp_path: Path,
+) -> None:
     install_dir = str(tmp_path / "homestack")
     cache_dir = tmp_path / "cache"
     _write_sample_cache(cache_dir)
@@ -439,7 +448,9 @@ def test_list_prefers_api_layer_refresh_and_falls_back_to_local_cache(tmp_path: 
     assert result.exit_code == 0
 
 
-def test_search_uses_cached_projects_when_conditional_refresh_returns_error(tmp_path: Path) -> None:
+def test_search_uses_cached_projects_when_conditional_refresh_returns_error(
+    tmp_path: Path,
+) -> None:
     install_dir = str(tmp_path / "homestack")
     cache_dir = tmp_path / "cache"
     _write_sample_cache(cache_dir)
@@ -543,7 +554,11 @@ def test_info_warns_when_remote_readme_is_unreachable(tmp_path: Path) -> None:
 
     # Warns but does not crash
     assert result.exit_code == 0
-    assert "⚠" in result.output or "warn" in result.output.lower() or "reach" in result.output.lower()
+    assert (
+        "⚠" in result.output
+        or "warn" in result.output.lower()
+        or "reach" in result.output.lower()
+    )
 
 
 def test_info_remote_readme_uses_repository_base_url(tmp_path: Path) -> None:
@@ -593,3 +608,320 @@ def test_upgrade_uses_cached_projects_when_refresh_fails(tmp_path: Path) -> None
         result = runner.invoke(app, ["upgrade", "pihole"])
 
     assert result.exit_code == 0
+
+
+# ---------------------------------------------------------------------------
+# Init: error paths
+# ---------------------------------------------------------------------------
+
+
+def _mock_prefs(is_initialized: bool, install_dir: str) -> MagicMock:
+    mock_prefs = MagicMock()
+    mock_prefs.__enter__ = MagicMock(return_value=mock_prefs)
+    mock_prefs.__exit__ = MagicMock(return_value=False)
+    mock_prefs.is_initialized.return_value = is_initialized
+    mock_prefs.get_host_preferences.return_value = _host_prefs(install_dir)
+    return mock_prefs
+
+
+def test_init_fails_when_preferences_db_is_corrupt(tmp_path: Path) -> None:
+    with patch("cli.cli.SharedPreferences") as mock_prefs_cls:
+        mock_prefs = MagicMock()
+        mock_prefs.__enter__ = MagicMock(side_effect=SharedPrefsIOError("disk full"))
+        mock_prefs.__exit__ = MagicMock(return_value=False)
+        mock_prefs_cls.return_value = mock_prefs
+        result = runner.invoke(app, ["init"])
+
+    assert result.exit_code == 1
+    assert "Traceback" not in result.output
+    assert (
+        "Failed to initialize preferences" in result.output
+        or "disk full" in result.output
+    )
+
+
+def test_init_fails_when_install_dir_is_not_writable(tmp_path: Path) -> None:
+    install_dir = str(tmp_path / "homestack")
+    Path(install_dir).mkdir(parents=True, exist_ok=True)
+
+    with (
+        patch("cli.cli.SharedPreferences") as mock_prefs_cls,
+        patch("cli.cli.typer.prompt", return_value=install_dir),
+        patch("cli.cli.ensure_traefik_bridge_network"),
+        patch("pathlib.Path.write_text", side_effect=OSError("read-only fs")),
+    ):
+        mock_prefs_cls.return_value = _mock_prefs(
+            is_initialized=False, install_dir=install_dir
+        )
+        result = runner.invoke(app, ["init"])
+
+    assert result.exit_code == 1
+    assert "Traceback" not in result.output
+    assert "writable" in result.output or "write" in result.output.lower()
+
+
+def test_init_fails_when_docker_network_setup_raises(tmp_path: Path) -> None:
+    install_dir = str(tmp_path / "homestack")
+    Path(install_dir).mkdir(parents=True, exist_ok=True)
+
+    with (
+        patch("cli.cli.SharedPreferences") as mock_prefs_cls,
+        patch("cli.cli.typer.prompt", return_value=install_dir),
+        patch(
+            "cli.cli.ensure_traefik_bridge_network",
+            side_effect=DockerNetworkConflictError("subnet clash"),
+        ),
+    ):
+        mock_prefs_cls.return_value = _mock_prefs(
+            is_initialized=False, install_dir=install_dir
+        )
+        result = runner.invoke(app, ["init"])
+
+    assert result.exit_code == 1
+    assert "Traceback" not in result.output
+    assert "subnet clash" in result.output or "docker" in result.output.lower()
+
+
+# ---------------------------------------------------------------------------
+# Update: error paths
+# ---------------------------------------------------------------------------
+
+
+def test_update_timeout_shows_friendly_message(tmp_path: Path) -> None:
+    install_dir = str(tmp_path / "homestack")
+    cache_dir = tmp_path / "cache" / "api" / "v1"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+
+    with (
+        patch("cli.cli._require_init_or_exit", return_value=_host_prefs(install_dir)),
+        patch("cli.cli.settings") as mock_settings,
+        patch.object(
+            APIClient,
+            "fetch_meta_sync",
+            side_effect=APITimeoutError("connection timed out"),
+        ),
+    ):
+        mock_settings.cache_api_dir = cache_dir
+        result = runner.invoke(app, ["update"])
+
+    assert result.exit_code == 1
+    assert "Traceback" not in result.output
+    assert "timed out" in result.output or "timeout" in result.output.lower()
+
+
+def test_update_batch_download_failure_exits_with_error(tmp_path: Path) -> None:
+    from client.downloader import BatchDownloadError, DownloadHTTPError, DownloadJob
+
+    install_dir = str(tmp_path / "homestack")
+    cache_dir = tmp_path / "cache" / "api" / "v1"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+
+    stale_job = DownloadJob(
+        url="https://api.example.com/v1/projects.json",
+        destination=cache_dir / "projects.json",
+    )
+    fake_meta = [MagicMock(file_name="projects.json", sha="new")]
+    batch_error = BatchDownloadError(
+        [(stale_job, DownloadHTTPError(stale_job.url, 503, "Service Unavailable"))]
+    )
+
+    async def fake_download_jobs(jobs, **_kwargs):
+        raise batch_error
+
+    with (
+        patch("cli.cli._require_init_or_exit", return_value=_host_prefs(install_dir)),
+        patch("cli.cli.settings") as mock_settings,
+        patch.object(APIClient, "fetch_meta_sync", return_value=fake_meta),
+        patch("cli.cli._read_local_meta", return_value={}),
+        patch("cli.cli._download_jobs", side_effect=fake_download_jobs),
+    ):
+        mock_settings.cache_api_dir = cache_dir
+        mock_settings.api_url = "https://api.example.com/v1"
+        result = runner.invoke(app, ["update"])
+
+    assert result.exit_code == 1
+    assert "Traceback" not in result.output
+    assert "unexpected internal error" in result.output.lower()
+
+
+# ---------------------------------------------------------------------------
+# List: error paths
+# ---------------------------------------------------------------------------
+
+
+def test_list_exits_with_error_when_cache_load_fails(tmp_path: Path) -> None:
+    install_dir = str(tmp_path / "homestack")
+    cache_dir = tmp_path / "cache"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+
+    with (
+        patch("cli.cli._require_init_or_exit", return_value=_host_prefs(install_dir)),
+        patch("cli.cli.settings") as mock_settings,
+        patch(
+            "cli.cli._load_cached_projects", side_effect=RuntimeError("cache broken")
+        ),
+    ):
+        mock_settings.cache_api_dir = cache_dir
+        result = runner.invoke(app, ["list"])
+
+    assert result.exit_code == 1
+    assert "Traceback" not in result.output
+    assert "List failed" in result.output or "cache broken" in result.output
+
+
+# ---------------------------------------------------------------------------
+# Search: error paths
+# ---------------------------------------------------------------------------
+
+
+def test_search_exits_with_error_when_cache_load_fails(tmp_path: Path) -> None:
+    install_dir = str(tmp_path / "homestack")
+    cache_dir = tmp_path / "cache"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+
+    with (
+        patch("cli.cli._require_init_or_exit", return_value=_host_prefs(install_dir)),
+        patch("cli.cli.settings") as mock_settings,
+        patch(
+            "cli.cli._load_cached_projects", side_effect=RuntimeError("cache broken")
+        ),
+    ):
+        mock_settings.cache_api_dir = cache_dir
+        result = runner.invoke(app, ["search", "traefik"])
+
+    assert result.exit_code == 1
+    assert "Traceback" not in result.output
+    assert "Search failed" in result.output or "cache broken" in result.output
+
+
+def test_search_returns_zero_when_no_matches(tmp_path: Path) -> None:
+    install_dir = str(tmp_path / "homestack")
+    cache_dir = tmp_path / "cache"
+    _write_sample_cache(cache_dir)
+
+    with (
+        patch("cli.cli._require_init_or_exit", return_value=_host_prefs(install_dir)),
+        patch("cli.cli.settings") as mock_settings,
+        patch("cli.cli._refresh_projects_cache_silent"),
+    ):
+        mock_settings.cache_api_dir = cache_dir
+        result = runner.invoke(app, ["search", "zzz-no-match"])
+
+    assert result.exit_code == 0
+    assert "No projects found" in result.output or "zzz-no-match" in result.output
+
+
+# ---------------------------------------------------------------------------
+# Info: error paths
+# ---------------------------------------------------------------------------
+
+
+def test_info_exits_with_error_when_project_not_found(tmp_path: Path) -> None:
+    install_dir = str(tmp_path / "homestack")
+    cache_dir = tmp_path / "cache"
+    _write_sample_cache(cache_dir)
+
+    with (
+        patch("cli.cli._require_init_or_exit", return_value=_host_prefs(install_dir)),
+        patch("cli.cli.settings") as mock_settings,
+        patch("cli.cli._refresh_projects_cache_silent"),
+        patch("cli.cli._find_project", return_value=None),
+    ):
+        mock_settings.cache_api_dir = cache_dir
+        result = runner.invoke(app, ["info", "unknown-project"])
+
+    assert result.exit_code == 1
+    assert "Traceback" not in result.output
+    assert "not found" in result.output.lower()
+
+
+def test_info_exits_with_error_when_cache_load_fails(tmp_path: Path) -> None:
+    install_dir = str(tmp_path / "homestack")
+    cache_dir = tmp_path / "cache"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+
+    with (
+        patch("cli.cli._require_init_or_exit", return_value=_host_prefs(install_dir)),
+        patch("cli.cli.settings") as mock_settings,
+        patch(
+            "cli.cli._load_cached_projects",
+            side_effect=RuntimeError("projects.json corrupt"),
+        ),
+    ):
+        mock_settings.cache_api_dir = cache_dir
+        result = runner.invoke(app, ["info", "pihole"])
+
+    assert result.exit_code == 1
+    assert "Traceback" not in result.output
+    assert "Info failed" in result.output or "corrupt" in result.output
+
+
+def test_info_warns_on_http_404_readme(tmp_path: Path) -> None:
+    install_dir = str(tmp_path / "homestack")
+    cache_dir = tmp_path / "cache"
+    items = _write_sample_cache(cache_dir)
+
+    with (
+        patch("cli.cli._require_init_or_exit", return_value=_host_prefs(install_dir)),
+        patch("cli.cli.settings") as mock_settings,
+        patch("cli.cli._refresh_projects_cache_silent"),
+        patch("cli.cli._find_project", return_value=items[0]),
+        patch.object(
+            APIClient,
+            "fetch_text_sync",
+            side_effect=APIHTTPError("http://api/readme.md", 404, "Not Found"),
+        ),
+    ):
+        mock_settings.cache_api_dir = cache_dir
+        mock_settings.base_url = "http://api:8043"
+        result = runner.invoke(app, ["info", "pihole"])
+
+    assert result.exit_code == 0
+    assert "Traceback" not in result.output
+    assert (
+        "⚠" in result.output
+        or "not found" in result.output.lower()
+        or "404" in result.output
+    )
+
+
+# ---------------------------------------------------------------------------
+# Upgrade: error paths
+# ---------------------------------------------------------------------------
+
+
+def test_upgrade_exits_when_project_not_found(tmp_path: Path) -> None:
+    install_dir = str(tmp_path / "homestack")
+    cache_dir = tmp_path / "cache"
+    _write_sample_cache(cache_dir)
+
+    with (
+        patch("cli.cli._require_init_or_exit", return_value=_host_prefs(install_dir)),
+        patch("cli.cli.settings") as mock_settings,
+        patch("cli.cli._refresh_projects_cache_silent"),
+        patch("cli.cli._find_project", return_value=None),
+    ):
+        mock_settings.cache_api_dir = cache_dir
+        result = runner.invoke(app, ["upgrade", "no-such-project"])
+
+    assert result.exit_code == 1
+    assert "Traceback" not in result.output
+    assert "not found" in result.output.lower()
+
+
+def test_upgrade_exits_on_unexpected_cache_error(tmp_path: Path) -> None:
+    install_dir = str(tmp_path / "homestack")
+    cache_dir = tmp_path / "cache"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+
+    with (
+        patch("cli.cli._require_init_or_exit", return_value=_host_prefs(install_dir)),
+        patch("cli.cli.settings") as mock_settings,
+        patch("cli.cli._load_cached_projects", side_effect=OSError("disk error")),
+    ):
+        mock_settings.cache_api_dir = cache_dir
+        result = runner.invoke(app, ["upgrade", "pihole"])
+
+    assert result.exit_code == 1
+    assert "Traceback" not in result.output
+    assert "Upgrade failed" in result.output or "disk error" in result.output
