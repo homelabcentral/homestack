@@ -600,7 +600,9 @@ def _print_info_readme(
     typer.echo(f"⚠ {warning}")
 
     try:
-        api_client = APIClient(environment="prod")
+        # README files live at the repository root project directories, not under
+        # the static API path (00.api/v1).
+        api_client = APIClient(environment="prod", base_url=settings.base_url)
         remote_readme = api_client.fetch_text_sync(remote_readme_path)
     except APIClientError as exc:
         if local_exists:

@@ -738,6 +738,66 @@ def test_info_warns_when_remote_readme_is_unreachable(
     assert "remote README could not be reached" in output
 
 
+def test_info_remote_readme_uses_repository_base_url(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+):
+    runner = CliRunner()
+    cache_dir = tmp_path / "cache" / "api" / "v1"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    (cache_dir / "projects.json").write_text(
+        json.dumps(
+            [
+                {
+                    "project_index": 1,
+                    "project_name": "Pi-hole",
+                    "dir_name": "01.pihole-unbound",
+                    "compose": "docker-compose.yml",
+                    "env": ".env.template",
+                    "readme": "readme.md",
+                    "project_description": "DNS and ad blocker",
+                }
+            ],
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    install_dir = tmp_path / "homestack"
+    monkeypatch.setattr(
+        cli_module,
+        "_require_init_or_exit",
+        lambda: _host_prefs(install_dir),
+    )
+    monkeypatch.setattr(cli_module.settings, "cache_api_dir", cache_dir)
+
+    observed_init_kwargs: dict[str, str] = {}
+
+    class RemoteReadmeAPIClient:
+        def __init__(self, *args, **kwargs):
+            observed_init_kwargs.update(kwargs)
+
+        def refresh_projects_cache_sync(self, cache_dir: Path, *, silent: bool = True):
+            return "error"
+
+        def fetch_text_sync(self, url_or_path: str) -> str:
+            assert url_or_path == "01.pihole-unbound/readme.md"
+            return "# Remote README\n\nLoaded from remote"
+
+    monkeypatch.setattr(cli_module, "APIClient", RemoteReadmeAPIClient)
+
+    result = runner.invoke(cli_module.app, ["info", "pi-hole"])
+    output = result.output
+    if hasattr(result, "stderr") and result.stderr:
+        output += result.stderr
+
+    assert result.exit_code == 0
+    assert observed_init_kwargs["base_url"] == str(cli_module.settings.base_url)
+    assert "Project Info: Pi-hole" in output
+    assert "Remote README" in output
+
+
 def test_upgrade_uses_cached_projects_when_refresh_fails(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
