@@ -578,6 +578,7 @@ def test_collect_project_status_supports_json_lines(
     ("runtime_function", "expected_args"),
     [
         (docker_runtime.start_project_stack, ["up", "-d"]),
+        (docker_runtime.recreate_project_stack, ["up", "-d", "--force-recreate"]),
         (docker_runtime.stop_project_stack, ["down"]),
         (docker_runtime.remove_project_stack, ["down", "--rmi", "all"]),
     ],
@@ -636,9 +637,13 @@ def test_lifecycle_commands_use_expected_compose_subcommands(
                 "start project 'demo-project'"
                 if expected_args == ["up", "-d"]
                 else (
-                    "stop project 'demo-project'"
-                    if expected_args == ["down"]
-                    else "remove project 'demo-project'"
+                    "recreate project 'demo-project'"
+                    if expected_args == ["up", "-d", "--force-recreate"]
+                    else (
+                        "stop project 'demo-project'"
+                        if expected_args == ["down"]
+                        else "remove project 'demo-project'"
+                    )
                 )
             ),
         }

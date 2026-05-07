@@ -330,6 +330,23 @@ def start_project_stack(
     )
 
 
+def recreate_project_stack(
+    compose_path: Path,
+    project_slug: str,
+    env_files: list[Path],
+    *,
+    client=None,
+) -> None:
+    _ = client
+    _run_compose_command(
+        compose_path,
+        project_slug,
+        env_files,
+        ["up", "-d", "--force-recreate"],
+        error_context=f"recreate project '{project_slug}'",
+    )
+
+
 def remove_project_stack(
     compose_path: Path,
     project_slug: str,

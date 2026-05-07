@@ -642,6 +642,88 @@ def test_start_fails_when_required_env_files_metadata_is_missing(
 
 
 # ---------------------------------------------------------------------------
+# Recreate
+# ---------------------------------------------------------------------------
+
+
+def test_recreate_runs_docker_runtime(tmp_path: Path) -> None:
+    install_dir = str(tmp_path / "homestack")
+    project = _project_item(required_env_files=[])
+    compose_dir = tmp_path / "homestack" / "compose"
+    _install_project(compose_dir, project)
+
+    recreate_called: list[bool] = [False]
+
+    def fake_recreate(compose_file, slug, env_files):
+        recreate_called[0] = True
+
+    with (
+        patch("cli.cli._require_init_or_exit", return_value=_host_prefs(install_dir)),
+        patch("cli.cli.settings") as mock_settings,
+        patch("cli.cli._load_cached_projects", return_value=[project]),
+        patch("cli.cli._select_project_from_query", return_value=project),
+        patch("cli.cli.validate_compose_config"),
+        patch("cli.cli.recreate_project_stack", side_effect=fake_recreate),
+        patch("cli.cli._print_info_readme"),
+    ):
+        mock_settings.cache_api_dir = tmp_path / "cache"
+        result = runner.invoke(app, ["recreate", "pihole"])
+
+    assert result.exit_code == 0
+    assert recreate_called[0]
+
+
+def test_recreate_uses_project_required_env_files(tmp_path: Path) -> None:
+    install_dir = str(tmp_path / "homestack")
+    project = _project_item(required_env_files=["network.env"])
+    compose_dir = tmp_path / "homestack" / "compose"
+    _install_project(compose_dir, project)
+
+    env_dir = compose_dir / "00.env"
+    env_dir.mkdir(parents=True, exist_ok=True)
+    (env_dir / "network.env").write_text("NETWORK=test\n", encoding="utf-8")
+
+    recreate_called: list[bool] = [False]
+
+    def fake_recreate(compose_file, slug, env_files):
+        recreate_called[0] = True
+        assert any("network.env" in str(p) for p in env_files)
+
+    with (
+        patch("cli.cli._require_init_or_exit", return_value=_host_prefs(install_dir)),
+        patch("cli.cli.settings") as mock_settings,
+        patch("cli.cli._load_cached_projects", return_value=[project]),
+        patch("cli.cli._select_project_from_query", return_value=project),
+        patch("cli.cli.validate_compose_config"),
+        patch("cli.cli.recreate_project_stack", side_effect=fake_recreate),
+        patch("cli.cli._print_info_readme"),
+    ):
+        mock_settings.cache_api_dir = tmp_path / "cache"
+        result = runner.invoke(app, ["recreate", "pihole"])
+
+    assert result.exit_code == 0
+    assert recreate_called[0]
+
+
+def test_recreate_fails_when_no_installed_projects(tmp_path: Path) -> None:
+    install_dir = str(tmp_path / "homestack")
+    project = _project_item(required_env_files=[])
+
+    with (
+        patch("cli.cli._require_init_or_exit", return_value=_host_prefs(install_dir)),
+        patch("cli.cli.settings") as mock_settings,
+        patch("cli.cli._load_cached_projects", return_value=[project]),
+    ):
+        mock_settings.cache_api_dir = tmp_path / "cache"
+        result = runner.invoke(app, ["recreate", "pihole"])
+
+    assert result.exit_code == 1
+    assert (
+        "No locally installed" in result.output or "not found" in result.output.lower()
+    )
+
+
+# ---------------------------------------------------------------------------
 # Remove
 # ---------------------------------------------------------------------------
 
