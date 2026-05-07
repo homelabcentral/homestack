@@ -50,10 +50,10 @@ Deploy self-hosted Docker Compose stacks with ease — works similarly to Homebr
     - [`pull`](#pull)
     - [`deploy`](#deploy)
     - [`start`](#start)
-   - [`recreate`](#recreate)
-    - [`stop`](#stop)
-    - [`remove`](#remove)
-    - [`upgrade`](#upgrade)
+      - [`recreate`](#recreate)
+      - [`stop`](#stop)
+      - [`remove`](#remove)
+      - [`upgrade`](#upgrade)
   - [Typical Workflow](#typical-workflow)
   - [How It Works](#how-it-works)
     - [High-level Architecture](#high-level-architecture)
@@ -128,6 +128,8 @@ homestack deploy karakeep
 If local project files are missing, homestack pulls them, walks you through configuration interactively, writes a `.env` file, and starts the containers.
 
 If local `docker-compose.yml` and `.env` already exist, `deploy` behaves like `start`: it validates required env files and starts existing or missing containers without regenerating `.env`.
+
+> **Tip:** If deployment or startup appears slow and you want to see live `docker compose` progress/output, run lifecycle commands with `--verbose` (or `-v`).
 
 ---
 
@@ -427,7 +429,7 @@ If the query matches multiple projects you are presented with an interactive sel
 ### `deploy`
 
 ```bash
-homestack deploy <project> [--use-recommends] [--force]
+homestack deploy <project> [--use-recommends] [--force] [--verbose]
 ```
 
 Deploy has two runtime paths:
@@ -448,6 +450,7 @@ Deploy has two runtime paths:
 |---|---|
 |`--use-recommends` / `--use-recommended`|Skip interactive prompts and apply recommended/default values for all variables. Useful for scripted or automated deployments.|
 |`--force`|Refresh local project files and regenerate `.env` before deploying, even if local files already exist.|
+|`--verbose` / `-v`|Stream docker compose output in the console while the spinner is shown.|
 
 ```bash
 # interactive
@@ -455,6 +458,9 @@ homestack deploy karakeep
 
 # non-interactive with recommended defaults
 homestack deploy karakeep --use-recommends
+
+# show docker compose output while deploying
+homestack deploy pihole --verbose
 ```
 
 > **Note:** Deploy fails with a clear error if any required env file (for example `host.env`) is missing from `compose/00.env/`.
@@ -464,7 +470,7 @@ homestack deploy karakeep --use-recommends
 ### `start`
 
 ```bash
-homestack start <project>
+homestack start <project> [--verbose]
 ```
 
 Starts a locally installed project using the existing local files (`docker-compose.yml` and `.env`) plus required shared env files.
@@ -478,6 +484,9 @@ This command:
 
 ```bash
 homestack start karakeep
+
+# shorthand for verbose output
+homestack start pihole -v
 ```
 
 ---
@@ -485,7 +494,7 @@ homestack start karakeep
 ### `recreate`
 
 ```bash
-homestack recreate <project>
+homestack recreate <project> [--verbose]
 ```
 
 Recreates a locally installed project using the existing local files (`docker-compose.yml` and `.env`) plus required shared env files.
@@ -506,7 +515,7 @@ homestack recreate karakeep
 ### `stop`
 
 ```bash
-homestack stop <project>
+homestack stop <project> [--verbose]
 ```
 
 Stops a running project by stopping and removing homestack-managed containers for that project. Only locally installed projects are shown as candidates.
@@ -520,7 +529,7 @@ homestack stop karakeep
 ### `remove`
 
 ```bash
-homestack remove <project>
+homestack remove <project> [--verbose]
 ```
 
 Fully removes a locally installed project:

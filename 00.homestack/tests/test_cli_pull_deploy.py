@@ -435,7 +435,8 @@ def test_deploy_uses_start_equivalent_flow_when_env_exists(tmp_path: Path) -> No
 
     start_called: list[bool] = [False]
 
-    def fake_start(compose_file, slug, env_files):
+    def fake_start(compose_file, slug, env_files, *, show_output=False):
+        assert show_output is False
         start_called[0] = True
 
     with (
@@ -520,7 +521,8 @@ def test_stop_runs_docker_runtime(tmp_path: Path) -> None:
 
     stop_called: list[bool] = [False]
 
-    def fake_stop(compose_file, slug, env_files):
+    def fake_stop(compose_file, slug, env_files, *, show_output=False):
+        assert show_output is False
         stop_called[0] = True
 
     with (
@@ -570,7 +572,8 @@ def test_stop_uses_project_required_env_files(tmp_path: Path) -> None:
 
     stop_called: list[bool] = [False]
 
-    def fake_stop(compose_file, slug, env_files):
+    def fake_stop(compose_file, slug, env_files, *, show_output=False):
+        assert show_output is False
         stop_called[0] = True
         assert any("network.env" in str(p) for p in env_files)
 
@@ -602,7 +605,8 @@ def test_start_runs_docker_runtime(tmp_path: Path) -> None:
 
     start_called: list[bool] = [False]
 
-    def fake_start(compose_file, slug, env_files):
+    def fake_start(compose_file, slug, env_files, *, show_output=False):
+        assert show_output is False
         start_called[0] = True
 
     with (
@@ -654,7 +658,8 @@ def test_recreate_runs_docker_runtime(tmp_path: Path) -> None:
 
     recreate_called: list[bool] = [False]
 
-    def fake_recreate(compose_file, slug, env_files):
+    def fake_recreate(compose_file, slug, env_files, *, show_output=False):
+        assert show_output is False
         recreate_called[0] = True
 
     with (
@@ -685,7 +690,8 @@ def test_recreate_uses_project_required_env_files(tmp_path: Path) -> None:
 
     recreate_called: list[bool] = [False]
 
-    def fake_recreate(compose_file, slug, env_files):
+    def fake_recreate(compose_file, slug, env_files, *, show_output=False):
+        assert show_output is False
         recreate_called[0] = True
         assert any("network.env" in str(p) for p in env_files)
 
@@ -736,7 +742,8 @@ def test_remove_runs_runtime_and_deletes_project_dir(tmp_path: Path) -> None:
 
     remove_called: list[bool] = [False]
 
-    def fake_remove(compose_file, slug, env_files):
+    def fake_remove(compose_file, slug, env_files, *, show_output=False):
+        assert show_output is False
         remove_called[0] = True
 
     with (
@@ -753,6 +760,36 @@ def test_remove_runs_runtime_and_deletes_project_dir(tmp_path: Path) -> None:
     assert result.exit_code == 0
     assert remove_called[0]
     assert not project_dir.exists()
+
+
+def test_start_passes_show_output_when_verbose_enabled(tmp_path: Path) -> None:
+    install_dir = str(tmp_path / "homestack")
+    project = _project_item(required_env_files=[])
+    compose_dir = tmp_path / "homestack" / "compose"
+    _install_project(compose_dir, project)
+
+    verbose_values: list[bool] = []
+
+    def fake_start(compose_file, slug, env_files, *, show_output=False):
+        _ = compose_file
+        _ = slug
+        _ = env_files
+        verbose_values.append(show_output)
+
+    with (
+        patch("cli.cli._require_init_or_exit", return_value=_host_prefs(install_dir)),
+        patch("cli.cli.settings") as mock_settings,
+        patch("cli.cli._load_cached_projects", return_value=[project]),
+        patch("cli.cli._select_project_from_query", return_value=project),
+        patch("cli.cli.validate_compose_config"),
+        patch("cli.cli.start_project_stack", side_effect=fake_start),
+        patch("cli.cli._print_info_readme"),
+    ):
+        mock_settings.cache_api_dir = tmp_path / "cache"
+        result = runner.invoke(app, ["start", "pihole", "--verbose"])
+
+    assert result.exit_code == 0
+    assert verbose_values == [True]
 
 
 # ---------------------------------------------------------------------------

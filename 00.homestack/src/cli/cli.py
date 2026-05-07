@@ -220,9 +220,16 @@ def _validate_project_compose_config(
     compose_path: Path,
     project_slug: str,
     env_files: list[Path],
+    *,
+    show_output: bool = False,
 ) -> None:
     """Validate that the compose file parses with the full env-file set."""
-    validate_compose_config(compose_path, project_slug, env_files)
+    validate_compose_config(
+        compose_path,
+        project_slug,
+        env_files,
+        show_output=show_output,
+    )
 
 
 def _collect_ram_mb() -> int | None:
@@ -1073,6 +1080,12 @@ def deploy(
             "Without this flag, existing files are preserved."
         ),
     ),
+    verbose: bool = typer.Option(
+        False,
+        "--verbose",
+        "-v",
+        help="Show docker compose command output while the operation runs.",
+    ),
 ) -> None:
     """Deploy a project end-to-end.
 
@@ -1166,11 +1179,13 @@ def deploy(
                     compose_file,
                     _slug_project_name(selected.project_name),
                     compose_env_files,
+                    show_output=verbose,
                 )
                 start_project_stack(
                     compose_file,
                     _slug_project_name(selected.project_name),
                     compose_env_files,
+                    show_output=verbose,
                 )
         except DockerRuntimeError as exc:
             logger.error("Docker start-equivalent deploy failed: %s", exc)
@@ -1232,11 +1247,13 @@ def deploy(
                 compose_file,
                 _slug_project_name(selected.project_name),
                 compose_env_files,
+                show_output=verbose,
             )
             deployment = deploy_project_stack(
                 compose_file,
                 _slug_project_name(selected.project_name),
                 compose_env_files,
+                show_output=verbose,
             )
     except DockerRuntimeError as exc:
         logger.error("Docker compose deploy failed: %s", exc)
@@ -1259,6 +1276,12 @@ def start(
         ...,
         help="Name of the deployed project to start.",
         show_default=False,
+    ),
+    verbose: bool = typer.Option(
+        False,
+        "--verbose",
+        "-v",
+        help="Show docker compose command output while the operation runs.",
     ),
 ) -> None:
     """Start a locally installed project using docker compose up -d.
@@ -1327,11 +1350,13 @@ def start(
                 compose_file,
                 _slug_project_name(selected.project_name),
                 compose_env_files,
+                show_output=verbose,
             )
             start_project_stack(
                 compose_file,
                 _slug_project_name(selected.project_name),
                 compose_env_files,
+                show_output=verbose,
             )
     except DockerRuntimeError as exc:
         logger.error("Docker compose start failed: %s", exc)
@@ -1350,6 +1375,12 @@ def recreate(
         ...,
         help="Name of the deployed project to recreate.",
         show_default=False,
+    ),
+    verbose: bool = typer.Option(
+        False,
+        "--verbose",
+        "-v",
+        help="Show docker compose command output while the operation runs.",
     ),
 ) -> None:
     """Recreate a locally installed project using docker compose up -d --force-recreate.
@@ -1418,11 +1449,13 @@ def recreate(
                 compose_file,
                 _slug_project_name(selected.project_name),
                 compose_env_files,
+                show_output=verbose,
             )
             recreate_project_stack(
                 compose_file,
                 _slug_project_name(selected.project_name),
                 compose_env_files,
+                show_output=verbose,
             )
     except DockerRuntimeError as exc:
         logger.error("Docker compose recreate failed: %s", exc)
@@ -1441,6 +1474,12 @@ def stop(
         ...,
         help="Name of the deployed project to stop.",
         show_default=False,
+    ),
+    verbose: bool = typer.Option(
+        False,
+        "--verbose",
+        "-v",
+        help="Show docker compose command output while the operation runs.",
     ),
 ) -> None:
     """Stop a deployed project using docker compose down.
@@ -1510,11 +1549,13 @@ def stop(
                 compose_file,
                 _slug_project_name(selected.project_name),
                 compose_env_files,
+                show_output=verbose,
             )
             stop_project_stack(
                 compose_file,
                 _slug_project_name(selected.project_name),
                 compose_env_files,
+                show_output=verbose,
             )
     except DockerRuntimeError as exc:
         logger.error("Docker compose down failed: %s", exc)
@@ -1532,6 +1573,12 @@ def remove(
         ...,
         help="Name of the deployed project to remove.",
         show_default=False,
+    ),
+    verbose: bool = typer.Option(
+        False,
+        "--verbose",
+        "-v",
+        help="Show docker compose command output while the operation runs.",
     ),
 ) -> None:
     """Remove a locally installed project.
@@ -1600,11 +1647,13 @@ def remove(
                 compose_file,
                 _slug_project_name(selected.project_name),
                 compose_env_files,
+                show_output=verbose,
             )
             remove_project_stack(
                 compose_file,
                 _slug_project_name(selected.project_name),
                 compose_env_files,
+                show_output=verbose,
             )
     except DockerRuntimeError as exc:
         logger.error("Docker compose remove failed: %s", exc)

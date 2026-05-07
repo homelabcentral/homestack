@@ -407,12 +407,14 @@ def test_validate_compose_config_runs_config_quiet(
         compose_args: list[str],
         *,
         error_context: str,
+        show_output: bool = False,
     ):
         captured["compose_path"] = compose_path_arg
         captured["project_slug"] = project_slug
         captured["env_files"] = env_files
         captured["compose_args"] = compose_args
         captured["error_context"] = error_context
+        captured["show_output"] = show_output
         return None
 
     monkeypatch.setattr(
@@ -431,7 +433,102 @@ def test_validate_compose_config_runs_config_quiet(
         "env_files": [env_path.resolve()],
         "compose_args": ["config", "--quiet"],
         "error_context": "validate compose config",
+        "show_output": False,
     }
+
+
+def test_run_compose_command_captures_output_when_disabled(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    compose_dir = tmp_path / "project"
+    compose_dir.mkdir(parents=True, exist_ok=True)
+    compose_path = compose_dir / "docker-compose.yml"
+    compose_path.write_text("services: {}\n", encoding="utf-8")
+    env_path = compose_dir / ".env"
+    env_path.write_text("EXAMPLE=1\n", encoding="utf-8")
+
+    captured_kwargs: dict[str, Any] = {}
+
+    def fake_subprocess_run(command, **kwargs):
+        _ = command
+        captured_kwargs.update(kwargs)
+        return type("Completed", (), {"returncode": 0, "stdout": "ok", "stderr": ""})()
+
+    monkeypatch.setattr(docker_runtime.subprocess, "run", fake_subprocess_run)
+
+    docker_runtime._run_compose_command(
+        compose_path,
+        "demo-project",
+        [env_path.resolve()],
+        ["up", "-d"],
+        error_context="start project 'demo-project'",
+        show_output=False,
+    )
+
+    assert captured_kwargs["capture_output"] is True
+    assert captured_kwargs["text"] is True
+    assert captured_kwargs["check"] is False
+
+
+def test_run_compose_command_streams_output_when_enabled(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    compose_dir = tmp_path / "project"
+    compose_dir.mkdir(parents=True, exist_ok=True)
+    compose_path = compose_dir / "docker-compose.yml"
+    compose_path.write_text("services: {}\n", encoding="utf-8")
+    env_path = compose_dir / ".env"
+    env_path.write_text("EXAMPLE=1\n", encoding="utf-8")
+
+    captured_kwargs: dict[str, Any] = {}
+
+    def fake_subprocess_run(command, **kwargs):
+        _ = command
+        captured_kwargs.update(kwargs)
+        return type("Completed", (), {"returncode": 0, "stdout": None, "stderr": None})()
+
+    monkeypatch.setattr(docker_runtime.subprocess, "run", fake_subprocess_run)
+
+    docker_runtime._run_compose_command(
+        compose_path,
+        "demo-project",
+        [env_path.resolve()],
+        ["up", "-d"],
+        error_context="start project 'demo-project'",
+        show_output=True,
+    )
+
+    assert "capture_output" not in captured_kwargs
+    assert "text" not in captured_kwargs
+    assert captured_kwargs["check"] is False
+
+
+def test_run_compose_command_errors_with_fallback_details_when_streaming(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    compose_dir = tmp_path / "project"
+    compose_dir.mkdir(parents=True, exist_ok=True)
+    compose_path = compose_dir / "docker-compose.yml"
+    compose_path.write_text("services: {}\n", encoding="utf-8")
+    env_path = compose_dir / ".env"
+    env_path.write_text("EXAMPLE=1\n", encoding="utf-8")
+
+    def fake_subprocess_run(command, **kwargs):
+        _ = command
+        _ = kwargs
+        return type("Completed", (), {"returncode": 1, "stdout": None, "stderr": None})()
+
+    monkeypatch.setattr(docker_runtime.subprocess, "run", fake_subprocess_run)
+
+    with pytest.raises(docker_runtime.DockerRuntimeError, match="non-zero exit code"):
+        docker_runtime._run_compose_command(
+            compose_path,
+            "demo-project",
+            [env_path.resolve()],
+            ["up", "-d"],
+            error_context="start project 'demo-project'",
+            show_output=True,
+        )
 
 
 def test_deploy_project_stack_runs_compose_up_and_collects_status(
@@ -453,6 +550,7 @@ def test_deploy_project_stack_runs_compose_up_and_collects_status(
         compose_args: list[str],
         *,
         error_context: str,
+        show_output: bool = False,
     ):
         calls.append(
             {
@@ -461,6 +559,7 @@ def test_deploy_project_stack_runs_compose_up_and_collects_status(
                 "env_files": env_files,
                 "compose_args": compose_args,
                 "error_context": error_context,
+                "show_output": show_output,
             }
         )
         if compose_args == ["ps", "--format", "json"]:
@@ -502,6 +601,7 @@ def test_deploy_project_stack_runs_compose_up_and_collects_status(
         ["up", "-d"],
         ["ps", "--format", "json"],
     ]
+    assert all(call["show_output"] is False for call in calls)
     assert [container.container_name for container in result.containers] == [
         "app-service",
         "db-service",
@@ -525,12 +625,14 @@ def test_collect_project_status_supports_json_lines(
         compose_args: list[str],
         *,
         error_context: str,
+        show_output: bool = False,
     ):
         _ = compose_path_arg
         _ = project_slug
         _ = env_files
         _ = compose_args
         _ = error_context
+        _ = show_output
         return type(
             "Completed",
             (),
@@ -605,6 +707,7 @@ def test_lifecycle_commands_use_expected_compose_subcommands(
         compose_args: list[str],
         *,
         error_context: str,
+        show_output: bool = False,
     ):
         calls.append(
             {
@@ -613,6 +716,7 @@ def test_lifecycle_commands_use_expected_compose_subcommands(
                 "env_files": env_files,
                 "compose_args": compose_args,
                 "error_context": error_context,
+                "show_output": show_output,
             }
         )
         return type("Completed", (), {"stdout": ""})()
@@ -646,5 +750,6 @@ def test_lifecycle_commands_use_expected_compose_subcommands(
                     )
                 )
             ),
+            "show_output": False,
         }
     ]
