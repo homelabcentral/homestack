@@ -64,6 +64,7 @@ import re
 import shutil
 from collections.abc import Callable
 from pathlib import Path
+from uuid import uuid4
 
 import typer
 from api.client import APIClient
@@ -78,6 +79,7 @@ from client.downloader import (
     BatchDownloadError,
     Downloader,
     DownloaderError,
+    DownloadHTTPError,
     DownloadJob,
 )
 from models.meta import MetaItem
@@ -357,10 +359,11 @@ async def _download_jobs(
         async with semaphore:
             try:
                 await downloader.download_file(job.url, job.destination)
-                on_job_complete()
                 return job
             except DownloaderError as exc:
                 return exc
+            finally:
+                on_job_complete()
 
     async with Downloader() as downloader:
         outcomes = await asyncio.gather(*(_run_one(job, downloader) for job in jobs))
@@ -495,6 +498,45 @@ def _resolve_project_config_destination(project_dir: Path, raw_path: str) -> Pat
     return destination
 
 
+def _classify_optional_config_failures(
+    error: BatchDownloadError,
+    optional_config_jobs: dict[Path, str],
+) -> tuple[list[tuple[DownloadJob, str]], list[tuple[DownloadJob, DownloaderError]]]:
+    """Split missing optional config-file failures from all other download failures."""
+
+    missing_optional_configs: list[tuple[DownloadJob, str]] = []
+    remaining_failures: list[tuple[DownloadJob, DownloaderError]] = []
+
+    for job, failure in error.failures:
+        raw_path = optional_config_jobs.get(job.destination.resolve())
+        if (
+            raw_path is not None
+            and isinstance(failure, DownloadHTTPError)
+            and failure.status_code == 404
+        ):
+            missing_optional_configs.append((job, raw_path))
+            continue
+        remaining_failures.append((job, failure))
+
+    return missing_optional_configs, remaining_failures
+
+
+def _finalize_replacement_downloads(replacement_jobs: dict[Path, Path]) -> None:
+    """Replace final destinations with successfully downloaded temporary files."""
+
+    for temp_path, final_path in replacement_jobs.items():
+        if temp_path.exists():
+            os.replace(temp_path, final_path)
+
+
+def _cleanup_replacement_downloads(replacement_jobs: dict[Path, Path]) -> None:
+    """Remove temporary replacement files left behind after failed downloads."""
+
+    for temp_path in replacement_jobs:
+        if temp_path.exists():
+            temp_path.unlink()
+
+
 def _pull_project_files(
     selected: ProjectItem, compose_dir: Path, *, force: bool = False
 ) -> tuple[Path, int, list[Path]]:
@@ -537,26 +579,69 @@ def _pull_project_files(
 
     jobs: list[DownloadJob] = []
     skipped_existing_files: list[Path] = []
+    optional_config_jobs: dict[Path, str] = {}
+    replacement_jobs: dict[Path, Path] = {}
     for remote_name, destination in download_targets:
         destination.parent.mkdir(parents=True, exist_ok=True)
+
+        is_optional_config = remote_name not in {
+            selected.compose,
+            selected.env,
+            selected.readme,
+        }
+
         if destination.exists() and not force:
             skipped_existing_files.append(destination)
             continue
-        if destination.exists():
+
+        job_destination = destination
+        if destination.exists() and force and is_optional_config:
+            job_destination = destination.with_name(
+                f".{destination.name}.incoming-{uuid4().hex}"
+            )
+            replacement_jobs[job_destination.resolve()] = destination
+        elif destination.exists():
             destination.unlink()
+
+        if is_optional_config:
+            optional_config_jobs[job_destination.resolve()] = remote_name
+
         jobs.append(
             DownloadJob(
                 url=f"{settings.base_url}/{selected.dir_name}/{remote_name}",
-                destination=destination,
+                destination=job_destination,
             )
         )
 
     if jobs:
-        with DownloadProgressBar(
-            "Pulling project files", total=len(jobs), console=console
-        ) as bar:
-            asyncio.run(_download_jobs(jobs, on_job_complete=bar.make_callback()))
-    return project_dir, len(jobs), skipped_existing_files
+        logger = get_command_logger("pull")
+        downloaded_count = len(jobs)
+        try:
+            with DownloadProgressBar(
+                "Pulling project files", total=len(jobs), console=console
+            ) as bar:
+                asyncio.run(_download_jobs(jobs, on_job_complete=bar.make_callback()))
+        except BatchDownloadError as exc:
+            missing_optional_configs, remaining_failures = (
+                _classify_optional_config_failures(exc, optional_config_jobs)
+            )
+            if remaining_failures:
+                _cleanup_replacement_downloads(replacement_jobs)
+                raise BatchDownloadError(remaining_failures)
+
+            downloaded_count -= len(missing_optional_configs)
+            for job, raw_path in missing_optional_configs:
+                warning = (
+                    f"Optional config file does not exist remotely for "
+                    f"'{selected.project_name}': {raw_path}"
+                )
+                logger.warning("%s (%s)", warning, job.url)
+                typer.echo(f"⚠ {warning}")
+
+        _finalize_replacement_downloads(replacement_jobs)
+        return project_dir, downloaded_count, skipped_existing_files
+
+    return project_dir, 0, skipped_existing_files
 
 
 def _project_readme_name(project: ProjectItem) -> str:

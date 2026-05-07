@@ -6,13 +6,12 @@ import json
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from typer.testing import CliRunner
-
 from api.client import APIClient
 from api.exceptions import APIHTTPError, APINetworkError
 from cli import cli as cli_module
 from cli.cli import app
 from models.projects import ProjectItem
+from typer.testing import CliRunner
 from utils.shared_pref import HostPreferences, SharedPreferences
 
 runner = CliRunner()

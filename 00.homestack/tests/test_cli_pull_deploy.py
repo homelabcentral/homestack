@@ -2,18 +2,17 @@
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
-from typer.testing import CliRunner
-
 from api.client import APIClient
 from cli import cli as cli_module
 from cli.cli import app
+from client.downloader import BatchDownloadError, DownloadHTTPError
 from models.projects import ProjectItem
 from parsers import EnvTemplateParser
+from typer.testing import CliRunner
 from utils.docker_runtime import DockerRuntimeError
 from utils.shared_pref import HostPreferences
 
@@ -149,6 +148,138 @@ def test_resolve_project_config_destination_rejects_path_traversal(tmp_path: Pat
 
     with pytest.raises(ValueError, match="escapes"):
         cli_module._resolve_project_config_destination(project_dir, "../../../etc/shadow")
+
+
+def test_pull_warns_and_skips_missing_optional_config_files(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    compose_dir = tmp_path / "compose"
+    compose_dir.mkdir(parents=True, exist_ok=True)
+    project = _project_item(
+        project_name="Traefik",
+        dir_name="02.traefik",
+        config_files=[{"path": "data/acme.json"}, {"path": "data/config.yml"}],
+    )
+
+    async def fake_jobs(jobs, **_kwargs):
+        missing_job = next(job for job in jobs if job.url.endswith("data/acme.json"))
+        for job in jobs:
+            if job == missing_job:
+                continue
+            job.destination.parent.mkdir(parents=True, exist_ok=True)
+            job.destination.write_text("downloaded", encoding="utf-8")
+        raise BatchDownloadError(
+            [
+                (
+                    missing_job,
+                    DownloadHTTPError(
+                        missing_job.url,
+                        404,
+                        f"Remote file not found (404): {missing_job.url}",
+                    ),
+                )
+            ]
+        )
+
+    with patch("cli.cli._download_jobs", side_effect=fake_jobs):
+        project_dir, downloaded_count, skipped_existing = cli_module._pull_project_files(
+            project,
+            compose_dir,
+            force=False,
+        )
+
+    output = capsys.readouterr().out
+    assert downloaded_count == 4
+    assert skipped_existing == []
+    assert "Optional config file does not exist remotely" in output
+    assert "data/acme.json" in output
+    assert not (project_dir / "data" / "acme.json").exists()
+    assert (project_dir / "data" / "config.yml").exists()
+
+
+def test_pull_force_preserves_existing_optional_config_when_remote_missing(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    compose_dir = tmp_path / "compose"
+    compose_dir.mkdir(parents=True, exist_ok=True)
+    project = _project_item(
+        project_name="Traefik",
+        dir_name="02.traefik",
+        config_files=[{"path": "data/config.yml"}],
+    )
+    project_dir = compose_dir / "traefik"
+    project_dir.mkdir(parents=True, exist_ok=True)
+    existing_config = project_dir / "data" / "config.yml"
+    existing_config.parent.mkdir(parents=True, exist_ok=True)
+    existing_config.write_text("keep-me", encoding="utf-8")
+
+    async def fake_jobs(jobs, **_kwargs):
+        missing_job = next(job for job in jobs if job.url.endswith("data/config.yml"))
+        for job in jobs:
+            if job == missing_job:
+                continue
+            job.destination.parent.mkdir(parents=True, exist_ok=True)
+            job.destination.write_text("downloaded", encoding="utf-8")
+        raise BatchDownloadError(
+            [
+                (
+                    missing_job,
+                    DownloadHTTPError(
+                        missing_job.url,
+                        404,
+                        f"Remote file not found (404): {missing_job.url}",
+                    ),
+                )
+            ]
+        )
+
+    with patch("cli.cli._download_jobs", side_effect=fake_jobs):
+        project_dir, downloaded_count, skipped_existing = cli_module._pull_project_files(
+            project,
+            compose_dir,
+            force=True,
+        )
+
+    output = capsys.readouterr().out
+    assert downloaded_count == 3
+    assert skipped_existing == []
+    assert "does not exist remotely" in output
+    assert project_dir == compose_dir / "traefik"
+    assert existing_config.read_text(encoding="utf-8") == "keep-me"
+
+
+def test_pull_still_fails_when_required_file_is_missing(tmp_path: Path) -> None:
+    compose_dir = tmp_path / "compose"
+    compose_dir.mkdir(parents=True, exist_ok=True)
+    project = _project_item(
+        project_name="Traefik",
+        dir_name="02.traefik",
+        config_files=[{"path": "data/config.yml"}],
+    )
+
+    async def fake_jobs(jobs, **_kwargs):
+        missing_job = next(job for job in jobs if job.url.endswith(project.compose))
+        for job in jobs:
+            if job == missing_job:
+                continue
+            job.destination.parent.mkdir(parents=True, exist_ok=True)
+            job.destination.write_text("downloaded", encoding="utf-8")
+        raise BatchDownloadError(
+            [
+                (
+                    missing_job,
+                    DownloadHTTPError(
+                        missing_job.url,
+                        404,
+                        f"Remote file not found (404): {missing_job.url}",
+                    ),
+                )
+            ]
+        )
+
+    with patch("cli.cli._download_jobs", side_effect=fake_jobs):
+        with pytest.raises(BatchDownloadError):
+            cli_module._pull_project_files(project, compose_dir, force=False)
 
 
 # ---------------------------------------------------------------------------
@@ -411,7 +542,7 @@ def test_stop_uses_project_required_env_files(tmp_path: Path) -> None:
     install_dir = str(tmp_path / "homestack")
     project = _project_item(required_env_files=["network.env"])
     compose_dir = tmp_path / "homestack" / "compose"
-    project_dir = _install_project(compose_dir, project)
+    _install_project(compose_dir, project)
 
     # Create required env file
     env_dir = compose_dir / "00.env"
