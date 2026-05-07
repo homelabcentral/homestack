@@ -64,6 +64,7 @@ import re
 import shutil
 from collections.abc import Callable
 from pathlib import Path
+from uuid import uuid4
 
 import typer
 from api.client import APIClient
@@ -78,6 +79,7 @@ from client.downloader import (
     BatchDownloadError,
     Downloader,
     DownloaderError,
+    DownloadHTTPError,
     DownloadJob,
 )
 from models.meta import MetaItem
@@ -91,6 +93,7 @@ from utils.docker_runtime import (
     DockerRuntimeError,
     deploy_project_stack,
     ensure_traefik_bridge_network,
+    recreate_project_stack,
     remove_project_stack,
     start_project_stack,
     stop_project_stack,
@@ -217,9 +220,16 @@ def _validate_project_compose_config(
     compose_path: Path,
     project_slug: str,
     env_files: list[Path],
+    *,
+    show_output: bool = False,
 ) -> None:
     """Validate that the compose file parses with the full env-file set."""
-    validate_compose_config(compose_path, project_slug, env_files)
+    validate_compose_config(
+        compose_path,
+        project_slug,
+        env_files,
+        show_output=show_output,
+    )
 
 
 def _collect_ram_mb() -> int | None:
@@ -357,10 +367,11 @@ async def _download_jobs(
         async with semaphore:
             try:
                 await downloader.download_file(job.url, job.destination)
-                on_job_complete()
                 return job
             except DownloaderError as exc:
                 return exc
+            finally:
+                on_job_complete()
 
     async with Downloader() as downloader:
         outcomes = await asyncio.gather(*(_run_one(job, downloader) for job in jobs))
@@ -495,6 +506,45 @@ def _resolve_project_config_destination(project_dir: Path, raw_path: str) -> Pat
     return destination
 
 
+def _classify_optional_config_failures(
+    error: BatchDownloadError,
+    optional_config_jobs: dict[Path, str],
+) -> tuple[list[tuple[DownloadJob, str]], list[tuple[DownloadJob, DownloaderError]]]:
+    """Split missing optional config-file failures from all other download failures."""
+
+    missing_optional_configs: list[tuple[DownloadJob, str]] = []
+    remaining_failures: list[tuple[DownloadJob, DownloaderError]] = []
+
+    for job, failure in error.failures:
+        raw_path = optional_config_jobs.get(job.destination.resolve())
+        if (
+            raw_path is not None
+            and isinstance(failure, DownloadHTTPError)
+            and failure.status_code == 404
+        ):
+            missing_optional_configs.append((job, raw_path))
+            continue
+        remaining_failures.append((job, failure))
+
+    return missing_optional_configs, remaining_failures
+
+
+def _finalize_replacement_downloads(replacement_jobs: dict[Path, Path]) -> None:
+    """Replace final destinations with successfully downloaded temporary files."""
+
+    for temp_path, final_path in replacement_jobs.items():
+        if temp_path.exists():
+            os.replace(temp_path, final_path)
+
+
+def _cleanup_replacement_downloads(replacement_jobs: dict[Path, Path]) -> None:
+    """Remove temporary replacement files left behind after failed downloads."""
+
+    for temp_path in replacement_jobs:
+        if temp_path.exists():
+            temp_path.unlink()
+
+
 def _pull_project_files(
     selected: ProjectItem, compose_dir: Path, *, force: bool = False
 ) -> tuple[Path, int, list[Path]]:
@@ -537,26 +587,69 @@ def _pull_project_files(
 
     jobs: list[DownloadJob] = []
     skipped_existing_files: list[Path] = []
+    optional_config_jobs: dict[Path, str] = {}
+    replacement_jobs: dict[Path, Path] = {}
     for remote_name, destination in download_targets:
         destination.parent.mkdir(parents=True, exist_ok=True)
+
+        is_optional_config = remote_name not in {
+            selected.compose,
+            selected.env,
+            selected.readme,
+        }
+
         if destination.exists() and not force:
             skipped_existing_files.append(destination)
             continue
-        if destination.exists():
+
+        job_destination = destination
+        if destination.exists() and force and is_optional_config:
+            job_destination = destination.with_name(
+                f".{destination.name}.incoming-{uuid4().hex}"
+            )
+            replacement_jobs[job_destination.resolve()] = destination
+        elif destination.exists():
             destination.unlink()
+
+        if is_optional_config:
+            optional_config_jobs[job_destination.resolve()] = remote_name
+
         jobs.append(
             DownloadJob(
                 url=f"{settings.base_url}/{selected.dir_name}/{remote_name}",
-                destination=destination,
+                destination=job_destination,
             )
         )
 
     if jobs:
-        with DownloadProgressBar(
-            "Pulling project files", total=len(jobs), console=console
-        ) as bar:
-            asyncio.run(_download_jobs(jobs, on_job_complete=bar.make_callback()))
-    return project_dir, len(jobs), skipped_existing_files
+        logger = get_command_logger("pull")
+        downloaded_count = len(jobs)
+        try:
+            with DownloadProgressBar(
+                "Pulling project files", total=len(jobs), console=console
+            ) as bar:
+                asyncio.run(_download_jobs(jobs, on_job_complete=bar.make_callback()))
+        except BatchDownloadError as exc:
+            missing_optional_configs, remaining_failures = (
+                _classify_optional_config_failures(exc, optional_config_jobs)
+            )
+            if remaining_failures:
+                _cleanup_replacement_downloads(replacement_jobs)
+                raise BatchDownloadError(remaining_failures)
+
+            downloaded_count -= len(missing_optional_configs)
+            for job, raw_path in missing_optional_configs:
+                warning = (
+                    f"Optional config file does not exist remotely for "
+                    f"'{selected.project_name}': {raw_path}"
+                )
+                logger.warning("%s (%s)", warning, job.url)
+                typer.echo(f"⚠ {warning}")
+
+        _finalize_replacement_downloads(replacement_jobs)
+        return project_dir, downloaded_count, skipped_existing_files
+
+    return project_dir, 0, skipped_existing_files
 
 
 def _project_readme_name(project: ProjectItem) -> str:
@@ -987,6 +1080,12 @@ def deploy(
             "Without this flag, existing files are preserved."
         ),
     ),
+    verbose: bool = typer.Option(
+        False,
+        "--verbose",
+        "-v",
+        help="Show docker compose command output while the operation runs.",
+    ),
 ) -> None:
     """Deploy a project end-to-end.
 
@@ -1080,11 +1179,13 @@ def deploy(
                     compose_file,
                     _slug_project_name(selected.project_name),
                     compose_env_files,
+                    show_output=verbose,
                 )
                 start_project_stack(
                     compose_file,
                     _slug_project_name(selected.project_name),
                     compose_env_files,
+                    show_output=verbose,
                 )
         except DockerRuntimeError as exc:
             logger.error("Docker start-equivalent deploy failed: %s", exc)
@@ -1146,11 +1247,13 @@ def deploy(
                 compose_file,
                 _slug_project_name(selected.project_name),
                 compose_env_files,
+                show_output=verbose,
             )
             deployment = deploy_project_stack(
                 compose_file,
                 _slug_project_name(selected.project_name),
                 compose_env_files,
+                show_output=verbose,
             )
     except DockerRuntimeError as exc:
         logger.error("Docker compose deploy failed: %s", exc)
@@ -1173,6 +1276,12 @@ def start(
         ...,
         help="Name of the deployed project to start.",
         show_default=False,
+    ),
+    verbose: bool = typer.Option(
+        False,
+        "--verbose",
+        "-v",
+        help="Show docker compose command output while the operation runs.",
     ),
 ) -> None:
     """Start a locally installed project using docker compose up -d.
@@ -1241,11 +1350,13 @@ def start(
                 compose_file,
                 _slug_project_name(selected.project_name),
                 compose_env_files,
+                show_output=verbose,
             )
             start_project_stack(
                 compose_file,
                 _slug_project_name(selected.project_name),
                 compose_env_files,
+                show_output=verbose,
             )
     except DockerRuntimeError as exc:
         logger.error("Docker compose start failed: %s", exc)
@@ -1259,11 +1370,116 @@ def start(
 
 
 @app.command()
+def recreate(
+    project_name: str = typer.Argument(
+        ...,
+        help="Name of the deployed project to recreate.",
+        show_default=False,
+    ),
+    verbose: bool = typer.Option(
+        False,
+        "--verbose",
+        "-v",
+        help="Show docker compose command output while the operation runs.",
+    ),
+) -> None:
+    """Recreate a locally installed project using docker compose up -d --force-recreate.
+
+    Uses the same env-file set as deploy (project .env plus required shared env
+    files), passing all env file paths as absolute paths.
+    """
+    logger = get_command_logger("recreate")
+    host_prefs = _require_init_or_exit()
+
+    cache_dir = settings.cache_api_dir
+    projects = _load_cached_projects(cache_dir)
+    install_dir = Path(host_prefs.install_dir)
+    compose_dir = _compose_dir_from_install_dir(install_dir)
+    installed_projects = [
+        project
+        for project in projects
+        if (compose_dir / _slug_project_name(project.project_name)).exists()
+    ]
+
+    if not installed_projects:
+        typer.echo(
+            "No locally installed projects were found. Run 'homestack pull' or 'homestack deploy' first.",
+            err=True,
+        )
+        raise typer.Exit(code=1)
+
+    selected = _select_project_from_query(project_name, installed_projects)
+
+    project_dir = compose_dir / _slug_project_name(selected.project_name)
+    compose_path = project_dir / selected.compose
+    env_path = project_dir / ".env"
+    required_env_files = _resolve_project_required_env_files(selected, compose_dir)
+
+    if not compose_path.exists():
+        typer.echo(f"No docker-compose.yml found at {compose_path}", err=True)
+        raise typer.Exit(code=1)
+
+    if not env_path.exists():
+        typer.echo(f"No .env found at {env_path}", err=True)
+        raise typer.Exit(code=1)
+
+    compose_file = compose_path.resolve()
+    generated_env_file = env_path.resolve()
+    compose_env_files = [generated_env_file, *required_env_files]
+
+    missing_env_files = [
+        env_file for env_file in compose_env_files if not env_file.exists()
+    ]
+    if missing_env_files:
+        for missing_env_file in missing_env_files:
+            typer.echo(f"Required env file not found: {missing_env_file}", err=True)
+        raise typer.Exit(code=1)
+
+    logger.info(
+        "Recreating project via docker compose up -d --force-recreate: compose=%s cwd=%s",
+        compose_file,
+        project_dir,
+    )
+    try:
+        with OperationSpinner(
+            f"Recreating {selected.project_name}\u2026",
+            console=console,
+        ):
+            _validate_project_compose_config(
+                compose_file,
+                _slug_project_name(selected.project_name),
+                compose_env_files,
+                show_output=verbose,
+            )
+            recreate_project_stack(
+                compose_file,
+                _slug_project_name(selected.project_name),
+                compose_env_files,
+                show_output=verbose,
+            )
+    except DockerRuntimeError as exc:
+        logger.error("Docker compose recreate failed: %s", exc)
+        typer.echo("Docker recreate failed.", err=True)
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=1)
+
+    logger.info("Docker compose recreate completed successfully")
+    typer.echo("Docker recreate completed successfully.")
+    _print_info_readme(selected, install_dir, logger)
+
+
+@app.command()
 def stop(
     project_name: str = typer.Argument(
         ...,
         help="Name of the deployed project to stop.",
         show_default=False,
+    ),
+    verbose: bool = typer.Option(
+        False,
+        "--verbose",
+        "-v",
+        help="Show docker compose command output while the operation runs.",
     ),
 ) -> None:
     """Stop a deployed project using docker compose down.
@@ -1333,11 +1549,13 @@ def stop(
                 compose_file,
                 _slug_project_name(selected.project_name),
                 compose_env_files,
+                show_output=verbose,
             )
             stop_project_stack(
                 compose_file,
                 _slug_project_name(selected.project_name),
                 compose_env_files,
+                show_output=verbose,
             )
     except DockerRuntimeError as exc:
         logger.error("Docker compose down failed: %s", exc)
@@ -1355,6 +1573,12 @@ def remove(
         ...,
         help="Name of the deployed project to remove.",
         show_default=False,
+    ),
+    verbose: bool = typer.Option(
+        False,
+        "--verbose",
+        "-v",
+        help="Show docker compose command output while the operation runs.",
     ),
 ) -> None:
     """Remove a locally installed project.
@@ -1423,11 +1647,13 @@ def remove(
                 compose_file,
                 _slug_project_name(selected.project_name),
                 compose_env_files,
+                show_output=verbose,
             )
             remove_project_stack(
                 compose_file,
                 _slug_project_name(selected.project_name),
                 compose_env_files,
+                show_output=verbose,
             )
     except DockerRuntimeError as exc:
         logger.error("Docker compose remove failed: %s", exc)

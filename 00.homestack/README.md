@@ -50,12 +50,14 @@ Deploy self-hosted Docker Compose stacks with ease — works similarly to Homebr
     - [`pull`](#pull)
     - [`deploy`](#deploy)
     - [`start`](#start)
+    - [`recreate`](#recreate)
     - [`stop`](#stop)
     - [`remove`](#remove)
     - [`upgrade`](#upgrade)
   - [Typical Workflow](#typical-workflow)
   - [How It Works](#how-it-works)
     - [High-level Architecture](#high-level-architecture)
+    - [Lifecycle Runtime Semantics](#lifecycle-runtime-semantics)
     - [Remote Static API](#remote-static-api)
     - [Preferences Store](#preferences-store)
     - [File Downloader](#file-downloader)
@@ -127,6 +129,8 @@ homestack deploy karakeep
 If local project files are missing, homestack pulls them, walks you through configuration interactively, writes a `.env` file, and starts the containers.
 
 If local `docker-compose.yml` and `.env` already exist, `deploy` behaves like `start`: it validates required env files and starts existing or missing containers without regenerating `.env`.
+
+> **Tip:** If deployment or startup appears slow and you want to see live `docker compose` progress/output, run lifecycle commands with `--verbose` (or `-v`).
 
 ---
 
@@ -426,7 +430,7 @@ If the query matches multiple projects you are presented with an interactive sel
 ### `deploy`
 
 ```bash
-homestack deploy <project> [--use-recommends] [--force]
+homestack deploy <project> [--use-recommends] [--force] [--verbose]
 ```
 
 Deploy has two runtime paths:
@@ -447,6 +451,7 @@ Deploy has two runtime paths:
 |---|---|
 |`--use-recommends` / `--use-recommended`|Skip interactive prompts and apply recommended/default values for all variables. Useful for scripted or automated deployments.|
 |`--force`|Refresh local project files and regenerate `.env` before deploying, even if local files already exist.|
+|`--verbose` / `-v`|Stream docker compose output in the console while the spinner is shown.|
 
 ```bash
 # interactive
@@ -454,6 +459,9 @@ homestack deploy karakeep
 
 # non-interactive with recommended defaults
 homestack deploy karakeep --use-recommends
+
+# show docker compose output while deploying
+homestack deploy pihole --verbose
 ```
 
 > **Note:** Deploy fails with a clear error if any required env file (for example `host.env`) is missing from `compose/00.env/`.
@@ -463,7 +471,7 @@ homestack deploy karakeep --use-recommends
 ### `start`
 
 ```bash
-homestack start <project>
+homestack start <project> [--verbose]
 ```
 
 Starts a locally installed project using the existing local files (`docker-compose.yml` and `.env`) plus required shared env files.
@@ -477,6 +485,30 @@ This command:
 
 ```bash
 homestack start karakeep
+
+# shorthand for verbose output
+homestack start pihole -v
+```
+
+---
+
+### `recreate`
+
+```bash
+homestack recreate <project> [--verbose]
+```
+
+Recreates a locally installed project using the existing local files (`docker-compose.yml` and `.env`) plus required shared env files.
+
+This command:
+
+1. Resolves the project from local installed candidates.
+2. Verifies `docker-compose.yml`, `.env`, and required shared env files exist.
+3. Validates the compose config with the full env-file set.
+4. Runs docker compose with `up -d --force-recreate` so containers are rebuilt from the current configuration.
+
+```bash
+homestack recreate karakeep
 ```
 
 ---
@@ -484,7 +516,7 @@ homestack start karakeep
 ### `stop`
 
 ```bash
-homestack stop <project>
+homestack stop <project> [--verbose]
 ```
 
 Stops a running project by stopping and removing homestack-managed containers for that project. Only locally installed projects are shown as candidates.
@@ -498,7 +530,7 @@ homestack stop karakeep
 ### `remove`
 
 ```bash
-homestack remove <project>
+homestack remove <project> [--verbose]
 ```
 
 Fully removes a locally installed project:
@@ -551,6 +583,9 @@ homestack stop stirlingpdf
 # Start it again
 homestack start stirlingpdf
 
+# Force-recreate containers with current compose/env values
+homestack recreate stirlingpdf
+
 # Remove it entirely
 homestack remove stirlingpdf
 
@@ -589,6 +624,28 @@ homestack (cli/cli.py — orchestrator)
 > **`server/` is maintenance tooling**, not part of the end-user runtime. It is used by the repository maintainer to regenerate the static JSON files that are pushed to the `gostatic` branch and served as the remote API. End users never invoke it directly.
 
 The CLI layer (`cli.py`) is intentionally thin. It orchestrates calls to the modules above, handles errors, formats Rich output, and maps results to `typer.Exit` codes. Business logic lives in the dedicated modules.
+
+### Lifecycle Runtime Semantics
+
+All lifecycle commands (`start`, `recreate`, `stop`, `remove`) resolve absolute paths for both compose and env files, then execute docker compose with the same base shape:
+
+```bash
+docker compose \
+   --env-file <project/.env absolute path> \
+   --env-file <required shared env absolute paths...> \
+   --file <compose absolute path> \
+   --project-name <project-slug> \
+   <subcommand args>
+```
+
+The subcommand arguments differ by command:
+
+| Command | Compose args |
+| --- | --- |
+| `start` | `up -d` |
+| `recreate` | `up -d --force-recreate` |
+| `stop` | `down` |
+| `remove` | `down --rmi all` |
 
 ---
 

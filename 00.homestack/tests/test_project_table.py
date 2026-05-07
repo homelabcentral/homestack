@@ -6,21 +6,10 @@ from rich.panel import Panel
 from utils.project_table import ProjectTableBuilder
 
 
-def test_build_table_has_expected_columns() -> None:
-    projects = [
-        ProjectItem(
-            project_index=1,
-            project_name="Pihole with Unbound",
-            dir_name="01.pihole-unbound",
-            compose="docker-compose.yml",
-            env=".env.template",
-            readme="readme.md",
-            project_description="A network wide ad blocker.",
-            project_website="https://example.com",
-            project_source="https://github.com/example/project",
-            supported_architecture=["amd64", "arm64"],
-        )
-    ]
+def test_build_table_has_expected_columns(
+    real_project_items: list[ProjectItem],
+) -> None:
+    projects = [real_project_items[0]]
 
     panel = ProjectTableBuilder.build(projects, title="Deployable Projects")
     assert isinstance(panel, Panel)
@@ -36,15 +25,18 @@ def test_build_table_has_expected_columns() -> None:
     ]
 
 
-def test_build_table_uses_fallback_values() -> None:
+def test_build_table_uses_fallback_values(
+    real_project_items: list[ProjectItem],
+) -> None:
+    source = real_project_items[1]
     projects = [
         ProjectItem(
-            project_index=2,
-            project_name="Traefik",
-            dir_name="02.traefik",
-            compose="docker-compose.yml",
-            env=".env.template",
-            readme="readme.md",
+            project_index=source.project_index,
+            project_name=source.project_name,
+            dir_name=source.dir_name,
+            compose=source.compose,
+            env=source.env,
+            readme=source.readme,
         )
     ]
 
@@ -59,19 +51,22 @@ def test_build_table_uses_fallback_values() -> None:
     assert table.columns[5]._cells[0] == "-"
 
 
-def test_build_project_info_uses_shared_fallbacks() -> None:
+def test_build_project_info_uses_shared_fallbacks(
+    real_project_items: list[ProjectItem],
+) -> None:
+    source = real_project_items[6]
     project = ProjectItem(
-        project_index=3,
-        project_name="Linkwarden",
-        dir_name="07.linkwarden",
-        compose="docker-compose.yml",
-        env=".env.template",
-        readme="readme.md",
+        project_index=source.project_index,
+        project_name=source.project_name,
+        dir_name=source.dir_name,
+        compose=source.compose,
+        env=source.env,
+        readme=source.readme,
     )
 
     panel = ProjectTableBuilder.build_project_info(project)
     assert isinstance(panel, Panel)
-    assert panel.title == "Project Info: Linkwarden"
+    assert panel.title == f"Project Info: {source.project_name}"
 
     table = panel.renderable
     assert [column.header for column in table.columns] == ["Field", "Value"]

@@ -89,6 +89,8 @@ def validate_compose_config(
     compose_path: Path,
     project_slug: str,
     env_files: list[Path],
+    *,
+    show_output: bool = False,
 ) -> None:
     _run_compose_command(
         compose_path,
@@ -96,6 +98,7 @@ def validate_compose_config(
         env_files,
         ["config", "--quiet"],
         error_context="validate compose config",
+        show_output=show_output,
     )
 
 
@@ -128,6 +131,7 @@ def _run_compose_command(
     compose_args: list[str],
     *,
     error_context: str,
+    show_output: bool = False,
 ) -> subprocess.CompletedProcess[str]:
     command = [
         *_compose_base_command(compose_path, project_slug, env_files),
@@ -135,13 +139,20 @@ def _run_compose_command(
     ]
 
     try:
-        completed = subprocess.run(
-            command,
-            cwd=compose_path.resolve().parent,
-            capture_output=True,
-            text=True,
-            check=False,
-        )
+        if show_output:
+            completed = subprocess.run(
+                command,
+                cwd=compose_path.resolve().parent,
+                check=False,
+            )
+        else:
+            completed = subprocess.run(
+                command,
+                cwd=compose_path.resolve().parent,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
     except FileNotFoundError as exc:
         raise DockerRuntimeError(
             "Failed to run docker compose: 'docker' executable was not found on PATH."
@@ -150,8 +161,8 @@ def _run_compose_command(
         raise DockerRuntimeError(f"Failed to run docker compose: {exc}") from exc
 
     if completed.returncode != 0:
-        stderr = completed.stderr.strip()
-        stdout = completed.stdout.strip()
+        stderr = (completed.stderr or "").strip()
+        stdout = (completed.stdout or "").strip()
         details = stderr or stdout or "docker compose returned a non-zero exit code."
         raise DockerRuntimeError(f"Failed to {error_context}: {details}")
 
@@ -281,6 +292,7 @@ def deploy_project_stack(
     env_files: list[Path],
     *,
     client=None,
+    show_output: bool = False,
 ) -> DeploymentResult:
     _ = client
     _run_compose_command(
@@ -289,6 +301,7 @@ def deploy_project_stack(
         env_files,
         ["up", "-d"],
         error_context=f"deploy project '{project_slug}'",
+        show_output=show_output,
     )
 
     return DeploymentResult(
@@ -302,6 +315,7 @@ def stop_project_stack(
     env_files: list[Path],
     *,
     client=None,
+    show_output: bool = False,
 ) -> None:
     _ = client
     _run_compose_command(
@@ -310,6 +324,7 @@ def stop_project_stack(
         env_files,
         ["down"],
         error_context=f"stop project '{project_slug}'",
+        show_output=show_output,
     )
 
 
@@ -319,6 +334,7 @@ def start_project_stack(
     env_files: list[Path],
     *,
     client=None,
+    show_output: bool = False,
 ) -> None:
     _ = client
     _run_compose_command(
@@ -327,6 +343,26 @@ def start_project_stack(
         env_files,
         ["up", "-d"],
         error_context=f"start project '{project_slug}'",
+        show_output=show_output,
+    )
+
+
+def recreate_project_stack(
+    compose_path: Path,
+    project_slug: str,
+    env_files: list[Path],
+    *,
+    client=None,
+    show_output: bool = False,
+) -> None:
+    _ = client
+    _run_compose_command(
+        compose_path,
+        project_slug,
+        env_files,
+        ["up", "-d", "--force-recreate"],
+        error_context=f"recreate project '{project_slug}'",
+        show_output=show_output,
     )
 
 
@@ -336,6 +372,7 @@ def remove_project_stack(
     env_files: list[Path],
     *,
     client=None,
+    show_output: bool = False,
 ) -> None:
     _ = client
     _run_compose_command(
@@ -344,6 +381,7 @@ def remove_project_stack(
         env_files,
         ["down", "--rmi", "all"],
         error_context=f"remove project '{project_slug}'",
+        show_output=show_output,
     )
 
 

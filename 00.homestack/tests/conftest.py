@@ -1,9 +1,24 @@
-"""Pytest configuration and shared fixtures for parser tests."""
+"""Pytest configuration and shared fixtures for parser and integration tests."""
 
 import tempfile
 from pathlib import Path
 
 import pytest
+from api.client import APIClient
+from models.projects import ProjectItem
+
+
+@pytest.fixture
+def real_projects() -> list[dict]:
+    """Load real projects from the live API endpoint configured by settings."""
+    client = APIClient(environment="prod")
+    return client.fetch_json_sync("projects.json")
+
+
+@pytest.fixture
+def real_project_items(real_projects: list[dict]) -> list[ProjectItem]:
+    """Load real projects as ProjectItem instances."""
+    return [ProjectItem(**project) for project in real_projects]
 
 
 @pytest.fixture
@@ -64,7 +79,6 @@ This is a test readme file with front matter.
 
     yield Path(temp_path)
 
-    # Cleanup
     Path(temp_path).unlink()
 
 
@@ -92,7 +106,6 @@ ready_to_deploy: true
 
     yield Path(temp_path)
 
-    # Cleanup
     Path(temp_path).unlink()
 
 
@@ -113,7 +126,6 @@ missing required fields
 
     yield Path(temp_path)
 
-    # Cleanup
     Path(temp_path).unlink()
 
 
@@ -133,7 +145,6 @@ project_source: https://github.com/test/project
 
     yield Path(temp_path)
 
-    # Cleanup
     Path(temp_path).unlink()
 
 
@@ -161,56 +172,53 @@ ready_to_deploy: true
 
     yield Path(temp_path)
 
-    # Cleanup
     Path(temp_path).unlink()
 
 
 @pytest.fixture
 def temp_project_dir(tmp_path):
-    """Create a temporary project directory structure with multiple readmes."""
-    # Create project directories
+    """Create a deterministic temporary project directory structure with multiple readmes."""
     projects = [
         {
-            "name": "00.project1",
-            "readme": """---
-author: Author1
-project_name: Project 1
-project_source: https://github.com/test/project1
-stable_images:
-  - image1:1.0.0
-date: 2026-04-23
-last_updated: 2026-04-23
-supported_architecture:
-  - amd64
-ready_to_deploy: true
----
-# Project 1""",
+            "dir_name": "00.project1",
+            "project_name": "Project 1",
+            "author": "Author 1",
+            "project_source": "https://github.com/test/project1",
         },
         {
-            "name": "01.project2",
-            "readme": """---
-author: Author2
-project_name: Project 2
-project_source: https://github.com/test/project2
-stable_images:
-  - image2:2.0.0
-date: 2026-04-22
-last_updated: 2026-04-22
-supported_architecture:
-  - arm64
-ready_to_deploy: false
----
-# Project 2""",
+            "dir_name": "01.project2",
+            "project_name": "Project 2",
+            "author": "Author 2",
+            "project_source": "https://github.com/test/project2",
         },
     ]
 
     for project in projects:
-        project_dir = tmp_path / project["name"]
+        project_dir = tmp_path / project["dir_name"]
         project_dir.mkdir()
         readme_file = project_dir / "readme.md"
-        readme_file.write_text(project["readme"])
+        readme_file.write_text(
+            "\n".join(
+                [
+                    "---",
+                    f"author: {project['author']}",
+                    f"project_name: {project['project_name']}",
+                    f"project_source: {project['project_source']}",
+                    "stable_images:",
+                    "  - example:1.0.0",
+                    "date: 2026-01-01",
+                    "last_updated: 2026-01-01",
+                    "supported_architecture:",
+                    "  - amd64",
+                    "ready_to_deploy: true",
+                    "---",
+                    f"# {project['project_name']}",
+                    "",
+                ]
+            ),
+            encoding="utf-8",
+        )
 
-    # Create API structure
     api_dir = tmp_path / "00.api" / "v1"
     api_dir.mkdir(parents=True, exist_ok=True)
 
