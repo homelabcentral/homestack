@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -57,10 +58,88 @@ def _project_item(**overrides) -> ProjectItem:
     return ProjectItem(**defaults)
 
 
+def _repo_root() -> Path:
+    return Path(__file__).resolve().parents[2]
+
+
+def _load_local_project_items() -> list[ProjectItem]:
+    projects_path = _repo_root() / "00.api" / "v1" / "projects.json"
+    payload = json.loads(projects_path.read_text(encoding="utf-8"))
+    return [ProjectItem(**project) for project in payload]
+
+
 def _first_project() -> ProjectItem:
     client = APIClient(environment="prod")
     payload = client.fetch_json_sync("projects.json")
     return ProjectItem(**payload[0])
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("project", _load_local_project_items())
+def test_pull_all_projects_cli_into_temp_dir_strict_files(
+    tmp_path: Path, project: ProjectItem
+) -> None:
+    install_dir = tmp_path / "homestack"
+    cache_dir = tmp_path / "cache"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+
+    source_projects = _repo_root() / "00.api" / "v1" / "projects.json"
+    (cache_dir / "projects.json").write_text(
+        source_projects.read_text(encoding="utf-8"), encoding="utf-8"
+    )
+
+    with (
+        patch(
+            "cli.cli._require_init_or_exit",
+            return_value=_host_prefs(str(install_dir)),
+        ),
+        patch.object(cli_module.settings, "cache_api_dir", cache_dir),
+        patch("cli.cli._prompt_select_project", return_value=project),
+    ):
+        result = runner.invoke(app, ["pull", project.dir_name])
+
+    assert result.exit_code == 0, (
+        "pull failed for project "
+        f"index={project.project_index} "
+        f"name={project.project_name} "
+        f"dir={project.dir_name}:\n{result.output}"
+    )
+
+    project_dir = (
+        install_dir / "compose" / cli_module._slug_project_name(project.project_name)
+    )
+    assert project_dir.exists(), (
+        "project directory missing for "
+        f"index={project.project_index} "
+        f"name={project.project_name} "
+        f"dir={project.dir_name}"
+    )
+
+    required_files = [project.compose, project.env, project.readme]
+    for relative_path in required_files:
+        assert (project_dir / relative_path).exists(), (
+            "required pulled file missing for "
+            f"index={project.project_index} "
+            f"name={project.project_name} "
+            f"dir={project.dir_name} file={relative_path}"
+        )
+
+    for config_file in project.config_files or []:
+        config_path = getattr(config_file, "path", None)
+        if config_path is None and isinstance(config_file, dict):
+            config_path = config_file.get("path")
+        assert isinstance(config_path, str) and config_path, (
+            "invalid config_files metadata for "
+            f"index={project.project_index} "
+            f"name={project.project_name} "
+            f"dir={project.dir_name}"
+        )
+        assert (project_dir / config_path).exists(), (
+            "config file missing after pull for "
+            f"index={project.project_index} "
+            f"name={project.project_name} "
+            f"dir={project.dir_name} file={config_path}"
+        )
 
 
 def test_pull_downloads_project_files_to_temp_compose_dir(tmp_path: Path):
@@ -730,6 +809,90 @@ def test_recreate_fails_when_no_installed_projects(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Restart
+# ---------------------------------------------------------------------------
+
+
+def test_restart_runs_docker_runtime(tmp_path: Path) -> None:
+    install_dir = str(tmp_path / "homestack")
+    project = _project_item(required_env_files=[])
+    compose_dir = tmp_path / "homestack" / "compose"
+    _install_project(compose_dir, project)
+
+    restart_called: list[bool] = [False]
+
+    def fake_restart(compose_file, slug, env_files, *, show_output=False):
+        assert show_output is False
+        restart_called[0] = True
+
+    with (
+        patch("cli.cli._require_init_or_exit", return_value=_host_prefs(install_dir)),
+        patch("cli.cli.settings") as mock_settings,
+        patch("cli.cli._load_cached_projects", return_value=[project]),
+        patch("cli.cli._select_project_from_query", return_value=project),
+        patch("cli.cli.validate_compose_config"),
+        patch("cli.cli.restart_project_stack", side_effect=fake_restart),
+        patch("cli.cli._print_info_readme"),
+    ):
+        mock_settings.cache_api_dir = tmp_path / "cache"
+        result = runner.invoke(app, ["restart", "pihole"])
+
+    assert result.exit_code == 0
+    assert restart_called[0]
+
+
+def test_restart_uses_project_required_env_files(tmp_path: Path) -> None:
+    install_dir = str(tmp_path / "homestack")
+    project = _project_item(required_env_files=["network.env"])
+    compose_dir = tmp_path / "homestack" / "compose"
+    _install_project(compose_dir, project)
+
+    env_dir = compose_dir / "00.env"
+    env_dir.mkdir(parents=True, exist_ok=True)
+    (env_dir / "network.env").write_text("NETWORK=test\n", encoding="utf-8")
+
+    restart_called: list[bool] = [False]
+
+    def fake_restart(compose_file, slug, env_files, *, show_output=False):
+        assert show_output is False
+        restart_called[0] = True
+        assert any("network.env" in str(p) for p in env_files)
+
+    with (
+        patch("cli.cli._require_init_or_exit", return_value=_host_prefs(install_dir)),
+        patch("cli.cli.settings") as mock_settings,
+        patch("cli.cli._load_cached_projects", return_value=[project]),
+        patch("cli.cli._select_project_from_query", return_value=project),
+        patch("cli.cli.validate_compose_config"),
+        patch("cli.cli.restart_project_stack", side_effect=fake_restart),
+        patch("cli.cli._print_info_readme"),
+    ):
+        mock_settings.cache_api_dir = tmp_path / "cache"
+        result = runner.invoke(app, ["restart", "pihole"])
+
+    assert result.exit_code == 0
+    assert restart_called[0]
+
+
+def test_restart_fails_when_no_installed_projects(tmp_path: Path) -> None:
+    install_dir = str(tmp_path / "homestack")
+    project = _project_item(required_env_files=[])
+
+    with (
+        patch("cli.cli._require_init_or_exit", return_value=_host_prefs(install_dir)),
+        patch("cli.cli.settings") as mock_settings,
+        patch("cli.cli._load_cached_projects", return_value=[project]),
+    ):
+        mock_settings.cache_api_dir = tmp_path / "cache"
+        result = runner.invoke(app, ["restart", "pihole"])
+
+    assert result.exit_code == 1
+    assert (
+        "No locally installed" in result.output or "not found" in result.output.lower()
+    )
+
+
+# ---------------------------------------------------------------------------
 # Remove
 # ---------------------------------------------------------------------------
 
@@ -787,6 +950,36 @@ def test_start_passes_show_output_when_verbose_enabled(tmp_path: Path) -> None:
     ):
         mock_settings.cache_api_dir = tmp_path / "cache"
         result = runner.invoke(app, ["start", "pihole", "--verbose"])
+
+    assert result.exit_code == 0
+    assert verbose_values == [True]
+
+
+def test_restart_passes_show_output_when_verbose_enabled(tmp_path: Path) -> None:
+    install_dir = str(tmp_path / "homestack")
+    project = _project_item(required_env_files=[])
+    compose_dir = tmp_path / "homestack" / "compose"
+    _install_project(compose_dir, project)
+
+    verbose_values: list[bool] = []
+
+    def fake_restart(compose_file, slug, env_files, *, show_output=False):
+        _ = compose_file
+        _ = slug
+        _ = env_files
+        verbose_values.append(show_output)
+
+    with (
+        patch("cli.cli._require_init_or_exit", return_value=_host_prefs(install_dir)),
+        patch("cli.cli.settings") as mock_settings,
+        patch("cli.cli._load_cached_projects", return_value=[project]),
+        patch("cli.cli._select_project_from_query", return_value=project),
+        patch("cli.cli.validate_compose_config"),
+        patch("cli.cli.restart_project_stack", side_effect=fake_restart),
+        patch("cli.cli._print_info_readme"),
+    ):
+        mock_settings.cache_api_dir = tmp_path / "cache"
+        result = runner.invoke(app, ["restart", "pihole", "--verbose"])
 
     assert result.exit_code == 0
     assert verbose_values == [True]
@@ -1028,6 +1221,99 @@ def test_start_fails_when_required_shared_env_file_is_missing(tmp_path: Path) ->
 # ---------------------------------------------------------------------------
 # Stop: error paths
 # ---------------------------------------------------------------------------
+
+
+def test_restart_fails_on_docker_runtime_error(tmp_path: Path) -> None:
+    install_dir = str(tmp_path / "homestack")
+    project = _project_item(required_env_files=[])
+    compose_dir = tmp_path / "homestack" / "compose"
+    _install_project(compose_dir, project)
+
+    with (
+        patch("cli.cli._require_init_or_exit", return_value=_host_prefs(install_dir)),
+        patch("cli.cli.settings") as mock_settings,
+        patch("cli.cli._load_cached_projects", return_value=[project]),
+        patch("cli.cli._select_project_from_query", return_value=project),
+        patch("cli.cli.validate_compose_config"),
+        patch(
+            "cli.cli.restart_project_stack",
+            side_effect=DockerRuntimeError("docker daemon unreachable"),
+        ),
+    ):
+        mock_settings.cache_api_dir = tmp_path / "cache"
+        result = runner.invoke(app, ["restart", "pihole"])
+
+    assert result.exit_code == 1
+    assert "Traceback" not in result.output
+    assert "Docker restart failed" in result.output or "unreachable" in result.output
+
+
+def test_restart_fails_when_env_file_is_missing(tmp_path: Path) -> None:
+    install_dir = str(tmp_path / "homestack")
+    project = _project_item(required_env_files=[])
+    compose_dir = tmp_path / "homestack" / "compose"
+    project_dir = compose_dir / "pihole-with-unbound"
+    project_dir.mkdir(parents=True, exist_ok=True)
+    (project_dir / project.compose).write_text("version: '3'\n", encoding="utf-8")
+    # .env is intentionally absent
+
+    with (
+        patch("cli.cli._require_init_or_exit", return_value=_host_prefs(install_dir)),
+        patch("cli.cli.settings") as mock_settings,
+        patch("cli.cli._load_cached_projects", return_value=[project]),
+        patch("cli.cli._select_project_from_query", return_value=project),
+    ):
+        mock_settings.cache_api_dir = tmp_path / "cache"
+        result = runner.invoke(app, ["restart", "pihole"])
+
+    assert result.exit_code == 1
+    assert "Traceback" not in result.output
+    assert "No .env found" in result.output
+
+
+def test_restart_fails_when_compose_file_is_missing(tmp_path: Path) -> None:
+    install_dir = str(tmp_path / "homestack")
+    project = _project_item(required_env_files=[])
+    compose_dir = tmp_path / "homestack" / "compose"
+    project_dir = compose_dir / "pihole-with-unbound"
+    project_dir.mkdir(parents=True, exist_ok=True)
+    (project_dir / ".env").write_text("MY_VAR=value\n", encoding="utf-8")
+
+    with (
+        patch("cli.cli._require_init_or_exit", return_value=_host_prefs(install_dir)),
+        patch("cli.cli.settings") as mock_settings,
+        patch("cli.cli._load_cached_projects", return_value=[project]),
+        patch("cli.cli._select_project_from_query", return_value=project),
+    ):
+        mock_settings.cache_api_dir = tmp_path / "cache"
+        result = runner.invoke(app, ["restart", "pihole"])
+
+    assert result.exit_code == 1
+    assert "Traceback" not in result.output
+    assert "No docker-compose.yml found" in result.output
+
+
+def test_restart_fails_when_required_shared_env_file_is_missing(tmp_path: Path) -> None:
+    install_dir = str(tmp_path / "homestack")
+    project = _project_item(required_env_files=["network.env"])
+    compose_dir = tmp_path / "homestack" / "compose"
+    _install_project(compose_dir, project)
+    # network.env is NOT created
+
+    with (
+        patch("cli.cli._require_init_or_exit", return_value=_host_prefs(install_dir)),
+        patch("cli.cli.settings") as mock_settings,
+        patch("cli.cli._load_cached_projects", return_value=[project]),
+        patch("cli.cli._select_project_from_query", return_value=project),
+    ):
+        mock_settings.cache_api_dir = tmp_path / "cache"
+        result = runner.invoke(app, ["restart", "pihole"])
+
+    assert result.exit_code == 1
+    assert "Traceback" not in result.output
+    assert (
+        "Required env file not found" in result.output or "network.env" in result.output
+    )
 
 
 def test_stop_fails_on_docker_runtime_error(tmp_path: Path) -> None:
