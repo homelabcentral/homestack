@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -57,10 +58,88 @@ def _project_item(**overrides) -> ProjectItem:
     return ProjectItem(**defaults)
 
 
+def _repo_root() -> Path:
+    return Path(__file__).resolve().parents[2]
+
+
+def _load_local_project_items() -> list[ProjectItem]:
+    projects_path = _repo_root() / "00.api" / "v1" / "projects.json"
+    payload = json.loads(projects_path.read_text(encoding="utf-8"))
+    return [ProjectItem(**project) for project in payload]
+
+
 def _first_project() -> ProjectItem:
     client = APIClient(environment="prod")
     payload = client.fetch_json_sync("projects.json")
     return ProjectItem(**payload[0])
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("project", _load_local_project_items())
+def test_pull_all_projects_cli_into_temp_dir_strict_files(
+    tmp_path: Path, project: ProjectItem
+) -> None:
+    install_dir = tmp_path / "homestack"
+    cache_dir = tmp_path / "cache"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+
+    source_projects = _repo_root() / "00.api" / "v1" / "projects.json"
+    (cache_dir / "projects.json").write_text(
+        source_projects.read_text(encoding="utf-8"), encoding="utf-8"
+    )
+
+    with (
+        patch(
+            "cli.cli._require_init_or_exit",
+            return_value=_host_prefs(str(install_dir)),
+        ),
+        patch.object(cli_module.settings, "cache_api_dir", cache_dir),
+        patch("cli.cli._prompt_select_project", return_value=project),
+    ):
+        result = runner.invoke(app, ["pull", project.dir_name])
+
+    assert result.exit_code == 0, (
+        "pull failed for project "
+        f"index={project.project_index} "
+        f"name={project.project_name} "
+        f"dir={project.dir_name}:\n{result.output}"
+    )
+
+    project_dir = install_dir / "compose" / cli_module._slug_project_name(
+        project.project_name
+    )
+    assert project_dir.exists(), (
+        "project directory missing for "
+        f"index={project.project_index} "
+        f"name={project.project_name} "
+        f"dir={project.dir_name}"
+    )
+
+    required_files = [project.compose, project.env, project.readme]
+    for relative_path in required_files:
+        assert (project_dir / relative_path).exists(), (
+            "required pulled file missing for "
+            f"index={project.project_index} "
+            f"name={project.project_name} "
+            f"dir={project.dir_name} file={relative_path}"
+        )
+
+    for config_file in project.config_files or []:
+        config_path = getattr(config_file, "path", None)
+        if config_path is None and isinstance(config_file, dict):
+            config_path = config_file.get("path")
+        assert isinstance(config_path, str) and config_path, (
+            "invalid config_files metadata for "
+            f"index={project.project_index} "
+            f"name={project.project_name} "
+            f"dir={project.dir_name}"
+        )
+        assert (project_dir / config_path).exists(), (
+            "config file missing after pull for "
+            f"index={project.project_index} "
+            f"name={project.project_name} "
+            f"dir={project.dir_name} file={config_path}"
+        )
 
 
 def test_pull_downloads_project_files_to_temp_compose_dir(tmp_path: Path):
