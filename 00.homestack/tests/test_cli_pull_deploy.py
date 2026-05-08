@@ -105,8 +105,8 @@ def test_pull_all_projects_cli_into_temp_dir_strict_files(
         f"dir={project.dir_name}:\n{result.output}"
     )
 
-    project_dir = install_dir / "compose" / cli_module._slug_project_name(
-        project.project_name
+    project_dir = (
+        install_dir / "compose" / cli_module._slug_project_name(project.project_name)
     )
     assert project_dir.exists(), (
         "project directory missing for "

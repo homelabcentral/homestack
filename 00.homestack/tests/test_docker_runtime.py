@@ -485,7 +485,9 @@ def test_run_compose_command_streams_output_when_enabled(
     def fake_subprocess_run(command, **kwargs):
         _ = command
         captured_kwargs.update(kwargs)
-        return type("Completed", (), {"returncode": 0, "stdout": None, "stderr": None})()
+        return type(
+            "Completed", (), {"returncode": 0, "stdout": None, "stderr": None}
+        )()
 
     monkeypatch.setattr(docker_runtime.subprocess, "run", fake_subprocess_run)
 
@@ -516,7 +518,9 @@ def test_run_compose_command_errors_with_fallback_details_when_streaming(
     def fake_subprocess_run(command, **kwargs):
         _ = command
         _ = kwargs
-        return type("Completed", (), {"returncode": 1, "stdout": None, "stderr": None})()
+        return type(
+            "Completed", (), {"returncode": 1, "stdout": None, "stderr": None}
+        )()
 
     monkeypatch.setattr(docker_runtime.subprocess, "run", fake_subprocess_run)
 
