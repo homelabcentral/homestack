@@ -347,6 +347,33 @@ def start_project_stack(
     )
 
 
+def restart_project_stack(
+    compose_path: Path,
+    project_slug: str,
+    env_files: list[Path],
+    *,
+    client=None,
+    show_output: bool = False,
+) -> None:
+    _ = client
+    _run_compose_command(
+        compose_path,
+        project_slug,
+        env_files,
+        ["down"],
+        error_context=f"stop project '{project_slug}'",
+        show_output=show_output,
+    )
+    _run_compose_command(
+        compose_path,
+        project_slug,
+        env_files,
+        ["up", "-d"],
+        error_context=f"start project '{project_slug}'",
+        show_output=show_output,
+    )
+
+
 def recreate_project_stack(
     compose_path: Path,
     project_slug: str,

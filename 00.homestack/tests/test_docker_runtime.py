@@ -684,6 +684,7 @@ def test_collect_project_status_supports_json_lines(
     ("runtime_function", "expected_args"),
     [
         (docker_runtime.start_project_stack, ["up", "-d"]),
+        (docker_runtime.restart_project_stack, [["down"], ["up", "-d"]]),
         (docker_runtime.recreate_project_stack, ["up", "-d", "--force-recreate"]),
         (docker_runtime.stop_project_stack, ["down"]),
         (docker_runtime.remove_project_stack, ["down", "--rmi", "all"]),
@@ -693,8 +694,9 @@ def test_lifecycle_commands_use_expected_compose_subcommands(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
     runtime_function,
-    expected_args: list[str],
+    expected_args,
 ):
+    _ = expected_args
     compose_dir = tmp_path / "project"
     compose_dir.mkdir(parents=True, exist_ok=True)
     compose_path = compose_dir / "docker-compose.yml"
@@ -735,25 +737,65 @@ def test_lifecycle_commands_use_expected_compose_subcommands(
         [env_path.resolve()],
     )
 
-    assert calls == [
-        {
-            "compose_path": compose_path,
-            "project_slug": "demo-project",
-            "env_files": [env_path.resolve()],
-            "compose_args": expected_args,
-            "error_context": (
-                "start project 'demo-project'"
-                if expected_args == ["up", "-d"]
-                else (
-                    "recreate project 'demo-project'"
-                    if expected_args == ["up", "-d", "--force-recreate"]
-                    else (
-                        "stop project 'demo-project'"
-                        if expected_args == ["down"]
-                        else "remove project 'demo-project'"
-                    )
-                )
-            ),
-            "show_output": False,
-        }
-    ]
+    expected_calls: dict = {
+        docker_runtime.start_project_stack: [
+            {
+                "compose_path": compose_path,
+                "project_slug": "demo-project",
+                "env_files": [env_path.resolve()],
+                "compose_args": ["up", "-d"],
+                "error_context": "start project 'demo-project'",
+                "show_output": False,
+            }
+        ],
+        docker_runtime.restart_project_stack: [
+            {
+                "compose_path": compose_path,
+                "project_slug": "demo-project",
+                "env_files": [env_path.resolve()],
+                "compose_args": ["down"],
+                "error_context": "stop project 'demo-project'",
+                "show_output": False,
+            },
+            {
+                "compose_path": compose_path,
+                "project_slug": "demo-project",
+                "env_files": [env_path.resolve()],
+                "compose_args": ["up", "-d"],
+                "error_context": "start project 'demo-project'",
+                "show_output": False,
+            },
+        ],
+        docker_runtime.recreate_project_stack: [
+            {
+                "compose_path": compose_path,
+                "project_slug": "demo-project",
+                "env_files": [env_path.resolve()],
+                "compose_args": ["up", "-d", "--force-recreate"],
+                "error_context": "recreate project 'demo-project'",
+                "show_output": False,
+            }
+        ],
+        docker_runtime.stop_project_stack: [
+            {
+                "compose_path": compose_path,
+                "project_slug": "demo-project",
+                "env_files": [env_path.resolve()],
+                "compose_args": ["down"],
+                "error_context": "stop project 'demo-project'",
+                "show_output": False,
+            }
+        ],
+        docker_runtime.remove_project_stack: [
+            {
+                "compose_path": compose_path,
+                "project_slug": "demo-project",
+                "env_files": [env_path.resolve()],
+                "compose_args": ["down", "--rmi", "all"],
+                "error_context": "remove project 'demo-project'",
+                "show_output": False,
+            }
+        ],
+    }
+
+    assert calls == expected_calls[runtime_function]

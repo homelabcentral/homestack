@@ -2,7 +2,7 @@
 
 Deploy self-hosted Docker Compose stacks with ease — works similarly to Homebrew but for containers.
 
-`homestack` is a CLI tool that manages the full lifecycle of self-hosted services: browse a curated catalogue of projects, pull their compose files, fill in environment configuration interactively (or with recommended defaults), and start, stop, or remove stacks — all from a single command.
+`homestack` is a CLI tool that manages the full lifecycle of self-hosted services: browse a curated catalogue of projects, pull their compose files, fill in environment configuration interactively (or with recommended defaults), and start, restart, stop, or remove stacks — all from a single command.
 
 ---
 
@@ -50,6 +50,7 @@ Deploy self-hosted Docker Compose stacks with ease — works similarly to Homebr
     - [`pull`](#pull)
     - [`deploy`](#deploy)
     - [`start`](#start)
+    - [`restart`](#restart)
     - [`recreate`](#recreate)
     - [`stop`](#stop)
     - [`remove`](#remove)
@@ -492,6 +493,30 @@ homestack start pihole -v
 
 ---
 
+### `restart`
+
+```bash
+homestack restart <project> [--verbose]
+```
+
+Performs a full stop/start cycle for a locally installed project using the existing local files (`docker-compose.yml` and `.env`) plus required shared env files.
+
+This command:
+
+1. Resolves the project from local installed candidates.
+2. Verifies `docker-compose.yml`, `.env`, and required shared env files exist.
+3. Validates the compose config with the full env-file set.
+4. Runs docker compose with `down`, then `up -d`.
+
+```bash
+homestack restart karakeep
+
+# shorthand for verbose output
+homestack restart pihole -v
+```
+
+---
+
 ### `recreate`
 
 ```bash
@@ -583,6 +608,9 @@ homestack stop stirlingpdf
 # Start it again
 homestack start stirlingpdf
 
+# Restart it (full stop then start)
+homestack restart stirlingpdf
+
 # Force-recreate containers with current compose/env values
 homestack recreate stirlingpdf
 
@@ -627,7 +655,7 @@ The CLI layer (`cli.py`) is intentionally thin. It orchestrates calls to the mod
 
 ### Lifecycle Runtime Semantics
 
-All lifecycle commands (`start`, `recreate`, `stop`, `remove`) resolve absolute paths for both compose and env files, then execute docker compose with the same base shape:
+All lifecycle commands (`start`, `restart`, `recreate`, `stop`, `remove`) resolve absolute paths for both compose and env files, then execute docker compose with the same base shape:
 
 ```bash
 docker compose \
@@ -643,6 +671,7 @@ The subcommand arguments differ by command:
 | Command | Compose args |
 | --- | --- |
 | `start` | `up -d` |
+| `restart` | `down` then `up -d` |
 | `recreate` | `up -d --force-recreate` |
 | `stop` | `down` |
 | `remove` | `down --rmi all` |

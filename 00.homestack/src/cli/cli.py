@@ -25,6 +25,7 @@ Architecture overview:
     │              (or use recommended) → write .env → preflight env-file checks
     │              → docker compose up -d
     ├── start    → validates local compose + env files and runs docker compose up -d
+    ├── restart  → runs docker compose down then up -d for installed projects
     ├── stop     → removes project containers via docker compose down
     ├── remove   → docker compose down --rmi all + delete local project directory
     ├── search   → filters projects.json by name/description substring match
@@ -94,6 +95,7 @@ from utils.docker_runtime import (
     deploy_project_stack,
     ensure_traefik_bridge_network,
     recreate_project_stack,
+    restart_project_stack,
     remove_project_stack,
     start_project_stack,
     stop_project_stack,
@@ -1465,6 +1467,105 @@ def recreate(
 
     logger.info("Docker compose recreate completed successfully")
     typer.echo("Docker recreate completed successfully.")
+    _print_info_readme(selected, install_dir, logger)
+
+
+@app.command()
+def restart(
+    project_name: str = typer.Argument(
+        ...,
+        help="Name of the deployed project to restart.",
+        show_default=False,
+    ),
+    verbose: bool = typer.Option(
+        False,
+        "--verbose",
+        "-v",
+        help="Show docker compose command output while the operation runs.",
+    ),
+) -> None:
+    """Restart a locally installed project by running docker compose down then up -d.
+
+    Uses the same env-file set as deploy (project .env plus required shared env
+    files), passing all env file paths as absolute paths.
+    """
+    logger = get_command_logger("restart")
+    host_prefs = _require_init_or_exit()
+
+    cache_dir = settings.cache_api_dir
+    projects = _load_cached_projects(cache_dir)
+    install_dir = Path(host_prefs.install_dir)
+    compose_dir = _compose_dir_from_install_dir(install_dir)
+    installed_projects = [
+        project
+        for project in projects
+        if (compose_dir / _slug_project_name(project.project_name)).exists()
+    ]
+
+    if not installed_projects:
+        typer.echo(
+            "No locally installed projects were found. Run 'homestack pull' or 'homestack deploy' first.",
+            err=True,
+        )
+        raise typer.Exit(code=1)
+
+    selected = _select_project_from_query(project_name, installed_projects)
+
+    project_dir = compose_dir / _slug_project_name(selected.project_name)
+    compose_path = project_dir / selected.compose
+    env_path = project_dir / ".env"
+    required_env_files = _resolve_project_required_env_files(selected, compose_dir)
+
+    if not compose_path.exists():
+        typer.echo(f"No docker-compose.yml found at {compose_path}", err=True)
+        raise typer.Exit(code=1)
+
+    if not env_path.exists():
+        typer.echo(f"No .env found at {env_path}", err=True)
+        raise typer.Exit(code=1)
+
+    compose_file = compose_path.resolve()
+    generated_env_file = env_path.resolve()
+    compose_env_files = [generated_env_file, *required_env_files]
+
+    missing_env_files = [
+        env_file for env_file in compose_env_files if not env_file.exists()
+    ]
+    if missing_env_files:
+        for missing_env_file in missing_env_files:
+            typer.echo(f"Required env file not found: {missing_env_file}", err=True)
+        raise typer.Exit(code=1)
+
+    logger.info(
+        "Restarting project via docker compose down then up -d: compose=%s cwd=%s",
+        compose_file,
+        project_dir,
+    )
+    try:
+        with OperationSpinner(
+            f"Restarting {selected.project_name}\u2026",
+            console=console,
+        ):
+            _validate_project_compose_config(
+                compose_file,
+                _slug_project_name(selected.project_name),
+                compose_env_files,
+                show_output=verbose,
+            )
+            restart_project_stack(
+                compose_file,
+                _slug_project_name(selected.project_name),
+                compose_env_files,
+                show_output=verbose,
+            )
+    except DockerRuntimeError as exc:
+        logger.error("Docker compose restart failed: %s", exc)
+        typer.echo("Docker restart failed.", err=True)
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=1)
+
+    logger.info("Docker compose restart completed successfully")
+    typer.echo("Docker restart completed successfully.")
     _print_info_readme(selected, install_dir, logger)
 
 
