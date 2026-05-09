@@ -42,6 +42,7 @@ def test_allowed_resolvers_is_expected_allow_list():
         "gid",
         "docker_gid",
         "private_ip",
+        "public_ip",
         "tailscale_ip",
     )
 
@@ -166,6 +167,83 @@ def test_tailscale_ip_requires_tailscale_interface():
     ):
         with pytest.raises(ComputeResolverError, match="tailscale interface"):
             resolve_computed_value("tailscale_ip", context)
+
+
+def test_public_ip_uses_trusted_https_service_result():
+    context = ComputeContext(host_preferences=_host_prefs())
+
+    with patch(
+        "utils.compute_defaults._fetch_public_ip_from_services",
+        return_value="203.0.113.10",
+    ):
+        resolved = resolve_computed_value("public_ip", context)
+
+    assert resolved == "203.0.113.10"
+
+
+def test_public_ip_fails_when_service_resolution_fails():
+    context = ComputeContext(host_preferences=_host_prefs())
+
+    with patch(
+        "utils.compute_defaults._fetch_public_ip_from_services",
+        side_effect=ComputeResolverError("Resolver 'public_ip' could not determine a public IP from trusted HTTPS services"),
+    ):
+        with pytest.raises(ComputeResolverError, match="trusted HTTPS services"):
+            resolve_computed_value("public_ip", context)
+
+
+def test_private_ip_does_not_use_subprocess_commands():
+    context = ComputeContext(host_preferences=_host_prefs())
+
+    with (
+        patch("subprocess.run") as mock_subprocess_run,
+        patch("subprocess.Popen") as mock_subprocess_popen,
+        patch(
+            "utils.compute_defaults._list_interface_ipv4_addresses",
+            return_value=[("eth0", "10.10.10.5")],
+        ),
+    ):
+        resolved = resolve_computed_value("private_ip", context)
+
+    assert resolved == "10.10.10.5"
+    mock_subprocess_run.assert_not_called()
+    mock_subprocess_popen.assert_not_called()
+
+
+def test_tailscale_ip_does_not_use_subprocess_commands():
+    context = ComputeContext(host_preferences=_host_prefs())
+
+    with (
+        patch("subprocess.run") as mock_subprocess_run,
+        patch("subprocess.Popen") as mock_subprocess_popen,
+        patch(
+            "utils.compute_defaults._list_interface_ipv4_addresses",
+            return_value=[("tailscale0", "100.88.1.2")],
+        ),
+    ):
+        resolved = resolve_computed_value("tailscale_ip", context)
+
+    assert resolved == "100.88.1.2"
+    mock_subprocess_run.assert_not_called()
+    mock_subprocess_popen.assert_not_called()
+
+
+def test_public_ip_does_not_use_subprocess_commands():
+    context = ComputeContext(host_preferences=_host_prefs())
+
+    with (
+        patch("subprocess.run") as mock_subprocess_run,
+        patch("subprocess.Popen") as mock_subprocess_popen,
+        patch(
+            "utils.compute_defaults._fetch_public_ip_from_services",
+            return_value="203.0.113.10",
+        ),
+    ):
+        resolved = resolve_computed_value("public_ip", context)
+
+    assert resolved == "203.0.113.10"
+    mock_subprocess_run.assert_not_called()
+    mock_subprocess_popen.assert_not_called()
 
 
 def test_malicious_compute_does_not_invoke_shell_or_eval_paths():

@@ -7,14 +7,15 @@ never executes shell commands or dynamic Python expressions.
 from __future__ import annotations
 
 import ipaddress
-import socket
 import re
+import socket
 import struct
 from dataclasses import dataclass
 from fcntl import ioctl
 from types import MappingProxyType
 from typing import Callable
 
+import httpx
 from utils.shared_pref import HostPreferences
 
 _RESOLVER_NAME_PATTERN = re.compile(r"^[a-z][a-z0-9_]{0,63}$")
@@ -35,6 +36,12 @@ _IGNORED_INTERFACE_PREFIXES = (
 _ETHERNET_INTERFACE_PREFIXES = ("eth", "en")
 _WIFI_INTERFACE_PREFIXES = ("wl", "wlan", "wifi")
 _TAILSCALE_INTERFACE_PREFIXES = ("tailscale",)
+_PUBLIC_IP_SERVICES = (
+    "https://api.ipify.org",
+    "https://checkip.amazonaws.com",
+    "https://ifconfig.me/ip",
+)
+_PUBLIC_IP_TIMEOUT_SECONDS = 3.0
 
 
 class ComputeResolverError(ValueError):
@@ -122,6 +129,15 @@ def _is_private_lan_ipv4(ip_text: str) -> bool:
     )
 
 
+def _is_public_ip(ip_text: str) -> bool:
+    try:
+        ip = ipaddress.ip_address(ip_text)
+    except ValueError:
+        return False
+
+    return ip.is_global and not ip.is_multicast and not ip.is_unspecified
+
+
 def _is_tailscale_interface(interface_name: str) -> bool:
     normalized = interface_name.strip().lower()
     return normalized.startswith(_TAILSCALE_INTERFACE_PREFIXES)
@@ -177,6 +193,34 @@ def _resolve_tailscale_ip(_context: ComputeContext) -> str:
     )
 
 
+def _fetch_public_ip_from_services() -> str:
+    """Resolve the host public IP via a tiny HTTPS allow-list.
+
+    This intentionally uses Python networking only and never shells out.
+    """
+    timeout = httpx.Timeout(_PUBLIC_IP_TIMEOUT_SECONDS)
+
+    with httpx.Client(timeout=timeout, follow_redirects=False) as client:
+        for service_url in _PUBLIC_IP_SERVICES:
+            try:
+                response = client.get(service_url, headers={"Accept": "text/plain"})
+                response.raise_for_status()
+            except httpx.HTTPError:
+                continue
+
+            candidate = response.text.strip()
+            if _is_public_ip(candidate):
+                return candidate
+
+    raise ComputeResolverError(
+        "Resolver 'public_ip' could not determine a public IP from trusted HTTPS services"
+    )
+
+
+def _resolve_public_ip(_context: ComputeContext) -> str:
+    return _fetch_public_ip_from_services()
+
+
 _RESOLVERS = MappingProxyType(
     {
         "username": _resolve_username,
@@ -184,6 +228,7 @@ _RESOLVERS = MappingProxyType(
         "gid": _resolve_gid,
         "docker_gid": _resolve_docker_gid,
         "private_ip": _resolve_private_ip,
+        "public_ip": _resolve_public_ip,
         "tailscale_ip": _resolve_tailscale_ip,
     }
 )
