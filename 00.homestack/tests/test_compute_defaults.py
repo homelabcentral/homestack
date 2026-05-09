@@ -36,7 +36,14 @@ def _host_prefs(
 
 
 def test_allowed_resolvers_is_expected_allow_list():
-    assert allowed_resolvers() == ("username", "uid", "gid", "docker_gid")
+    assert allowed_resolvers() == (
+        "username",
+        "uid",
+        "gid",
+        "docker_gid",
+        "private_ip",
+        "tailscale_ip",
+    )
 
 
 @pytest.mark.parametrize(
@@ -86,6 +93,79 @@ def test_resolve_computed_value_rejects_missing_docker_gid():
     context = ComputeContext(host_preferences=_host_prefs(docker_gid=None))
     with pytest.raises(ComputeResolverError, match="docker group"):
         resolve_computed_value("docker_gid", context)
+
+
+def test_private_ip_prefers_ethernet_over_wifi_interfaces():
+    context = ComputeContext(host_preferences=_host_prefs())
+
+    with patch(
+        "utils.compute_defaults._list_interface_ipv4_addresses",
+        return_value=[
+            ("wlan0", "192.168.1.20"),
+            ("eth0", "10.10.10.5"),
+            ("tailscale0", "100.88.1.2"),
+        ],
+    ):
+        resolved = resolve_computed_value("private_ip", context)
+
+    assert resolved == "10.10.10.5"
+
+
+def test_private_ip_uses_wifi_when_no_ethernet_is_available():
+    context = ComputeContext(host_preferences=_host_prefs())
+
+    with patch(
+        "utils.compute_defaults._list_interface_ipv4_addresses",
+        return_value=[
+            ("wlan0", "192.168.1.20"),
+            ("tailscale0", "100.88.1.2"),
+        ],
+    ):
+        resolved = resolve_computed_value("private_ip", context)
+
+    assert resolved == "192.168.1.20"
+
+
+def test_private_ip_ignores_non_private_or_virtual_interfaces():
+    context = ComputeContext(host_preferences=_host_prefs())
+
+    with patch(
+        "utils.compute_defaults._list_interface_ipv4_addresses",
+        return_value=[
+            ("lo", "127.0.0.1"),
+            ("docker0", "172.17.0.1"),
+            ("tailscale0", "100.88.1.2"),
+            ("eth0", "8.8.8.8"),
+        ],
+    ):
+        with pytest.raises(ComputeResolverError, match="private LAN IPv4"):
+            resolve_computed_value("private_ip", context)
+
+
+def test_tailscale_ip_reads_tailscale_interface():
+    context = ComputeContext(host_preferences=_host_prefs())
+
+    with patch(
+        "utils.compute_defaults._list_interface_ipv4_addresses",
+        return_value=[
+            ("eth0", "10.10.10.5"),
+            ("tailscale0", "100.88.1.2"),
+        ],
+    ):
+        resolved = resolve_computed_value("tailscale_ip", context)
+
+    assert resolved == "100.88.1.2"
+
+
+def test_tailscale_ip_requires_tailscale_interface():
+    context = ComputeContext(host_preferences=_host_prefs())
+
+    with patch(
+        "utils.compute_defaults._list_interface_ipv4_addresses",
+        return_value=[("eth0", "10.10.10.5")],
+    ):
+        with pytest.raises(ComputeResolverError, match="tailscale interface"):
+            resolve_computed_value("tailscale_ip", context)
 
 
 def test_malicious_compute_does_not_invoke_shell_or_eval_paths():

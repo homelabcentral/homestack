@@ -6,8 +6,12 @@ never executes shell commands or dynamic Python expressions.
 
 from __future__ import annotations
 
+import ipaddress
+import socket
 import re
+import struct
 from dataclasses import dataclass
+from fcntl import ioctl
 from types import MappingProxyType
 from typing import Callable
 
@@ -15,6 +19,22 @@ from utils.shared_pref import HostPreferences
 
 _RESOLVER_NAME_PATTERN = re.compile(r"^[a-z][a-z0-9_]{0,63}$")
 MAX_COMPUTED_VALUE_LENGTH = 2048
+_SIOCGIFADDR = 0x8915
+_IGNORED_INTERFACE_PREFIXES = (
+    "lo",
+    "docker",
+    "br-",
+    "veth",
+    "virbr",
+    "vmnet",
+    "zt",
+    "tun",
+    "tap",
+    "wg",
+)
+_ETHERNET_INTERFACE_PREFIXES = ("eth", "en")
+_WIFI_INTERFACE_PREFIXES = ("wl", "wlan", "wifi")
+_TAILSCALE_INTERFACE_PREFIXES = ("tailscale",)
 
 
 class ComputeResolverError(ValueError):
@@ -67,12 +87,104 @@ def _resolve_docker_gid(context: ComputeContext) -> str:
     return str(docker_gid)
 
 
+def _list_interface_ipv4_addresses() -> list[tuple[str, str]]:
+    """Return interface names with IPv4 addresses discovered from the host."""
+    interfaces = [name for _, name in socket.if_nameindex()]
+    addresses: list[tuple[str, str]] = []
+
+    for interface_name in interfaces:
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+                request = struct.pack("256s", interface_name[:15].encode("utf-8"))
+                response = ioctl(sock.fileno(), _SIOCGIFADDR, request)
+                ip_text = socket.inet_ntoa(response[20:24])
+                addresses.append((interface_name, ip_text))
+        except OSError:
+            # Interface has no IPv4 address (or cannot be inspected).
+            continue
+
+    return addresses
+
+
+def _is_private_lan_ipv4(ip_text: str) -> bool:
+    try:
+        ip = ipaddress.ip_address(ip_text)
+    except ValueError:
+        return False
+
+    return (
+        isinstance(ip, ipaddress.IPv4Address)
+        and ip.is_private
+        and not ip.is_loopback
+        and not ip.is_link_local
+        and not ip.is_multicast
+        and not ip.is_unspecified
+    )
+
+
+def _is_tailscale_interface(interface_name: str) -> bool:
+    normalized = interface_name.strip().lower()
+    return normalized.startswith(_TAILSCALE_INTERFACE_PREFIXES)
+
+
+def _is_ignored_for_private_ip(interface_name: str) -> bool:
+    normalized = interface_name.strip().lower()
+    if normalized.startswith(_IGNORED_INTERFACE_PREFIXES):
+        return True
+    return _is_tailscale_interface(normalized)
+
+
+def _private_interface_priority(interface_name: str) -> int:
+    normalized = interface_name.strip().lower()
+    if normalized.startswith(_ETHERNET_INTERFACE_PREFIXES):
+        return 0
+    if normalized.startswith(_WIFI_INTERFACE_PREFIXES):
+        return 1
+    return 2
+
+
+def _resolve_private_ip(_context: ComputeContext) -> str:
+    candidates: list[tuple[str, str]] = []
+    for interface_name, ip_text in _list_interface_ipv4_addresses():
+        if _is_ignored_for_private_ip(interface_name):
+            continue
+        if not _is_private_lan_ipv4(ip_text):
+            continue
+        candidates.append((interface_name, ip_text))
+
+    if not candidates:
+        raise ComputeResolverError(
+            "Resolver 'private_ip' could not find a private LAN IPv4 address"
+        )
+
+    candidates.sort(key=lambda item: (_private_interface_priority(item[0]), item[0]))
+    return candidates[0][1]
+
+
+def _resolve_tailscale_ip(_context: ComputeContext) -> str:
+    for interface_name, ip_text in _list_interface_ipv4_addresses():
+        if not _is_tailscale_interface(interface_name):
+            continue
+        try:
+            ip = ipaddress.ip_address(ip_text)
+        except ValueError:
+            continue
+        if isinstance(ip, ipaddress.IPv4Address):
+            return ip_text
+
+    raise ComputeResolverError(
+        "Resolver 'tailscale_ip' could not find an IPv4 address on a tailscale interface"
+    )
+
+
 _RESOLVERS = MappingProxyType(
     {
         "username": _resolve_username,
         "uid": _resolve_uid,
         "gid": _resolve_gid,
         "docker_gid": _resolve_docker_gid,
+        "private_ip": _resolve_private_ip,
+        "tailscale_ip": _resolve_tailscale_ip,
     }
 )
 
