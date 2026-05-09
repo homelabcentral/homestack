@@ -36,6 +36,7 @@ from models.generated_env import GeneratedEnv, GeneratedSecret
 from questionary import Choice, Style
 from rich.console import Console
 from utils.project_table import ProjectTableBuilder
+from utils.compute_defaults import ComputeContext, ComputeResolverError, resolve_computed_value
 from utils.secure_values import SecureValueGenerator
 
 _MEMORY_PATTERN = re.compile(r"^[0-9]+[KMGT]$")
@@ -414,6 +415,53 @@ def _resolve_recommended_value(
     return _resolve_non_secret_value(var), None
 
 
+def _apply_compute_default(
+    var: EnvTemplateVariable,
+    compute_context: ComputeContext | None,
+) -> EnvTemplateVariable:
+    """Return a copy of *var* with ``recommended`` overridden by ``compute``.
+
+    This is intentionally fail-closed for safety: any invalid or unsupported
+    compute configuration raises ``ValueError`` and aborts env generation.
+    """
+    resolver_name = (var.extra_metadata.get("compute") or "").strip()
+    if not resolver_name:
+        return var
+
+    if compute_context is None:
+        raise ValueError(
+            f"{var.key}: compute resolver requires initialized host preferences"
+        )
+
+    kind = EnvValueKind(var.value_type.kind) if var.value_type else None
+    if kind in _SECRET_KINDS:
+        raise ValueError(
+            f"{var.key}: compute is not allowed for secret type '{kind.value}'"
+        )
+
+    try:
+        resolved_value = resolve_computed_value(resolver_name, compute_context)
+    except ComputeResolverError as exc:
+        raise ValueError(f"{var.key}: {exc}") from exc
+
+    if var.choices and all(choice.value != resolved_value for choice in var.choices):
+        raise ValueError(
+            f"{var.key}: computed value '{resolved_value}' is not in allowed choices"
+        )
+
+    validator = make_validator(var.value_type)
+    if validator is not None:
+        validation_result = validator(resolved_value)
+        if validation_result is not True:
+            raise ValueError(
+                f"{var.key}: computed value '{resolved_value}' is invalid: {validation_result}"
+            )
+
+    data = var.model_dump()
+    data["recommended"] = resolved_value
+    return EnvTemplateVariable(**data)
+
+
 def _allow_empty_secret_input(
     validator: Callable[[str], bool | str] | None,
 ) -> Callable[[str], bool | str] | None:
@@ -527,6 +575,7 @@ def build_form_from_template(
     parsed: ParsedEnvTemplate,
     *,
     use_recommended: bool = False,
+    compute_context: ComputeContext | None = None,
 ) -> GeneratedEnv:
     """Convert a ``ParsedEnvTemplate`` into a ``GeneratedEnv``.
 
@@ -550,29 +599,39 @@ def build_form_from_template(
     secrets: list[GeneratedSecret] = []
 
     for var in parsed.variables:
+        effective_var = _apply_compute_default(var, compute_context)
+
         if use_recommended:
-            if var.recommended:
-                env_val, secret = _resolve_recommended_value(var)
-                values[var.key] = env_val
-                if secret is not None and var.remember:
+            if effective_var.recommended:
+                env_val, secret = _resolve_recommended_value(effective_var)
+                values[effective_var.key] = env_val
+                if secret is not None and effective_var.remember:
                     secrets.append(secret)
             else:
-                if var.immutable:
+                if effective_var.immutable:
                     # Immutable: skip prompting, use recommended or value (may be empty string)
-                    values[var.key] = var.recommended if var.recommended else var.value
+                    values[effective_var.key] = (
+                        effective_var.recommended
+                        if effective_var.recommended
+                        else effective_var.value
+                    )
                 else:
-                    env_val, secret = _ask_variable_interactive(var)
-                    values[var.key] = env_val
-                    if secret is not None and var.remember:
+                    env_val, secret = _ask_variable_interactive(effective_var)
+                    values[effective_var.key] = env_val
+                    if secret is not None and effective_var.remember:
                         secrets.append(secret)
         else:
-            if var.immutable:
+            if effective_var.immutable:
                 # Immutable: skip prompting, use recommended or value (may be empty string)
-                values[var.key] = var.recommended if var.recommended else var.value
+                values[effective_var.key] = (
+                    effective_var.recommended
+                    if effective_var.recommended
+                    else effective_var.value
+                )
             else:
-                env_val, secret = _ask_variable_interactive(var)
-                values[var.key] = env_val
-                if secret is not None and var.remember:
+                env_val, secret = _ask_variable_interactive(effective_var)
+                values[effective_var.key] = env_val
+                if secret is not None and effective_var.remember:
                     secrets.append(secret)
 
     return GeneratedEnv(values=values, generated_secrets=secrets)

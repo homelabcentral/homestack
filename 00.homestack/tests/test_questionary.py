@@ -26,6 +26,8 @@ from models.env_template import (
     ParsedEnvTemplate,
 )
 from models.generated_env import GeneratedEnv, GeneratedSecret
+from utils.compute_defaults import ComputeContext
+from utils.shared_pref import HostPreferences
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -49,6 +51,7 @@ def _var(
     remember: bool = True,
     prompt: str | None = None,
     description: str | None = None,
+    extra_metadata: dict[str, str] | None = None,
 ) -> EnvTemplateVariable:
     return EnvTemplateVariable(
         key=key,
@@ -60,6 +63,7 @@ def _var(
         remember=remember,
         prompt=prompt,
         description=description,
+        extra_metadata=extra_metadata or {},
     )
 
 
@@ -71,6 +75,28 @@ def _mock_question(answer: str) -> MagicMock:
     mock = MagicMock()
     mock.ask.return_value = answer
     return mock
+
+
+def _compute_context(
+    *,
+    username: str = "alice",
+    uid: int | None = 1000,
+    gid: int | None = 1000,
+    docker_gid: int | None = 998,
+) -> ComputeContext:
+    return ComputeContext(
+        host_preferences=HostPreferences(
+            username=username,
+            uid=uid,
+            gid=gid,
+            docker_gid=docker_gid,
+            architecture="x86_64",
+            cpu_count=8,
+            ram_mb=16000,
+            install_dir="/tmp/homestack",
+            install_dir_total_gb=128.0,
+        )
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -328,6 +354,72 @@ class TestChoiceConversion:
 
 
 class TestBuildFormUseRecommended:
+    def test_compute_uid_applied_in_use_recommended(self):
+        var = _var(
+            "UID",
+            value_type=_vtype("int"),
+            extra_metadata={"compute": "uid"},
+        )
+        result = build_form_from_template(
+            _parsed(var),
+            use_recommended=True,
+            compute_context=_compute_context(uid=1234),
+        )
+
+        assert result.values["UID"] == "1234"
+
+    def test_compute_rejected_for_secret_type(self):
+        var = _var(
+            "APP_SECRET",
+            value_type=_vtype("password"),
+            extra_metadata={"compute": "uid"},
+        )
+        with pytest.raises(ValueError, match="not allowed for secret type"):
+            build_form_from_template(
+                _parsed(var),
+                use_recommended=True,
+                compute_context=_compute_context(),
+            )
+
+    def test_compute_unknown_name_fails_closed(self):
+        var = _var("UID", extra_metadata={"compute": "hostname"})
+        with pytest.raises(ValueError, match="Unknown compute resolver"):
+            build_form_from_template(
+                _parsed(var),
+                use_recommended=True,
+                compute_context=_compute_context(),
+            )
+
+    def test_compute_command_like_name_fails_closed(self):
+        var = _var("UID", extra_metadata={"compute": "id -u"})
+        with pytest.raises(ValueError, match="Invalid compute resolver"):
+            build_form_from_template(
+                _parsed(var),
+                use_recommended=True,
+                compute_context=_compute_context(),
+            )
+
+    def test_compute_value_must_match_choices(self):
+        var = _var(
+            "MODE",
+            choices=[
+                EnvTemplateChoice(value="1001"),
+                EnvTemplateChoice(value="1002", default=True),
+            ],
+            extra_metadata={"compute": "uid"},
+        )
+        with pytest.raises(ValueError, match="not in allowed choices"):
+            build_form_from_template(
+                _parsed(var),
+                use_recommended=True,
+                compute_context=_compute_context(uid=9999),
+            )
+
+    def test_compute_requires_context(self):
+        var = _var("UID", extra_metadata={"compute": "uid"})
+        with pytest.raises(ValueError, match="requires initialized host preferences"):
+            build_form_from_template(_parsed(var), use_recommended=True)
+
     def test_standard_field_uses_recommended(self):
         var = _var("DB_HOST", recommended="localhost")
         result = build_form_from_template(_parsed(var), use_recommended=True)
@@ -486,6 +578,23 @@ class TestBuildFormUseRecommended:
 
 
 class TestBuildFormInteractive:
+    def test_compute_applies_as_prompt_default_in_interactive_mode(self):
+        var = _var(
+            "USER_NAME",
+            value_type=_vtype("string"),
+            extra_metadata={"compute": "username"},
+        )
+        with patch("cli.questionary.questionary") as mock_q:
+            mock_q.text.return_value = self._mock_ask("alice")
+            result = build_form_from_template(
+                _parsed(var),
+                use_recommended=False,
+                compute_context=_compute_context(username="alice"),
+            )
+
+        assert result.values["USER_NAME"] == "alice"
+        assert mock_q.text.call_args.kwargs["default"] == "alice"
+
     def _mock_ask(self, answer: str):
         """Return a mock questionary question object whose .ask() returns *answer*."""
         mock = MagicMock()

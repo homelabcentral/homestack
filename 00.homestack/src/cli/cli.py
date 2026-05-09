@@ -63,8 +63,8 @@ import os
 import platform
 import re
 import shutil
-from contextlib import nullcontext
 from collections.abc import Callable
+from contextlib import nullcontext
 from pathlib import Path
 from uuid import uuid4
 
@@ -90,6 +90,7 @@ from parsers import EnvTemplateParser
 from rich.console import Console
 from settings.settings import settings
 from utils.app_logger import get_command_logger, setup_logging
+from utils.compute_defaults import ComputeContext
 from utils.docker_runtime import (
     DockerNetworkConflictError,
     DockerRuntimeError,
@@ -1217,10 +1218,18 @@ def deploy(
             typer.echo(f"[warn] {warning.message}", err=True)
 
     try:
-        generated = build_form_from_template(parsed, use_recommended=use_recommended)
+        generated = build_form_from_template(
+            parsed,
+            use_recommended=use_recommended,
+            compute_context=ComputeContext(host_preferences=host_prefs),
+        )
     except KeyboardInterrupt:
         logger.info("Deploy aborted by user during interactive prompts")
         typer.echo("\nAborted. No .env file was written.", err=True)
+        raise typer.Exit(code=1)
+    except ValueError as exc:
+        logger.error("Deploy failed while resolving template values: %s", exc)
+        typer.echo(f"Invalid template compute configuration: {exc}", err=True)
         raise typer.Exit(code=1)
     env_file.write_text(generated.to_env_string())
     typer.echo(f".env written to {env_file}")

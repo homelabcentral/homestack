@@ -53,6 +53,28 @@ class TestEnvTemplateParser:
         assert len(parsed.variables) == 1
         assert parsed.variables[0].choices == []
 
+    def test_compute_metadata_is_preserved_in_extra_metadata(self, tmp_path: Path):
+        template_path = _write_template(
+            tmp_path,
+            """UID= # type=int | compute=uid
+""",
+        )
+        parsed = EnvTemplateParser(template_path).parse()
+
+        assert len(parsed.variables) == 1
+        assert parsed.variables[0].extra_metadata["compute"] == "uid"
+
+    def test_malformed_compute_adds_warning(self, tmp_path: Path):
+        template_path = _write_template(
+            tmp_path,
+            """UID= # type=int | compute=id -u
+""",
+        )
+        parsed = EnvTemplateParser(template_path).parse()
+
+        assert len(parsed.variables) == 1
+        assert any(w.field == "compute" for w in parsed.warnings)
+
     def test_duplicate_inline_key_warns_last_wins(self, tmp_path: Path):
         template_path = _write_template(
             tmp_path,

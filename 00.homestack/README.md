@@ -789,6 +789,7 @@ All per-variable inline metadata keys are optional.
 | `immutable` | `false` | No | Skip prompting for this variable and keep the resolved value as-is. | `immutable=true` |
 | `remember` | `false` | No | For generated secrets, include plaintext in the end-of-run summary so the user can save it. | `remember=true` |
 | `description` | `None` | No | Human-readable variable description used in docs and summaries. | `description=Public web port` |
+| `compute` | `None` | No | Compute default value from a safe built-in resolver. Allowed resolvers: `username`, `uid`, `gid`, `docker_gid`. | `compute=uid` |
 
 Composite example:
 
@@ -803,9 +804,19 @@ APP_NAME= # type=string(3,16)
 SERVICE_PORT= # recommended=8080 | type=port
 TZ= # prompt=Enter your timezone | instruction=Example: Europe/Berlin
 TLS_MODE= # choices=[off, strict (description=TLS required, default=true)]
+UID= # type=int | compute=uid
 DOCKER_SOCKET=/var/run/docker.sock # immutable=true
 JWT_SECRET= # type=password(32,64) | remember=true
 ```
+
+#### `compute=` safety model
+
+`compute=` is intentionally strict and fail-closed:
+
+- Only exact resolver names are accepted: `username`, `uid`, `gid`, `docker_gid`.
+- Shell commands and function expressions are rejected (for example `compute=id -u` or `compute=uid()`).
+- The CLI never uses `subprocess`, `os.system`, `eval`, `exec`, or dynamic imports for `compute`.
+- Invalid or unsupported `compute` values stop generation with an explicit error.
 
 ---
 

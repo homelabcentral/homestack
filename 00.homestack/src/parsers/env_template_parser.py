@@ -22,6 +22,8 @@ class EnvTemplateParsingError(Exception):
 class EnvTemplateParser:
     """Parses `.env.template` metadata and variable inline annotations."""
 
+    _COMPUTE_RESOLVER_PATTERN = re.compile(r"^[a-z][a-z0-9_]{0,63}$")
+
     def __init__(self, file_path: Path | str) -> None:
         self.file_path = Path(file_path)
         if not self.file_path.exists():
@@ -277,6 +279,22 @@ class EnvTemplateParser:
             choices = self._parse_choices(
                 metadata_map["choices"], line_number, warnings
             )
+
+        compute_hint = metadata_map.get("compute")
+        if compute_hint is not None:
+            normalized_compute = compute_hint.strip().lower()
+            if not self._COMPUTE_RESOLVER_PATTERN.fullmatch(normalized_compute):
+                warnings.append(
+                    EnvTemplateWarning(
+                        line=line_number,
+                        field="compute",
+                        message=(
+                            "Invalid compute resolver format; use a simple "
+                            "identifier like uid or docker_gid"
+                        ),
+                        raw_fragment=compute_hint,
+                    )
+                )
 
         extra_metadata = {
             k: v
