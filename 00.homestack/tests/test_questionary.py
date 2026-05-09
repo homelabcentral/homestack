@@ -581,10 +581,77 @@ class TestBuildFormUseRecommended:
 
 
 class TestBuildFormInteractive:
-    def test_compute_applies_as_prompt_default_in_interactive_mode(self):
+    def test_blank_recommended_compute_does_not_prefill_interactive_prompt(self):
         var = _var(
             "USER_NAME",
             value_type=_vtype("string"),
+            extra_metadata={"compute": "username"},
+        )
+        with patch("cli.questionary.questionary") as mock_q:
+            mock_q.text.return_value = self._mock_ask("alice")
+            result = build_form_from_template(
+                _parsed(var),
+                use_recommended=False,
+                compute_context=_compute_context(username="alice"),
+            )
+
+        assert result.values["USER_NAME"] == "alice"
+        assert mock_q.text.call_args.kwargs["default"] == ""
+
+    def test_empty_interactive_answer_falls_back_to_compute(self):
+        var = _var(
+            "USER_NAME",
+            value_type=_vtype("string"),
+            extra_metadata={"compute": "username"},
+        )
+        with patch("cli.questionary.questionary") as mock_q:
+            mock_q.text.return_value = self._mock_ask("")
+            result = build_form_from_template(
+                _parsed(var),
+                use_recommended=False,
+                compute_context=_compute_context(username="alice"),
+            )
+
+        assert result.values["USER_NAME"] == "alice"
+        assert mock_q.text.call_args.kwargs["default"] == ""
+
+    def test_empty_interactive_answer_leaves_empty_when_compute_fails(self):
+        var = _var(
+            "USER_NAME",
+            value_type=_vtype("string"),
+            extra_metadata={"compute": "username"},
+        )
+        with patch("cli.questionary.questionary") as mock_q:
+            mock_q.text.return_value = self._mock_ask("")
+            result = build_form_from_template(
+                _parsed(var),
+                use_recommended=False,
+                compute_context=None,
+            )
+
+        assert result.values["USER_NAME"] == ""
+
+    def test_non_empty_interactive_answer_skips_compute_fallback(self):
+        var = _var(
+            "USER_ID",
+            value_type=_vtype("int"),
+            extra_metadata={"compute": "uid"},
+        )
+        with patch("cli.questionary.questionary") as mock_q:
+            mock_q.text.return_value = self._mock_ask("2000")
+            result = build_form_from_template(
+                _parsed(var),
+                use_recommended=False,
+                compute_context=_compute_context(uid=1001),
+            )
+
+        assert result.values["USER_ID"] == "2000"
+
+    def test_compute_still_prefills_when_recommended_exists(self):
+        var = _var(
+            "USER_NAME",
+            value_type=_vtype("string"),
+            recommended="preset",
             extra_metadata={"compute": "username"},
         )
         with patch("cli.questionary.questionary") as mock_q:

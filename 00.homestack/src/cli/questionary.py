@@ -129,11 +129,14 @@ def ask_path(
     instruction: str | None = None,
     default: str = "",
     only_files: bool = False,
+    validate: Callable[[str], bool | str] | None = None,
 ) -> str:
     """Ask a file-path question and return the answer."""
     kwargs: dict = {"default": default, "only_files": only_files}
     if instruction:
         kwargs["instruction"] = instruction
+    if validate:
+        kwargs["validate"] = validate
     result = questionary.path(message, style=HOMESTACK_STYLE, **kwargs).ask()
     if result is None:
         raise KeyboardInterrupt
@@ -466,10 +469,56 @@ def _apply_compute_default(
     return EnvTemplateVariable(**data)
 
 
+def _has_compute_resolver(var: EnvTemplateVariable) -> bool:
+    """Return whether *var* declares a compute resolver."""
+    return bool((var.extra_metadata.get("compute") or "").strip())
+
+
+def _is_deferred_compute_candidate(var: EnvTemplateVariable) -> bool:
+    """Return whether compute should wait until after an empty interactive answer."""
+    kind = EnvValueKind(var.value_type.kind) if var.value_type else None
+    return (
+        not var.immutable
+        and var.recommended is None
+        and not var.choices
+        and kind not in _SECRET_KINDS
+        and kind != EnvValueKind.BOOLEAN
+        and _has_compute_resolver(var)
+    )
+
+
+def _resolve_interactive_compute_fallback(
+    var: EnvTemplateVariable,
+    compute_context: ComputeContext | None,
+) -> str:
+    """Resolve deferred compute for interactive prompts, swallowing failures to empty."""
+    try:
+        effective_var = _apply_compute_default(var, compute_context)
+    except ValueError:
+        return ""
+
+    return effective_var.recommended if effective_var.recommended else ""
+
+
 def _allow_empty_secret_input(
     validator: Callable[[str], bool | str] | None,
 ) -> Callable[[str], bool | str] | None:
     """Allow blank secret input to signal auto-generation while preserving validation otherwise."""
+    if validator is None:
+        return None
+
+    def _validate(value: str) -> bool | str:
+        if value == "":
+            return True
+        return validator(value)
+
+    return _validate
+
+
+def _allow_empty_compute_fallback_input(
+    validator: Callable[[str], bool | str] | None,
+) -> Callable[[str], bool | str] | None:
+    """Allow blank interactive input so Enter can trigger compute fallback."""
     if validator is None:
         return None
 
@@ -498,6 +547,7 @@ def _secret_instruction(instruction: str | None) -> str:
 
 def _ask_variable_interactive(
     var: EnvTemplateVariable,
+    compute_context: ComputeContext | None = None,
 ) -> tuple[str, GeneratedSecret | None]:
     """Ask a single interactive question for *var* and return ``(value, secret|None)``.
 
@@ -508,6 +558,7 @@ def _ask_variable_interactive(
     instruction = var.instruction
     validator = make_validator(var.value_type)
     kind = EnvValueKind(var.value_type.kind) if var.value_type else None
+    deferred_compute = _is_deferred_compute_candidate(var)
 
     # Select
     if var.choices:
@@ -563,14 +614,34 @@ def _ask_variable_interactive(
 
     if kind == EnvValueKind.PATH:
         default_val = var.recommended if var.recommended else var.value
-        answer = ask_path(message, instruction=instruction, default=default_val)
+        answer = ask_path(
+            message,
+            instruction=instruction,
+            default=default_val,
+            validate=(
+                _allow_empty_compute_fallback_input(validator)
+                if deferred_compute
+                else validator
+            ),
+        )
+        if deferred_compute and answer == "":
+            return _resolve_interactive_compute_fallback(var, compute_context), None
         return answer, None
 
     # Default → text
     default_val = var.recommended if var.recommended else var.value
     answer = ask_text(
-        message, instruction=instruction, default=default_val, validate=validator
+        message,
+        instruction=instruction,
+        default=default_val,
+        validate=(
+            _allow_empty_compute_fallback_input(validator)
+            if deferred_compute
+            else validator
+        ),
     )
+    if deferred_compute and answer == "":
+        return _resolve_interactive_compute_fallback(var, compute_context), None
     return answer, None
 
 
@@ -607,7 +678,11 @@ def build_form_from_template(
     secrets: list[GeneratedSecret] = []
 
     for var in parsed.variables:
-        effective_var = _apply_compute_default(var, compute_context)
+        effective_var = (
+            var
+            if not use_recommended and _is_deferred_compute_candidate(var)
+            else _apply_compute_default(var, compute_context)
+        )
 
         if use_recommended:
             if effective_var.recommended:
@@ -624,7 +699,9 @@ def build_form_from_template(
                         else effective_var.value
                     )
                 else:
-                    env_val, secret = _ask_variable_interactive(effective_var)
+                    env_val, secret = _ask_variable_interactive(
+                        effective_var, compute_context
+                    )
                     values[effective_var.key] = env_val
                     if secret is not None and effective_var.remember:
                         secrets.append(secret)
@@ -637,7 +714,9 @@ def build_form_from_template(
                     else effective_var.value
                 )
             else:
-                env_val, secret = _ask_variable_interactive(effective_var)
+                env_val, secret = _ask_variable_interactive(
+                    effective_var, compute_context
+                )
                 values[effective_var.key] = env_val
                 if secret is not None and effective_var.remember:
                     secrets.append(secret)
