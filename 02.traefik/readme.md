@@ -61,3 +61,16 @@ supported_architecture:
   - arm64
 ready_to_deploy: true
 ---
+
+# Traefik
+
+Traefik is a cloud native reserse proxy that is selfhostable.
+
+## Pre-Install
+
+Before you deploy the app using `homestack deploy traefik` there are some files that you need to have ready.
+Follow the instruction below.
+
+## Post-Install
+
+After deploying each application using `homestack deploy` or any other way if you choose. Please add the DNS record in pihole or whatever DNS resolver that you use, otherwise even if the reserve proxy is setup the correct way, you won't be able to get to it.

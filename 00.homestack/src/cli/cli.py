@@ -63,6 +63,7 @@ import os
 import platform
 import re
 import shutil
+from contextlib import nullcontext
 from collections.abc import Callable
 from pathlib import Path
 from uuid import uuid4
@@ -127,6 +128,12 @@ app = typer.Typer(
 
 setup_logging()
 console = Console()
+
+
+def _operation_spinner(message: str, *, verbose: bool, console: Console):
+    if verbose:
+        return nullcontext()
+    return OperationSpinner(message, console=console)
 
 
 def _require_init_or_exit() -> HostPreferences:
@@ -1173,8 +1180,9 @@ def deploy(
             project_dir,
         )
         try:
-            with OperationSpinner(
+            with _operation_spinner(
                 f"Deploying {selected.project_name}\u2026",
+                verbose=verbose,
                 console=console,
             ):
                 _validate_project_compose_config(
@@ -1241,8 +1249,9 @@ def deploy(
         project_dir,
     )
     try:
-        with OperationSpinner(
+        with _operation_spinner(
             f"Deploying {selected.project_name}\u2026",
+            verbose=verbose,
             console=console,
         ):
             _validate_project_compose_config(
@@ -1344,8 +1353,9 @@ def start(
         project_dir,
     )
     try:
-        with OperationSpinner(
+        with _operation_spinner(
             f"Starting {selected.project_name}\u2026",
+            verbose=verbose,
             console=console,
         ):
             _validate_project_compose_config(
@@ -1443,8 +1453,9 @@ def recreate(
         project_dir,
     )
     try:
-        with OperationSpinner(
+        with _operation_spinner(
             f"Recreating {selected.project_name}\u2026",
+            verbose=verbose,
             console=console,
         ):
             _validate_project_compose_config(
@@ -1542,8 +1553,9 @@ def restart(
         project_dir,
     )
     try:
-        with OperationSpinner(
+        with _operation_spinner(
             f"Restarting {selected.project_name}\u2026",
+            verbose=verbose,
             console=console,
         ):
             _validate_project_compose_config(
@@ -1642,8 +1654,9 @@ def stop(
         project_dir,
     )
     try:
-        with OperationSpinner(
+        with _operation_spinner(
             f"Stopping {selected.project_name}\u2026",
+            verbose=verbose,
             console=console,
         ):
             _validate_project_compose_config(
@@ -1740,8 +1753,9 @@ def remove(
         project_dir,
     )
     try:
-        with OperationSpinner(
+        with _operation_spinner(
             f"Removing {selected.project_name}\u2026",
+            verbose=verbose,
             console=console,
         ):
             _validate_project_compose_config(

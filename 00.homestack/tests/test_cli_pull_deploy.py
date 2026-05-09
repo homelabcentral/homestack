@@ -523,6 +523,7 @@ def test_deploy_uses_start_equivalent_flow_when_env_exists(tmp_path: Path) -> No
         patch("cli.cli.settings") as mock_settings,
         patch("cli.cli._load_cached_projects", return_value=[project]),
         patch("cli.cli._select_project_from_query", return_value=project),
+        patch("cli.cli.OperationSpinner") as mock_spinner,
         patch("cli.cli.validate_compose_config"),
         patch("cli.cli.start_project_stack", side_effect=fake_start),
         patch("cli.cli._print_info_readme"),
@@ -532,6 +533,7 @@ def test_deploy_uses_start_equivalent_flow_when_env_exists(tmp_path: Path) -> No
 
     assert result.exit_code == 0
     assert start_called[0]
+    assert mock_spinner.call_count == 1
 
 
 def test_deploy_fails_when_compose_config_is_invalid(tmp_path: Path) -> None:
@@ -944,6 +946,7 @@ def test_start_passes_show_output_when_verbose_enabled(tmp_path: Path) -> None:
         patch("cli.cli.settings") as mock_settings,
         patch("cli.cli._load_cached_projects", return_value=[project]),
         patch("cli.cli._select_project_from_query", return_value=project),
+        patch("cli.cli.OperationSpinner") as mock_spinner,
         patch("cli.cli.validate_compose_config"),
         patch("cli.cli.start_project_stack", side_effect=fake_start),
         patch("cli.cli._print_info_readme"),
@@ -953,6 +956,7 @@ def test_start_passes_show_output_when_verbose_enabled(tmp_path: Path) -> None:
 
     assert result.exit_code == 0
     assert verbose_values == [True]
+    assert mock_spinner.call_count == 0
 
 
 def test_restart_passes_show_output_when_verbose_enabled(tmp_path: Path) -> None:
@@ -974,6 +978,7 @@ def test_restart_passes_show_output_when_verbose_enabled(tmp_path: Path) -> None
         patch("cli.cli.settings") as mock_settings,
         patch("cli.cli._load_cached_projects", return_value=[project]),
         patch("cli.cli._select_project_from_query", return_value=project),
+        patch("cli.cli.OperationSpinner") as mock_spinner,
         patch("cli.cli.validate_compose_config"),
         patch("cli.cli.restart_project_stack", side_effect=fake_restart),
         patch("cli.cli._print_info_readme"),
@@ -983,6 +988,7 @@ def test_restart_passes_show_output_when_verbose_enabled(tmp_path: Path) -> None
 
     assert result.exit_code == 0
     assert verbose_values == [True]
+    assert mock_spinner.call_count == 0
 
 
 # ---------------------------------------------------------------------------
