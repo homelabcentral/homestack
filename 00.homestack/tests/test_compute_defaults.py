@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import subprocess
+from unittest.mock import patch
+
 import pytest
 from utils.compute_defaults import (
     ComputeContext,
@@ -83,3 +86,21 @@ def test_resolve_computed_value_rejects_missing_docker_gid():
     context = ComputeContext(host_preferences=_host_prefs(docker_gid=None))
     with pytest.raises(ComputeResolverError, match="docker group"):
         resolve_computed_value("docker_gid", context)
+
+
+def test_malicious_compute_does_not_invoke_shell_or_eval_paths():
+    context = ComputeContext(host_preferences=_host_prefs())
+
+    with (
+        patch("os.system") as mock_os_system,
+        patch.object(subprocess, "run") as mock_subprocess_run,
+        patch.object(subprocess, "Popen") as mock_subprocess_popen,
+        patch("builtins.eval") as mock_eval,
+    ):
+        with pytest.raises(ComputeResolverError):
+            resolve_computed_value("__import__('os').system('id')", context)
+
+    mock_os_system.assert_not_called()
+    mock_subprocess_run.assert_not_called()
+    mock_subprocess_popen.assert_not_called()
+    mock_eval.assert_not_called()

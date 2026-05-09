@@ -35,8 +35,12 @@ from models.env_template import (
 from models.generated_env import GeneratedEnv, GeneratedSecret
 from questionary import Choice, Style
 from rich.console import Console
+from utils.compute_defaults import (
+    ComputeContext,
+    ComputeResolverError,
+    resolve_computed_value,
+)
 from utils.project_table import ProjectTableBuilder
-from utils.compute_defaults import ComputeContext, ComputeResolverError, resolve_computed_value
 from utils.secure_values import SecureValueGenerator
 
 _MEMORY_PATTERN = re.compile(r"^[0-9]+[KMGT]$")

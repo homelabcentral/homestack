@@ -1126,6 +1126,59 @@ def test_deploy_aborts_when_form_is_interrupted(tmp_path: Path) -> None:
     assert "Aborted" in result.output
 
 
+def test_deploy_smoke_applies_compute_uid_and_writes_env(tmp_path: Path) -> None:
+    install_dir = str(tmp_path / "homestack")
+    project = _project_item(required_env_files=[])
+    project_dir = tmp_path / "homestack" / "compose" / "pihole-with-unbound"
+    _stage_project_files(project_dir, project)
+    (project_dir / project.env).write_text(
+        "UID= # type=int | compute=uid | immutable=true\n",
+        encoding="utf-8",
+    )
+
+    with (
+        patch("cli.cli._require_init_or_exit", return_value=_host_prefs(install_dir)),
+        patch("cli.cli.settings") as mock_settings,
+        patch("cli.cli._load_cached_projects", return_value=[project]),
+        patch("cli.cli._select_project_from_query", return_value=project),
+        patch("cli.cli.validate_compose_config"),
+        patch("cli.cli._print_info_readme"),
+        patch("cli.cli.deploy_project_stack", return_value=MagicMock(containers=[])),
+    ):
+        mock_settings.cache_api_dir = tmp_path / "cache"
+        result = runner.invoke(app, ["deploy", "pihole", "--use-recommended"])
+
+    assert result.exit_code == 0
+    assert "Traceback" not in result.output
+    assert "Docker deployment completed successfully." in result.output
+    assert (project_dir / ".env").read_text(encoding="utf-8") == "UID=1000\n"
+
+
+def test_deploy_fails_closed_on_invalid_compute_metadata(tmp_path: Path) -> None:
+    install_dir = str(tmp_path / "homestack")
+    project = _project_item(required_env_files=[])
+    project_dir = tmp_path / "homestack" / "compose" / "pihole-with-unbound"
+    _stage_project_files(project_dir, project)
+    (project_dir / project.env).write_text(
+        "UID= # type=int | compute=id -u | immutable=true\n",
+        encoding="utf-8",
+    )
+
+    with (
+        patch("cli.cli._require_init_or_exit", return_value=_host_prefs(install_dir)),
+        patch("cli.cli.settings") as mock_settings,
+        patch("cli.cli._load_cached_projects", return_value=[project]),
+        patch("cli.cli._select_project_from_query", return_value=project),
+        patch("cli.cli.deploy_project_stack") as mock_deploy,
+    ):
+        mock_settings.cache_api_dir = tmp_path / "cache"
+        result = runner.invoke(app, ["deploy", "pihole", "--use-recommended"])
+
+    assert result.exit_code == 1
+    assert "Invalid template compute configuration" in result.output
+    mock_deploy.assert_not_called()
+
+
 # ---------------------------------------------------------------------------
 # Start: error paths
 # ---------------------------------------------------------------------------
