@@ -270,7 +270,9 @@ def resolve_computed_value(resolver_name: str, context: ComputeContext) -> str:
 
     resolved = value.strip()
     if not resolved:
-        raise ComputeResolverError(f"Resolver '{normalized_name}' returned an empty value")
+        raise ComputeResolverError(
+            f"Resolver '{normalized_name}' returned an empty value"
+        )
 
     if len(resolved) > MAX_COMPUTED_VALUE_LENGTH:
         raise ComputeResolverError(

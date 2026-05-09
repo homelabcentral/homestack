@@ -86,7 +86,9 @@ def test_resolve_computed_value_rejects_unknown_name():
 
 def test_resolve_computed_value_requires_host_preferences():
     context = ComputeContext(host_preferences=None)
-    with pytest.raises(ComputeResolverError, match="requires initialized host preferences"):
+    with pytest.raises(
+        ComputeResolverError, match="requires initialized host preferences"
+    ):
         resolve_computed_value("uid", context)
 
 
@@ -186,7 +188,9 @@ def test_public_ip_fails_when_service_resolution_fails():
 
     with patch(
         "utils.compute_defaults._fetch_public_ip_from_services",
-        side_effect=ComputeResolverError("Resolver 'public_ip' could not determine a public IP from trusted HTTPS services"),
+        side_effect=ComputeResolverError(
+            "Resolver 'public_ip' could not determine a public IP from trusted HTTPS services"
+        ),
     ):
         with pytest.raises(ComputeResolverError, match="trusted HTTPS services"):
             resolve_computed_value("public_ip", context)
