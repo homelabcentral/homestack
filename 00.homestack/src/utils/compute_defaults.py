@@ -16,6 +16,7 @@ from types import MappingProxyType
 from typing import Callable
 
 import httpx
+
 from utils.shared_pref import HostPreferences
 
 _RESOLVER_NAME_PATTERN = re.compile(r"^[a-z][a-z0-9_]{0,63}$")

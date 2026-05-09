@@ -761,6 +761,7 @@ The `EnvTemplateParser` (`parsers/env_template_parser.py`) reads these annotatio
 | Type                       | Behaviour                                            |
 | -------------------------- | ---------------------------------------------------- |
 | `string`                   | Free-text input                                      |
+| `path`                     | Path input via Questionary path prompt               |
 | `boolean`                  | `true`/`false` input with validation                 |
 | `int` / `float`            | Numeric input with validation                        |
 | `password`                 | Auto-generates a secure random password              |

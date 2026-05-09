@@ -103,6 +103,19 @@ NAME= # recommended=demo | type=string
         assert parsed.variables[1].value_type is not None
         assert any(w.field == "type" for w in parsed.warnings)
 
+    def test_path_type_is_parsed_without_warning(self, tmp_path: Path):
+        template_path = _write_template(
+            tmp_path,
+            """DIR_DATA= # type=path | prompt=Enter data directory
+""",
+        )
+        parsed = EnvTemplateParser(template_path).parse()
+
+        assert len(parsed.variables) == 1
+        assert parsed.variables[0].value_type is not None
+        assert parsed.variables[0].value_type.raw == "path"
+        assert parsed.warnings == []
+
     def test_invalid_choices_syntax_warns(self, tmp_path: Path):
         template_path = _write_template(
             tmp_path,
@@ -206,6 +219,7 @@ NAME= # recommended=demo | type=string
             # METADATA --- END
 
             DOCKER_IMAGE_PH_PIHOLE= # recommended=mpgirro/pihole-unbound:latest | type=string | prompt=select the pihole docker image | instruction=Pick this one | choices=[mpgirro/pihole-unbound:latest] | immutable=true | description=Docker image
+            DIR_DATA= # recommended=/srv/data | type=path | prompt=Enter data directory | immutable=false | description=Data directory
             HOST_NAME_BOUNDED= # recommended=host01 | type=string(3,16) | choices=[] | immutable=false | description=Bounded string
             PIHOLE_PASSWORD= # recommended=super-secret-password | type=password | prompt=Enter password | instruction=Choose carefully | choices=[] | immutable=false | description=Pihole password
             PASSWORD_BOUNDED= # recommended=abc123 | type=password(6,20) | choices=[] | immutable=false | description=Bounded password
@@ -228,7 +242,7 @@ NAME= # recommended=demo | type=string
         parsed = EnvTemplateParser(template_path).parse()
 
         assert parsed.metadata.required is True
-        assert len(parsed.variables) == 17
+        assert len(parsed.variables) == 18
         assert parsed.warnings == []
 
         by_key = {variable.key: variable for variable in parsed.variables}
@@ -246,6 +260,11 @@ NAME= # recommended=demo | type=string
         ].value == "mpgirro/pihole-unbound:latest"
         assert by_key["DOCKER_IMAGE_PH_PIHOLE"].immutable is True
         assert by_key["DOCKER_IMAGE_PH_PIHOLE"].description == "Docker image"
+
+        assert by_key["DIR_DATA"].value_type is not None
+        assert by_key["DIR_DATA"].value_type.raw == "path"
+        assert by_key["DIR_DATA"].prompt == "Enter data directory"
+        assert by_key["DIR_DATA"].description == "Data directory"
 
         assert by_key["HOST_NAME_BOUNDED"].value_type is not None
         assert by_key["HOST_NAME_BOUNDED"].value_type.raw == "string(3,16)"

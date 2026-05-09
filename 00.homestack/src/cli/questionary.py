@@ -555,12 +555,16 @@ def _ask_variable_interactive(
         )
         return hashed.bcrypt_hash, secret
 
-    # Default → text
     if kind == EnvValueKind.BOOLEAN:
         answer = ask_confirm(
             message, instruction=instruction, default=_bool_default(var)
         )
         return ("true" if answer else "false"), None
+
+    if kind == EnvValueKind.PATH:
+        default_val = var.recommended if var.recommended else var.value
+        answer = ask_path(message, instruction=instruction, default=default_val)
+        return answer, None
 
     # Default → text
     default_val = var.recommended if var.recommended else var.value

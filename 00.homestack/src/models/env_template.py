@@ -15,6 +15,7 @@ class EnvValueKind(str, Enum):
     """Supported variable kinds declared by `type=` metadata."""
 
     STRING = "string"
+    PATH = "path"
     BOOLEAN = "boolean"
     INT = "int"
     FLOAT = "float"

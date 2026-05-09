@@ -244,6 +244,9 @@ class TestMakeValidator:
     def test_string_kind_no_bounds(self):
         assert make_validator(_vtype("string")) is None
 
+    def test_path_kind_no_validator(self):
+        assert make_validator(_vtype("path")) is None
+
     def test_string_with_bounds(self):
         v = make_validator(_vtype("string", 3, 8))
         assert callable(v)
@@ -633,6 +636,23 @@ class TestBuildFormInteractive:
             result = build_form_from_template(_parsed(var), use_recommended=False)
         assert result.values["FEATURE_ENABLED"] == "true"
         mock_q.confirm.assert_called_once()
+        mock_q.text.assert_not_called()
+
+    def test_path_question_called_for_path_field(self):
+        var = _var(
+            "DIR_DATA",
+            value_type=_vtype("path"),
+            prompt="Enter data directory:",
+            recommended="/srv/data",
+        )
+        with patch("cli.questionary.questionary") as mock_q:
+            mock_q.path.return_value = self._mock_ask("/mnt/data")
+            result = build_form_from_template(_parsed(var), use_recommended=False)
+
+        assert result.values["DIR_DATA"] == "/mnt/data"
+        mock_q.path.assert_called_once()
+        assert mock_q.path.call_args.args[0] == "Enter data directory:"
+        assert mock_q.path.call_args.kwargs["default"] == "/srv/data"
         mock_q.text.assert_not_called()
 
     def test_password_prompt_appends_auto_generate_instruction(self):
