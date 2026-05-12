@@ -27,3 +27,9 @@ Add the username, password automatically using python commands to the local vaul
 ## 7. Add extends capabilities for .yml
 
 Add common .yml files into `00.common` what can be extended into a `docker-compose.yml` file with questionary. for example, add nvidia block of code. Example already setup - immich. Control the flow using .env.template
+
+## 8. Depends on a tag
+
+## 9. Loading all env into memory (host.env, network.env)
+
+## 10. Resolving variables from json, readme and env
