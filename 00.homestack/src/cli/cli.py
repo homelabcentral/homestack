@@ -409,7 +409,7 @@ def _refresh_projects_cache_silent(cache_dir: Path) -> None:
 
 
 def _load_cached_projects(
-    cache_dir: Path, check_remote_change: bool = False
+    cache_dir: Path, check_remote_change: bool = False, filter_ready: bool = True
 ) -> list[ProjectItem]:
     projects_path = cache_dir / "projects.json"
 
@@ -423,7 +423,12 @@ def _load_cached_projects(
         raise FileNotFoundError("projects.json is missing in local cache")
 
     payload = json.loads(projects_path.read_text(encoding="utf-8"))
-    return [ProjectItem(**row) for row in payload]
+    projects = [ProjectItem(**row) for row in payload]
+    
+    if filter_ready:
+        projects = [p for p in projects if p.ready_to_deploy]
+    
+    return projects
 
 
 def _find_project(project_name: str, projects: list[ProjectItem]) -> ProjectItem | None:
@@ -1313,7 +1318,7 @@ def start(
     host_prefs = _require_init_or_exit()
 
     cache_dir = settings.cache_api_dir
-    projects = _load_cached_projects(cache_dir)
+    projects = _load_cached_projects(cache_dir, filter_ready=False)
     install_dir = Path(host_prefs.install_dir)
     compose_dir = _compose_dir_from_install_dir(install_dir)
     installed_projects = [
@@ -1413,7 +1418,7 @@ def recreate(
     host_prefs = _require_init_or_exit()
 
     cache_dir = settings.cache_api_dir
-    projects = _load_cached_projects(cache_dir)
+    projects = _load_cached_projects(cache_dir, filter_ready=False)
     install_dir = Path(host_prefs.install_dir)
     compose_dir = _compose_dir_from_install_dir(install_dir)
     installed_projects = [
@@ -1513,7 +1518,7 @@ def restart(
     host_prefs = _require_init_or_exit()
 
     cache_dir = settings.cache_api_dir
-    projects = _load_cached_projects(cache_dir)
+    projects = _load_cached_projects(cache_dir, filter_ready=False)
     install_dir = Path(host_prefs.install_dir)
     compose_dir = _compose_dir_from_install_dir(install_dir)
     installed_projects = [
@@ -1614,7 +1619,7 @@ def stop(
     host_prefs = _require_init_or_exit()
 
     cache_dir = settings.cache_api_dir
-    projects = _load_cached_projects(cache_dir)
+    projects = _load_cached_projects(cache_dir, filter_ready=False)
     install_dir = Path(host_prefs.install_dir)
     compose_dir = _compose_dir_from_install_dir(install_dir)
     installed_projects = [
@@ -1713,7 +1718,7 @@ def remove(
     host_prefs = _require_init_or_exit()
 
     cache_dir = settings.cache_api_dir
-    projects = _load_cached_projects(cache_dir)
+    projects = _load_cached_projects(cache_dir, filter_ready=False)
     install_dir = Path(host_prefs.install_dir)
     compose_dir = _compose_dir_from_install_dir(install_dir)
     installed_projects = [
