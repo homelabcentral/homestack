@@ -6,6 +6,7 @@ import pytest
 from utils.text_interpolation import (
     InterpolationError,
     MissingVariableError,
+    find_unresolved_placeholders,
     interpolate_text,
     interpolate_text_with_env,
     load_interpolation_context,
@@ -111,3 +112,8 @@ def test_unresolved_reference_raises_in_strict_mode(tmp_path: Path) -> None:
 
     with pytest.raises(InterpolationError, match="Unresolved variable reference"):
         load_interpolation_context(shared, project_env, strict=True)
+
+
+def test_find_unresolved_placeholders_returns_unique_tokens() -> None:
+    text = "A ${ONE} and ${TWO} and again ${ONE}"
+    assert find_unresolved_placeholders(text) == ("${ONE}", "${TWO}")

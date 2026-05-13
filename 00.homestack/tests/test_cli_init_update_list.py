@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -560,6 +561,45 @@ def test_info_warns_when_remote_readme_is_unreachable(tmp_path: Path) -> None:
         or "warn" in result.output.lower()
         or "reach" in result.output.lower()
     )
+
+
+def test_info_interpolates_project_metadata_with_env_context(tmp_path: Path) -> None:
+    install_dir = tmp_path / "homestack"
+    cache_dir = tmp_path / "cache"
+    items = _write_sample_cache(cache_dir)
+
+    # Add placeholder-based metadata for interpolation.
+    project = replace(
+        items[0],
+        project_website="https://${APP_NAME}.${SUBDOMAIN}.${DOMAIN}",
+        project_docs="https://${APP_NAME}.${SUBDOMAIN}.${DOMAIN}/docs",
+    )
+
+    # Prepare shared and project env context.
+    shared_env_dir = install_dir / "compose" / "00.env"
+    shared_env_dir.mkdir(parents=True, exist_ok=True)
+    (shared_env_dir / "host.env").write_text(
+        "SUBDOMAIN=lab\nDOMAIN=example.com\n",
+        encoding="utf-8",
+    )
+
+    project_dir = install_dir / "compose" / "pihole-with-unbound"
+    project_dir.mkdir(parents=True, exist_ok=True)
+    (project_dir / ".env").write_text("APP_NAME=pihole\n", encoding="utf-8")
+    (project_dir / "readme.md").write_text("# Pihole\n", encoding="utf-8")
+
+    with (
+        patch("cli.cli._require_init_or_exit", return_value=_host_prefs(str(install_dir))),
+        patch("cli.cli.settings") as mock_settings,
+        patch("cli.cli._refresh_projects_cache_silent"),
+        patch("cli.cli._find_project", return_value=project),
+        patch("cli.cli._print_info_readme"),
+    ):
+        mock_settings.cache_api_dir = cache_dir
+        result = runner.invoke(app, ["info", "pihole"])
+
+    assert result.exit_code == 0
+    assert "https://pihole.lab.example.com" in result.output
 
 
 def test_info_remote_readme_uses_repository_base_url(tmp_path: Path) -> None:

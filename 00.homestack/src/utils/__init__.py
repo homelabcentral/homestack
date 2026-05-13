@@ -4,6 +4,7 @@ from .secure_values import GeneratedBcryptHash, SecureValueGenerator
 from .text_interpolation import (
     InterpolationError,
     MissingVariableError,
+    find_unresolved_placeholders,
     interpolate_text,
     interpolate_text_with_env,
     load_interpolation_context,
@@ -15,6 +16,7 @@ __all__ = [
     "SecureValueGenerator",
     "InterpolationError",
     "MissingVariableError",
+    "find_unresolved_placeholders",
     "interpolate_text",
     "interpolate_text_with_env",
     "load_interpolation_context",

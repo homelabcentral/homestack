@@ -164,3 +164,13 @@ def interpolate_text_with_env(
         strict=strict,
     )
     return interpolate_text(text, values, strict=strict)
+
+
+def find_unresolved_placeholders(text: str) -> tuple[str, ...]:
+    """Return unique unresolved placeholder tokens left in text."""
+    found: list[str] = []
+    for match in _UNRESOLVED_TOKEN_PATTERN.finditer(text):
+        token = match.group(0)
+        if token not in found:
+            found.append(token)
+    return tuple(found)

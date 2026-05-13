@@ -55,6 +55,7 @@ Shell completion:
 from __future__ import annotations
 
 import asyncio
+from dataclasses import replace
 import getpass
 import grp
 import json
@@ -108,6 +109,11 @@ from utils.markdown_printer import MarkdownPrinter
 from utils.progress import DownloadProgressBar, OperationSpinner
 from utils.project_table import ProjectTableBuilder
 from utils.shared_pref import HostPreferences, SharedPreferences, SharedPrefsError
+from utils.text_interpolation import (
+    find_unresolved_placeholders,
+    interpolate_text,
+    load_interpolation_context,
+)
 
 from cli.questionary import (
     ask_confirm,
@@ -737,6 +743,95 @@ def _local_project_readme_path(project: ProjectItem, install_dir: Path) -> Path:
     return project_dir / _project_readme_name(project)
 
 
+def _interpolate_project_text(
+    text: str,
+    project: ProjectItem,
+    install_dir: Path,
+    logger: logging.Logger,
+) -> str:
+    """Interpolate text with project + shared env values in lenient mode."""
+    compose_dir = _compose_dir_from_install_dir(install_dir)
+    project_dir = compose_dir / _slug_project_name(project.project_name)
+    shared_env_dir = compose_dir / "00.env"
+    project_env_file = project_dir / ".env"
+
+    context = load_interpolation_context(
+        shared_env_dir=shared_env_dir,
+        project_env_file=project_env_file,
+        strict=False,
+    )
+
+    unresolved_in_context: list[str] = []
+    for value in context.values():
+        unresolved_in_context.extend(find_unresolved_placeholders(value))
+
+    if unresolved_in_context:
+        unique_context_tokens = sorted(set(unresolved_in_context))
+        warning = (
+            "Some env values contain unresolved placeholders; output will keep them "
+            f"as-is: {', '.join(unique_context_tokens)}"
+        )
+        logger.warning(warning)
+        typer.echo(f"⚠ {warning}")
+
+    rendered = interpolate_text(text, context, strict=False)
+    unresolved_in_text = find_unresolved_placeholders(rendered)
+    if unresolved_in_text:
+        warning = (
+            "Some placeholders in text could not be resolved and were left unchanged: "
+            f"{', '.join(unresolved_in_text)}"
+        )
+        logger.warning(warning)
+        typer.echo(f"⚠ {warning}")
+
+    return rendered
+
+
+def _interpolate_project_metadata(
+    project: ProjectItem,
+    install_dir: Path,
+    logger: logging.Logger,
+) -> ProjectItem:
+    """Return a project copy with string metadata interpolated."""
+    fields_to_render = {
+        "description": project.description,
+        "project_description": project.project_description,
+        "project_website": project.project_website,
+        "project_source": project.project_source,
+        "project_docs": project.project_docs,
+    }
+
+    rendered_fields: dict[str, str | None] = {}
+    for field_name, value in fields_to_render.items():
+        if value:
+            rendered_fields[field_name] = _interpolate_project_text(
+                value,
+                project,
+                install_dir,
+                logger,
+            )
+        else:
+            rendered_fields[field_name] = value
+
+    return replace(project, **rendered_fields)
+
+
+def _print_project_access_hints(
+    project: ProjectItem,
+    install_dir: Path,
+    logger: logging.Logger,
+) -> None:
+    """Display interpolated access URLs/docs after successful interactive commands."""
+    rendered = _interpolate_project_metadata(project, install_dir, logger)
+    website = (rendered.project_website or "").strip()
+    docs = (rendered.project_docs or "").strip()
+
+    if website:
+        typer.echo(f"Access URL: {website}")
+    if docs:
+        typer.echo(f"Docs: {docs}")
+
+
 def _print_info_readme(
     project: ProjectItem, install_dir: Path, logger: logging.Logger
 ) -> None:
@@ -746,12 +841,25 @@ def _print_info_readme(
     remote_readme_path = f"{project.dir_name}/{readme_name}"
 
     local_exists = local_readme_path.exists()
-    if local_exists and MarkdownPrinter.print_markdown_file(
-        console,
-        local_readme_path,
-        title=readme_title,
-    ):
-        return
+    if local_exists:
+        try:
+            local_text = local_readme_path.read_text(encoding="utf-8")
+        except (UnicodeDecodeError, OSError):
+            local_text = None
+
+        if local_text is not None:
+            rendered_local = _interpolate_project_text(
+                local_text,
+                project,
+                install_dir,
+                logger,
+            )
+            if MarkdownPrinter.print_markdown_text(
+                console,
+                rendered_local,
+                title=readme_title,
+            ):
+                return
 
     if local_exists:
         warning = (
@@ -799,8 +907,17 @@ def _print_info_readme(
         typer.echo(f"⚠ {warning}")
         return
 
+    rendered_remote = _interpolate_project_text(
+        remote_readme,
+        project,
+        install_dir,
+        logger,
+    )
+
     if not MarkdownPrinter.print_markdown_text(
-        console, remote_readme, title=readme_title
+        console,
+        rendered_remote,
+        title=readme_title,
     ):
         warning = (
             f"README from remote path {remote_readme_path} is empty. "
@@ -1169,8 +1286,14 @@ def info(
             typer.echo(f"Project '{project_name}' not found.", err=True)
             raise typer.Exit(code=1)
 
-        console.print(ProjectTableBuilder.build_project_info(project))
+        rendered_project = _interpolate_project_metadata(
+            project,
+            Path(host_prefs.install_dir),
+            logger,
+        )
+        console.print(ProjectTableBuilder.build_project_info(rendered_project))
         _print_info_readme(project, Path(host_prefs.install_dir), logger)
+        _print_project_access_hints(project, Path(host_prefs.install_dir), logger)
         logger.info("Displayed info for %s", project.project_name)
     except typer.Exit:
         raise
@@ -1321,6 +1444,7 @@ def deploy(
         logger.info("Docker start-equivalent deploy completed successfully")
         typer.echo("Docker deployment completed successfully.")
         _print_info_readme(selected, install_dir, logger)
+        _print_project_access_hints(selected, install_dir, logger)
         return
 
     if selected.pre_install_steps:
@@ -1405,6 +1529,7 @@ def deploy(
         console.print(ProjectTableBuilder.build_container_status(deployment.containers))
 
     _print_info_readme(selected, install_dir, logger)
+    _print_project_access_hints(selected, install_dir, logger)
 
 
 @app.command()
@@ -1505,6 +1630,7 @@ def start(
     logger.info("Docker compose start completed successfully")
     typer.echo("Docker start completed successfully.")
     _print_info_readme(selected, install_dir, logger)
+    _print_project_access_hints(selected, install_dir, logger)
 
 
 @app.command()
@@ -1605,6 +1731,7 @@ def recreate(
     logger.info("Docker compose recreate completed successfully")
     typer.echo("Docker recreate completed successfully.")
     _print_info_readme(selected, install_dir, logger)
+    _print_project_access_hints(selected, install_dir, logger)
 
 
 @app.command()
@@ -1705,6 +1832,7 @@ def restart(
     logger.info("Docker compose restart completed successfully")
     typer.echo("Docker restart completed successfully.")
     _print_info_readme(selected, install_dir, logger)
+    _print_project_access_hints(selected, install_dir, logger)
 
 
 @app.command()
@@ -1980,8 +2108,14 @@ def upgrade(
             typer.echo(f"Project '{project_name}' not found.", err=True)
             raise typer.Exit(code=1)
 
-        console.print(ProjectTableBuilder.build_project_info(project))
+        rendered_project = _interpolate_project_metadata(
+            project,
+            Path(host_prefs.install_dir),
+            logger,
+        )
+        console.print(ProjectTableBuilder.build_project_info(rendered_project))
         _print_info_readme(project, Path(host_prefs.install_dir), logger)
+        _print_project_access_hints(project, Path(host_prefs.install_dir), logger)
         logger.info("Displayed info for %s", project.project_name)
     except typer.Exit:
         raise
