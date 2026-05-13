@@ -375,6 +375,57 @@ def test_list_reads_cached_projects(tmp_path: Path) -> None:
     assert "Pihole" in result.output or "Traefik" in result.output
 
 
+def test_list_deduplicates_interpolation_warnings(tmp_path: Path) -> None:
+    install_dir = tmp_path / "homestack"
+    cache_dir = tmp_path / "cache"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+
+    items = [
+        {
+            "project_index": 1,
+            "project_name": "Project One",
+            "dir_name": "01.project-one",
+            "compose": "docker-compose.yml",
+            "env": ".env.template",
+            "readme": "readme.md",
+            "config_files": [],
+            "required_env_files": ["network.env"],
+            "project_description": "Service at ${MISSING_HOST}",
+            "supported_architecture": ["amd64"],
+            "ready_to_deploy": True,
+        },
+        {
+            "project_index": 2,
+            "project_name": "Project Two",
+            "dir_name": "02.project-two",
+            "compose": "docker-compose.yml",
+            "env": ".env.template",
+            "readme": "readme.md",
+            "config_files": [],
+            "required_env_files": ["network.env"],
+            "project_description": "Dashboard at ${MISSING_HOST}",
+            "supported_architecture": ["amd64"],
+            "ready_to_deploy": True,
+        },
+    ]
+    (cache_dir / "projects.json").write_text(json.dumps(items), encoding="utf-8")
+
+    with (
+        patch(
+            "cli.cli._require_init_or_exit",
+            return_value=_host_prefs(str(install_dir)),
+        ),
+        patch("cli.cli.settings") as mock_settings,
+        patch("cli.cli._refresh_projects_cache_silent"),
+    ):
+        mock_settings.cache_api_dir = cache_dir
+        result = runner.invoke(app, ["list"])
+
+    assert result.exit_code == 0
+    warning_text = "Some placeholders in text could not be resolved and were left unchanged"
+    assert result.output.count(warning_text) == 1
+
+
 def test_search_filters_cached_projects(tmp_path: Path) -> None:
     install_dir = str(tmp_path / "homestack")
     cache_dir = tmp_path / "cache"

@@ -55,7 +55,6 @@ Shell completion:
 from __future__ import annotations
 
 import asyncio
-from dataclasses import replace
 import getpass
 import grp
 import json
@@ -66,6 +65,7 @@ import re
 import shutil
 from collections.abc import Callable
 from contextlib import nullcontext
+from dataclasses import replace
 from pathlib import Path
 from uuid import uuid4
 
@@ -748,6 +748,9 @@ def _interpolate_project_text(
     project: ProjectItem,
     install_dir: Path,
     logger: logging.Logger,
+    *,
+    warning_collector: set[str] | None = None,
+    emit_warnings: bool = True,
 ) -> str:
     """Interpolate text with project + shared env values in lenient mode."""
     compose_dir = _compose_dir_from_install_dir(install_dir)
@@ -771,8 +774,11 @@ def _interpolate_project_text(
             "Some env values contain unresolved placeholders; output will keep them "
             f"as-is: {', '.join(unique_context_tokens)}"
         )
-        logger.warning(warning)
-        typer.echo(f"⚠ {warning}")
+        if warning_collector is not None:
+            warning_collector.add(warning)
+        if emit_warnings:
+            logger.warning(warning)
+            typer.echo(f"⚠ {warning}")
 
     rendered = interpolate_text(text, context, strict=False)
     unresolved_in_text = find_unresolved_placeholders(rendered)
@@ -781,8 +787,11 @@ def _interpolate_project_text(
             "Some placeholders in text could not be resolved and were left unchanged: "
             f"{', '.join(unresolved_in_text)}"
         )
-        logger.warning(warning)
-        typer.echo(f"⚠ {warning}")
+        if warning_collector is not None:
+            warning_collector.add(warning)
+        if emit_warnings:
+            logger.warning(warning)
+            typer.echo(f"⚠ {warning}")
 
     return rendered
 
@@ -791,6 +800,9 @@ def _interpolate_project_metadata(
     project: ProjectItem,
     install_dir: Path,
     logger: logging.Logger,
+    *,
+    warning_collector: set[str] | None = None,
+    emit_warnings: bool = True,
 ) -> ProjectItem:
     """Return a project copy with string metadata interpolated."""
     fields_to_render = {
@@ -809,6 +821,8 @@ def _interpolate_project_metadata(
                 project,
                 install_dir,
                 logger,
+                warning_collector=warning_collector,
+                emit_warnings=emit_warnings,
             )
         else:
             rendered_fields[field_name] = value
@@ -1182,7 +1196,8 @@ def list_projects() -> None:
     local cache data can still be displayed.
     """
     logger = get_command_logger("list")
-    _require_init_or_exit()
+    host_prefs = _require_init_or_exit()
+    install_dir = Path(host_prefs.install_dir)
 
     cache_dir = settings.cache_api_dir
     try:
@@ -1190,9 +1205,24 @@ def list_projects() -> None:
             _load_cached_projects(cache_dir, check_remote_change=True),
             key=lambda p: p.project_index,
         )
-        table = ProjectTableBuilder.build(projects, title="Deployable Projects")
+        warnings: set[str] = set()
+        rendered_projects = [
+            _interpolate_project_metadata(
+                project,
+                install_dir,
+                logger,
+                warning_collector=warnings,
+                emit_warnings=False,
+            )
+            for project in projects
+        ]
+        for warning in sorted(warnings):
+            logger.warning(warning)
+            typer.echo(f"⚠ {warning}")
+
+        table = ProjectTableBuilder.build(rendered_projects, title="Deployable Projects")
         console.print(table)
-        logger.info("Listed %d project(s)", len(projects))
+        logger.info("Listed %d project(s)", len(rendered_projects))
     except Exception as exc:
         logger.exception("List command failed")
         typer.echo(f"List failed: {exc}", err=True)
@@ -2056,13 +2086,28 @@ def search(
     triggers an API-layer conditional refresh and then searches local cache.
     """
     logger = get_command_logger("search")
-    _require_init_or_exit()
+    host_prefs = _require_init_or_exit()
+    install_dir = Path(host_prefs.install_dir)
 
     cache_dir = settings.cache_api_dir
     try:
         projects = _load_cached_projects(cache_dir, check_remote_change=True)
+        warnings: set[str] = set()
+        rendered_projects = [
+            _interpolate_project_metadata(
+                project,
+                install_dir,
+                logger,
+                warning_collector=warnings,
+                emit_warnings=False,
+            )
+            for project in projects
+        ]
+        for warning in sorted(warnings):
+            logger.warning(warning)
+            typer.echo(f"⚠ {warning}")
 
-        matches = _filter_projects(project_name, projects)
+        matches = _filter_projects(project_name, rendered_projects)
 
         if not matches:
             typer.echo(f"No projects found matching '{project_name}'.")
