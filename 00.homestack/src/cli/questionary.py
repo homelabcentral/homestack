@@ -40,13 +40,13 @@ from utils.compute_defaults import (
     ComputeResolverError,
     resolve_computed_value,
 )
+from utils.project_table import ProjectTableBuilder
+from utils.secure_values import SecureValueGenerator
 from utils.text_interpolation import (
     InterpolationError,
     find_unresolved_placeholders,
     interpolate_text,
 )
-from utils.project_table import ProjectTableBuilder
-from utils.secure_values import SecureValueGenerator
 
 _MEMORY_PATTERN = re.compile(r"^[0-9]+[KMGT]$")
 _SECRET_KINDS = {
@@ -750,9 +750,14 @@ def build_form_from_template(
         derive_expression = _derive_expression(effective_var)
         if derive_expression:
             derived_value = _resolve_derived_value(effective_var, resolution_context)
-            values[effective_var.key] = derived_value
-            resolution_context[effective_var.key] = derived_value
-            continue
+            if effective_var.immutable:
+                values[effective_var.key] = derived_value
+                resolution_context[effective_var.key] = derived_value
+                continue
+
+            data = effective_var.model_dump()
+            data["recommended"] = derived_value
+            effective_var = EnvTemplateVariable(**data)
 
         if use_recommended:
             if effective_var.recommended:

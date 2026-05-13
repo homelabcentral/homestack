@@ -417,11 +417,12 @@ class TestBuildFormUseRecommended:
                 compute_context=_compute_context(),
             )
 
-    def test_derive_does_not_prompt(self):
+    def test_derive_immutable_does_not_prompt(self):
         var = _var(
             "APP_URL",
             value_type=_vtype("string"),
             derive="${APP_NAME}.${DOMAIN}",
+            immutable=True,
         )
         with patch("cli.questionary.questionary") as mock_q:
             result = build_form_from_template(
@@ -435,6 +436,24 @@ class TestBuildFormUseRecommended:
         mock_q.path.assert_not_called()
         mock_q.password.assert_not_called()
         mock_q.select.assert_not_called()
+
+    def test_derive_mutable_prompts_with_derived_default(self):
+        var = _var(
+            "APP_URL",
+            value_type=_vtype("string"),
+            derive="https://${APP_NAME}.${DOMAIN}",
+        )
+        with patch("cli.questionary.questionary") as mock_q:
+            mock_q.text.return_value = _mock_question("https://custom.lan")
+            result = build_form_from_template(
+                _parsed(var),
+                use_recommended=False,
+                interpolation_context={"APP_NAME": "vault", "DOMAIN": "lan"},
+            )
+
+        assert result.values["APP_URL"] == "https://custom.lan"
+        mock_q.text.assert_called_once()
+        assert mock_q.text.call_args.kwargs["default"] == "https://vault.lan"
 
     def test_compute_uid_applied_in_use_recommended(self):
         var = _var(
