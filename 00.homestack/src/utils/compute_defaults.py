@@ -7,6 +7,7 @@ never executes shell commands or dynamic Python expressions.
 from __future__ import annotations
 
 import ipaddress
+import os
 import re
 import socket
 import struct
@@ -222,6 +223,44 @@ def _resolve_public_ip(_context: ComputeContext) -> str:
     return _fetch_public_ip_from_services()
 
 
+_ZONEINFO_PREFIX = "/usr/share/zoneinfo/"
+
+
+def _fetch_system_timezone() -> str:
+    """Return the machine's IANA timezone name using filesystem sources only.
+
+    Primary: ``/etc/localtime`` symlink target stripped of its zoneinfo prefix.
+    Fallback: ``/etc/timezone`` plain-text file.
+    """
+    try:
+        target = os.readlink("/etc/localtime")
+        # Normalise path separators and strip the zoneinfo prefix.
+        target = target.replace("\\", "/")
+        idx = target.find(_ZONEINFO_PREFIX)
+        if idx != -1:
+            iana_name = target[idx + len(_ZONEINFO_PREFIX):]
+            if iana_name:
+                return iana_name
+    except OSError:
+        pass
+
+    try:
+        with open("/etc/timezone", encoding="utf-8") as fh:
+            iana_name = fh.read().strip()
+        if iana_name:
+            return iana_name
+    except OSError:
+        pass
+
+    raise ComputeResolverError(
+        "Resolver 'timezone' could not determine system timezone"
+    )
+
+
+def _resolve_timezone(_context: ComputeContext) -> str:
+    return _fetch_system_timezone()
+
+
 _RESOLVERS = MappingProxyType(
     {
         "username": _resolve_username,
@@ -231,6 +270,7 @@ _RESOLVERS = MappingProxyType(
         "private_ip": _resolve_private_ip,
         "public_ip": _resolve_public_ip,
         "tailscale_ip": _resolve_tailscale_ip,
+        "timezone": _resolve_timezone,
     }
 )
 

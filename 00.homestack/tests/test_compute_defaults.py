@@ -44,6 +44,7 @@ def test_allowed_resolvers_is_expected_allow_list():
         "private_ip",
         "public_ip",
         "tailscale_ip",
+        "timezone",
     )
 
 
@@ -266,3 +267,50 @@ def test_malicious_compute_does_not_invoke_shell_or_eval_paths():
     mock_subprocess_run.assert_not_called()
     mock_subprocess_popen.assert_not_called()
     mock_eval.assert_not_called()
+
+
+def test_timezone_reads_localtime_symlink():
+    context = ComputeContext(host_preferences=_host_prefs())
+
+    with patch("utils.compute_defaults.os.readlink", return_value="/usr/share/zoneinfo/America/New_York"):
+        resolved = resolve_computed_value("timezone", context)
+
+    assert resolved == "America/New_York"
+
+
+def test_timezone_falls_back_to_etc_timezone():
+    context = ComputeContext(host_preferences=_host_prefs())
+
+    with (
+        patch("utils.compute_defaults.os.readlink", side_effect=OSError),
+        patch("builtins.open", return_value=__import__("io").StringIO("Europe/Berlin\n")),
+    ):
+        resolved = resolve_computed_value("timezone", context)
+
+    assert resolved == "Europe/Berlin"
+
+
+def test_timezone_fails_when_neither_source_available():
+    context = ComputeContext(host_preferences=_host_prefs())
+
+    with (
+        patch("utils.compute_defaults.os.readlink", side_effect=OSError),
+        patch("builtins.open", side_effect=OSError),
+    ):
+        with pytest.raises(ComputeResolverError, match="could not determine system timezone"):
+            resolve_computed_value("timezone", context)
+
+
+def test_timezone_does_not_use_subprocess_commands():
+    context = ComputeContext(host_preferences=_host_prefs())
+
+    with (
+        patch("subprocess.run") as mock_subprocess_run,
+        patch("subprocess.Popen") as mock_subprocess_popen,
+        patch("utils.compute_defaults.os.readlink", return_value="/usr/share/zoneinfo/Europe/London"),
+    ):
+        resolved = resolve_computed_value("timezone", context)
+
+    assert resolved == "Europe/London"
+    mock_subprocess_run.assert_not_called()
+    mock_subprocess_popen.assert_not_called()
