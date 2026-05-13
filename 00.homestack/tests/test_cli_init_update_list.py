@@ -221,6 +221,7 @@ def test_init_force_reinitializes_when_already_initialized(tmp_path: Path) -> No
         patch("cli.cli.SharedPreferences") as mock_prefs_cls,
         patch("cli.cli.ensure_traefik_bridge_network"),
         patch("cli.cli._download_env_templates"),
+        patch("cli.cli._generate_env_files_from_templates"),
         patch("cli.cli.typer.prompt", return_value=install_dir),
     ):
         mock_prefs = MagicMock()
@@ -925,3 +926,66 @@ def test_upgrade_exits_on_unexpected_cache_error(tmp_path: Path) -> None:
     assert result.exit_code == 1
     assert "Traceback" not in result.output
     assert "Upgrade failed" in result.output or "disk error" in result.output
+
+
+# ---------------------------------------------------------------------------
+# _generate_env_files_from_templates
+# ---------------------------------------------------------------------------
+
+
+def _write_minimal_template(path: Path, key: str = "MY_VAR") -> None:
+    path.write_text(
+        "# METADATA --- START\n"
+        "# DO NOT CHANGE THE BELOW\n"
+        "Description=Test\n"
+        "Required=true\n"
+        "# METADATA --- END\n"
+        f"\n{key}= # type=string | prompt=Enter value\n",
+        encoding="utf-8",
+    )
+
+
+def test_generate_env_files_from_templates_writes_both_env_files(
+    tmp_path: Path,
+) -> None:
+    import logging
+
+    env_dir = tmp_path / "00.env"
+    env_dir.mkdir()
+    _write_minimal_template(env_dir / "host.env.template", "USER_NAME")
+    _write_minimal_template(env_dir / "network.env.template", "IP_PRIVATE")
+
+    mock_generated = MagicMock()
+    mock_generated.to_env_string.return_value = "USER_NAME=alice\n"
+
+    with patch("cli.cli.build_form_from_template", return_value=mock_generated):
+        cli_module._generate_env_files_from_templates(
+            env_dir, _host_prefs(str(tmp_path)), logging.getLogger("test")
+        )
+
+    assert (env_dir / "host.env").exists()
+    assert (env_dir / "host.env").read_text(encoding="utf-8") == "USER_NAME=alice\n"
+    assert (env_dir / "network.env").exists()
+
+
+def test_generate_env_files_from_templates_skips_missing_template(
+    tmp_path: Path,
+) -> None:
+    import logging
+
+    env_dir = tmp_path / "00.env"
+    env_dir.mkdir()
+    # Only network template is present; host template is absent
+    _write_minimal_template(env_dir / "network.env.template", "IP_PRIVATE")
+
+    mock_generated = MagicMock()
+    mock_generated.to_env_string.return_value = "IP_PRIVATE=10.0.0.1\n"
+
+    with patch("cli.cli.build_form_from_template", return_value=mock_generated):
+        cli_module._generate_env_files_from_templates(
+            env_dir, _host_prefs(str(tmp_path)), logging.getLogger("test")
+        )
+
+    assert not (env_dir / "host.env").exists()
+    assert (env_dir / "network.env").exists()
+    assert (env_dir / "network.env").read_text(encoding="utf-8") == "IP_PRIVATE=10.0.0.1\n"

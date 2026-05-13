@@ -280,6 +280,59 @@ def _read_local_meta(cache_dir: Path) -> dict[str, MetaItem]:
     return {item.file_name: item for item in items}
 
 
+_HOST_ENV_TEMPLATE_PAIRS = (
+    ("host.env.template", "host.env"),
+    ("network.env.template", "network.env"),
+)
+
+
+def _generate_env_files_from_templates(
+    env_dir: Path,
+    host_prefs: HostPreferences,
+    logger: logging.Logger,
+) -> None:
+    """Generate host.env and network.env from their downloaded .template counterparts.
+
+    Uses the same EnvTemplateParser → build_form_from_template pipeline as the
+    deploy command. Failures are logged as warnings and skip that file — the user
+    can re-generate manually later.
+    """
+    for template_name, output_name in _HOST_ENV_TEMPLATE_PAIRS:
+        template_path = env_dir / template_name
+        env_file = env_dir / output_name
+
+        if not template_path.exists():
+            logger.warning("Env template not found, skipping: %s", template_path)
+            typer.echo(
+                f"⚠ Template not found, skipping {output_name} generation",
+                err=False,
+            )
+            continue
+
+        try:
+            parser = EnvTemplateParser(template_path)
+            parsed = parser.parse()
+
+            if parsed.warnings:
+                for warning in parsed.warnings:
+                    logger.warning(
+                        "Template warning (%s): %s", template_name, warning.message
+                    )
+
+            generated = build_form_from_template(
+                parsed,
+                compute_context=ComputeContext(host_preferences=host_prefs),
+            )
+            env_file.write_text(generated.to_env_string())
+            logger.info("Generated %s at %s", output_name, env_file)
+            typer.echo(f"✓ Generated {output_name}")
+        except KeyboardInterrupt:
+            raise
+        except Exception as exc:
+            logger.warning("Failed to generate %s: %s", output_name, exc)
+            typer.echo(f"⚠ Could not generate {output_name}: {exc}", err=False)
+
+
 def _download_env_templates(
     compose_dir: Path,
     logger: logging.Logger,
@@ -861,6 +914,12 @@ def init(
             # Download environment template files from 00.env/
             typer.echo("Downloading environment templates...")
             _download_env_templates(compose_dir, logger, console=console)
+
+            # Generate host.env and network.env from the downloaded templates
+            typer.echo("Generating environment files...")
+            _generate_env_files_from_templates(
+                compose_dir / "00.env", host_prefs, logger
+            )
 
             typer.echo("homestack initialization completed.")
             typer.echo(f"Install directory: {host_prefs.install_dir}")
