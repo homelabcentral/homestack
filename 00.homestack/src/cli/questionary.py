@@ -40,6 +40,11 @@ from utils.compute_defaults import (
     ComputeResolverError,
     resolve_computed_value,
 )
+from utils.text_interpolation import (
+    InterpolationError,
+    find_unresolved_placeholders,
+    interpolate_text,
+)
 from utils.project_table import ProjectTableBuilder
 from utils.secure_values import SecureValueGenerator
 
@@ -474,6 +479,62 @@ def _has_compute_resolver(var: EnvTemplateVariable) -> bool:
     return bool((var.extra_metadata.get("compute") or "").strip())
 
 
+def _derive_expression(var: EnvTemplateVariable) -> str:
+    """Return normalized derive expression for *var*, if configured."""
+    if var.derive and var.derive.strip():
+        return var.derive.strip()
+    metadata_derive = (var.extra_metadata.get("derive") or "").strip()
+    return metadata_derive
+
+
+def _resolve_derived_value(
+    var: EnvTemplateVariable,
+    resolution_context: dict[str, str],
+) -> str:
+    """Resolve a derive expression for *var* using the provided context."""
+    expression = _derive_expression(var)
+    if not expression:
+        raise ValueError(f"{var.key}: derive expression is empty")
+
+    if _has_compute_resolver(var):
+        raise ValueError(
+            f"{var.key}: derive and compute cannot be used together"
+        )
+
+    kind = EnvValueKind(var.value_type.kind) if var.value_type else None
+    if kind in _SECRET_KINDS:
+        raise ValueError(
+            f"{var.key}: derive is not allowed for secret type '{kind.value}'"
+        )
+
+    try:
+        derived_value = interpolate_text(expression, resolution_context, strict=True)
+    except InterpolationError as exc:
+        raise ValueError(f"{var.key}: {exc}") from exc
+
+    unresolved_tokens = find_unresolved_placeholders(derived_value)
+    if unresolved_tokens:
+        unresolved = ", ".join(unresolved_tokens)
+        raise ValueError(
+            f"{var.key}: unresolved placeholders in derived value: {unresolved}"
+        )
+
+    if var.choices and all(choice.value != derived_value for choice in var.choices):
+        raise ValueError(
+            f"{var.key}: derived value '{derived_value}' is not in allowed choices"
+        )
+
+    validator = make_validator(var.value_type)
+    if validator is not None:
+        validation_result = validator(derived_value)
+        if validation_result is not True:
+            raise ValueError(
+                f"{var.key}: derived value '{derived_value}' is invalid: {validation_result}"
+            )
+
+    return derived_value
+
+
 def _is_deferred_compute_candidate(var: EnvTemplateVariable) -> bool:
     """Return whether compute should wait until after an empty interactive answer."""
     kind = EnvValueKind(var.value_type.kind) if var.value_type else None
@@ -655,6 +716,7 @@ def build_form_from_template(
     *,
     use_recommended: bool = False,
     compute_context: ComputeContext | None = None,
+    interpolation_context: dict[str, str] | None = None,
 ) -> GeneratedEnv:
     """Convert a ``ParsedEnvTemplate`` into a ``GeneratedEnv``.
 
@@ -676,6 +738,7 @@ def build_form_from_template(
     """
     values: dict[str, str] = {}
     secrets: list[GeneratedSecret] = []
+    resolution_context = dict(interpolation_context or {})
 
     for var in parsed.variables:
         effective_var = (
@@ -684,40 +747,54 @@ def build_form_from_template(
             else _apply_compute_default(var, compute_context)
         )
 
+        derive_expression = _derive_expression(effective_var)
+        if derive_expression:
+            derived_value = _resolve_derived_value(effective_var, resolution_context)
+            values[effective_var.key] = derived_value
+            resolution_context[effective_var.key] = derived_value
+            continue
+
         if use_recommended:
             if effective_var.recommended:
                 env_val, secret = _resolve_recommended_value(effective_var)
                 values[effective_var.key] = env_val
+                resolution_context[effective_var.key] = env_val
                 if secret is not None and effective_var.remember:
                     secrets.append(secret)
             else:
                 if effective_var.immutable:
                     # Immutable: skip prompting, use recommended or value (may be empty string)
-                    values[effective_var.key] = (
+                    env_val = (
                         effective_var.recommended
                         if effective_var.recommended
                         else effective_var.value
                     )
+                    values[effective_var.key] = env_val
+                    resolution_context[effective_var.key] = env_val
                 else:
                     env_val, secret = _ask_variable_interactive(
                         effective_var, compute_context
                     )
                     values[effective_var.key] = env_val
+                    resolution_context[effective_var.key] = env_val
                     if secret is not None and effective_var.remember:
                         secrets.append(secret)
         else:
             if effective_var.immutable:
                 # Immutable: skip prompting, use recommended or value (may be empty string)
-                values[effective_var.key] = (
+                env_val = (
                     effective_var.recommended
                     if effective_var.recommended
                     else effective_var.value
                 )
+                values[effective_var.key] = env_val
+                resolution_context[effective_var.key] = env_val
             else:
                 env_val, secret = _ask_variable_interactive(
                     effective_var, compute_context
                 )
                 values[effective_var.key] = env_val
+                resolution_context[effective_var.key] = env_val
                 if secret is not None and effective_var.remember:
                     secrets.append(secret)
 

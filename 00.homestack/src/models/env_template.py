@@ -200,6 +200,13 @@ class EnvTemplateVariable(BaseModel):
     description: str | None = Field(
         None, description="Human-readable variable description"
     )
+    derive: str | None = Field(
+        None,
+        description=(
+            "Optional interpolation expression used to derive the value from "
+            "other env variables"
+        ),
+    )
     extra_metadata: dict[str, str] = Field(
         default_factory=dict,
         description="Additional inline metadata fields not represented by explicit attributes",

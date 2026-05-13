@@ -51,6 +51,7 @@ def _var(
     remember: bool = True,
     prompt: str | None = None,
     description: str | None = None,
+    derive: str | None = None,
     extra_metadata: dict[str, str] | None = None,
 ) -> EnvTemplateVariable:
     return EnvTemplateVariable(
@@ -63,6 +64,7 @@ def _var(
         remember=remember,
         prompt=prompt,
         description=description,
+        derive=derive,
         extra_metadata=extra_metadata or {},
     )
 
@@ -357,6 +359,83 @@ class TestChoiceConversion:
 
 
 class TestBuildFormUseRecommended:
+    def test_derive_uses_interpolation_context(self):
+        var = _var(
+            "APP_URL",
+            value_type=_vtype("string"),
+            derive="${APP_NAME}.${DOMAIN}",
+        )
+        result = build_form_from_template(
+            _parsed(var),
+            use_recommended=True,
+            interpolation_context={"APP_NAME": "vault", "DOMAIN": "lan"},
+        )
+
+        assert result.values["APP_URL"] == "vault.lan"
+
+    def test_derive_prefers_current_run_values_over_initial_context(self):
+        app_name = _var("APP_NAME", recommended="new-app")
+        app_url = _var(
+            "APP_URL",
+            value_type=_vtype("string"),
+            derive="${APP_NAME}.${DOMAIN}",
+        )
+        result = build_form_from_template(
+            _parsed(app_name, app_url),
+            use_recommended=True,
+            interpolation_context={"APP_NAME": "old-app", "DOMAIN": "lan"},
+        )
+
+        assert result.values["APP_NAME"] == "new-app"
+        assert result.values["APP_URL"] == "new-app.lan"
+
+    def test_derive_unresolved_placeholder_fails_closed(self):
+        var = _var(
+            "APP_URL",
+            value_type=_vtype("string"),
+            derive="${APP_NAME}.${DOMAIN}",
+        )
+        with pytest.raises(ValueError, match="Missing variable: APP_NAME"):
+            build_form_from_template(
+                _parsed(var),
+                use_recommended=True,
+                interpolation_context={"DOMAIN": "lan"},
+            )
+
+    def test_derive_and_compute_conflict_fails_closed(self):
+        var = _var(
+            "APP_URL",
+            value_type=_vtype("string"),
+            derive="${APP_NAME}.${DOMAIN}",
+            extra_metadata={"compute": "uid"},
+        )
+        with pytest.raises(ValueError, match="derive and compute"):
+            build_form_from_template(
+                _parsed(var),
+                use_recommended=True,
+                interpolation_context={"APP_NAME": "vault", "DOMAIN": "lan"},
+                compute_context=_compute_context(),
+            )
+
+    def test_derive_does_not_prompt(self):
+        var = _var(
+            "APP_URL",
+            value_type=_vtype("string"),
+            derive="${APP_NAME}.${DOMAIN}",
+        )
+        with patch("cli.questionary.questionary") as mock_q:
+            result = build_form_from_template(
+                _parsed(var),
+                use_recommended=False,
+                interpolation_context={"APP_NAME": "vault", "DOMAIN": "lan"},
+            )
+
+        assert result.values["APP_URL"] == "vault.lan"
+        mock_q.text.assert_not_called()
+        mock_q.path.assert_not_called()
+        mock_q.password.assert_not_called()
+        mock_q.select.assert_not_called()
+
     def test_compute_uid_applied_in_use_recommended(self):
         var = _var(
             "UID",

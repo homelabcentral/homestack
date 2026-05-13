@@ -64,6 +64,31 @@ class TestEnvTemplateParser:
         assert len(parsed.variables) == 1
         assert parsed.variables[0].extra_metadata["compute"] == "uid"
 
+    def test_derive_metadata_is_parsed(self, tmp_path: Path):
+        template_path = _write_template(
+            tmp_path,
+            """APP_URL= # type=string | derive=${APP_NAME}.${DOMAIN}
+""",
+        )
+        parsed = EnvTemplateParser(template_path).parse()
+
+        assert len(parsed.variables) == 1
+        assert parsed.variables[0].derive == "${APP_NAME}.${DOMAIN}"
+
+    def test_derive_and_compute_warns(self, tmp_path: Path):
+        template_path = _write_template(
+            tmp_path,
+            """APP_URL= # type=string | derive=${APP_NAME}.${DOMAIN} | compute=hostname
+""",
+        )
+        parsed = EnvTemplateParser(template_path).parse()
+
+        assert len(parsed.variables) == 1
+        assert any(
+            w.field == "derive" and "derive takes precedence" in w.message
+            for w in parsed.warnings
+        )
+
     def test_malformed_compute_adds_warning(self, tmp_path: Path):
         template_path = _write_template(
             tmp_path,

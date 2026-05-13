@@ -334,6 +334,11 @@ def _generate_env_files_from_templates(
             generated = build_form_from_template(
                 parsed,
                 compute_context=ComputeContext(host_preferences=host_prefs),
+                interpolation_context=load_interpolation_context(
+                    shared_env_dir=env_dir,
+                    project_env_file=env_file,
+                    strict=False,
+                ),
             )
             env_file.write_text(generated.to_env_string())
             logger.info("Generated %s at %s", output_name, env_file)
@@ -1495,6 +1500,11 @@ def deploy(
             parsed,
             use_recommended=use_recommended,
             compute_context=ComputeContext(host_preferences=host_prefs),
+            interpolation_context=load_interpolation_context(
+                shared_env_dir=compose_dir / "00.env",
+                project_env_file=env_file,
+                strict=False,
+            ),
         )
     except KeyboardInterrupt:
         logger.info("Deploy aborted by user during interactive prompts")
