@@ -86,6 +86,7 @@ from client.downloader import (
 )
 from models.meta import MetaItem
 from models.projects import ProjectItem
+from models.readme_frontmatter import Step
 from parsers import EnvTemplateParser
 from rich.console import Console
 from settings.settings import settings
@@ -108,7 +109,12 @@ from utils.progress import DownloadProgressBar, OperationSpinner
 from utils.project_table import ProjectTableBuilder
 from utils.shared_pref import HostPreferences, SharedPreferences, SharedPrefsError
 
-from cli.questionary import ask_select, build_form_from_template, print_secrets_summary
+from cli.questionary import (
+    ask_confirm,
+    ask_select,
+    build_form_from_template,
+    print_secrets_summary,
+)
 
 # ---------------------------------------------------------------------------
 # Root application
@@ -759,7 +765,6 @@ def _print_info_readme(
         )
     logger.warning(warning)
     typer.echo(f"⚠ {warning}")
-
     try:
         # README files live at the repository root project directories, not under
         # the static API path (00.api/v1).
@@ -817,6 +822,49 @@ def _print_info_readme(
         )
     logger.warning(warning)
     typer.echo(f"⚠ {warning}")
+
+
+def _confirm_pre_install_steps(project_name: str, steps: list[Step] | list[dict]) -> None:
+    """Require explicit yes/no confirmation for each pre-install step."""
+    normalized_steps: list[tuple[int, str, str]] = []
+    for index, step in enumerate(steps, start=1):
+        if isinstance(step, dict):
+            raw_number = step.get("number", index)
+            description = str(step.get("description", "")).strip()
+            todo = str(step.get("todo", "")).strip()
+        else:
+            raw_number = getattr(step, "number", index)
+            description = str(getattr(step, "description", "")).strip()
+            todo = str(getattr(step, "todo", "")).strip()
+
+        try:
+            number = int(raw_number)
+        except (TypeError, ValueError):
+            number = index
+
+        normalized_steps.append((number, description, todo))
+
+    normalized_steps.sort(key=lambda item: item[0])
+
+    for number, description, todo in normalized_steps:
+        title = description if description else "Complete pre-install task"
+        completed = ask_confirm(
+            f"Pre-install step {number}: {title}. Completed?",
+            instruction=todo if todo else None,
+            default=False,
+        )
+
+        if completed:
+            continue
+
+        typer.echo(
+            f"Pre-install steps are required before deploying '{project_name}'.",
+            err=True,
+        )
+        typer.echo(f"Step {number}: {title}", err=True)
+        if todo:
+            typer.echo(f"Description: {todo}", err=True)
+        raise typer.Exit(code=1)
 
 
 # ---------------------------------------------------------------------------
@@ -1272,6 +1320,9 @@ def deploy(
         typer.echo("Docker deployment completed successfully.")
         _print_info_readme(selected, install_dir, logger)
         return
+
+    if selected.pre_install_steps:
+        _confirm_pre_install_steps(selected.project_name, selected.pre_install_steps)
 
     parser = EnvTemplateParser(template_path)
     parsed = parser.parse()

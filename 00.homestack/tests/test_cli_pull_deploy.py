@@ -13,9 +13,10 @@ from cli.cli import app
 from client.downloader import BatchDownloadError, DownloadHTTPError
 from models.generated_env import GeneratedEnv
 from models.projects import ProjectItem
+from models.readme_frontmatter import Step
 from parsers import EnvTemplateParser
 from typer.testing import CliRunner
-from utils.docker_runtime import DockerRuntimeError
+from utils.docker_runtime import DeploymentResult, DockerRuntimeError
 from utils.shared_pref import HostPreferences
 
 runner = CliRunner()
@@ -534,6 +535,102 @@ def test_deploy_uses_start_equivalent_flow_when_env_exists(tmp_path: Path) -> No
     assert result.exit_code == 0
     assert start_called[0]
     assert mock_spinner.call_count == 1
+
+
+def test_deploy_pre_install_steps_all_yes_proceeds(tmp_path: Path) -> None:
+    install_dir = str(tmp_path / "homestack")
+    steps = [
+        Step(number=1, description="Update DNS", todo="Point domain to your host"),
+        Step(
+            number=2,
+            description="Open firewall ports",
+            todo="Allow ports 80 and 443",
+        ),
+    ]
+    project = _project_item(required_env_files=[], pre_install_steps=steps)
+    project_dir = tmp_path / "homestack" / "compose" / "pihole-with-unbound"
+    _stage_project_files(project_dir, project)
+
+    with (
+        patch("cli.cli._require_init_or_exit", return_value=_host_prefs(install_dir)),
+        patch("cli.cli.settings") as mock_settings,
+        patch("cli.cli._load_cached_projects", return_value=[project]),
+        patch("cli.cli._select_project_from_query", return_value=project),
+        patch("cli.cli.ask_confirm", side_effect=[True, True]) as mock_confirm,
+        patch(
+            "cli.cli.build_form_from_template",
+            return_value=GeneratedEnv(values={"MY_VAR": "value"}),
+        ),
+        patch("cli.cli.print_secrets_summary"),
+        patch("cli.cli._validate_project_compose_config"),
+        patch("cli.cli._print_info_readme"),
+        patch(
+            "cli.cli.deploy_project_stack",
+            return_value=DeploymentResult(containers=[]),
+        ),
+    ):
+        mock_settings.cache_api_dir = tmp_path / "cache"
+        result = runner.invoke(app, ["deploy", "pihole", "--use-recommended"])
+
+    assert result.exit_code == 0
+    assert mock_confirm.call_count == 2
+    assert (project_dir / ".env").exists()
+
+
+def test_deploy_pre_install_step_no_exits_with_step_details(tmp_path: Path) -> None:
+    install_dir = str(tmp_path / "homestack")
+    steps = [
+        Step(number=1, description="Do first thing", todo="First action"),
+        Step(number=2, description="Do second thing", todo="Second action"),
+    ]
+    project = _project_item(required_env_files=[], pre_install_steps=steps)
+    project_dir = tmp_path / "homestack" / "compose" / "pihole-with-unbound"
+    _stage_project_files(project_dir, project)
+
+    with (
+        patch("cli.cli._require_init_or_exit", return_value=_host_prefs(install_dir)),
+        patch("cli.cli.settings") as mock_settings,
+        patch("cli.cli._load_cached_projects", return_value=[project]),
+        patch("cli.cli._select_project_from_query", return_value=project),
+        patch("cli.cli.ask_confirm", side_effect=[True, False]) as mock_confirm,
+        patch("cli.cli.build_form_from_template") as mock_build_form,
+        patch("cli.cli.deploy_project_stack") as mock_deploy,
+    ):
+        mock_settings.cache_api_dir = tmp_path / "cache"
+        result = runner.invoke(app, ["deploy", "pihole", "--use-recommended"])
+
+    assert result.exit_code == 1
+    assert mock_confirm.call_count == 2
+    assert "Step 2: Do second thing" in result.output
+    assert "Description: Second action" in result.output
+    mock_build_form.assert_not_called()
+    mock_deploy.assert_not_called()
+    assert not (project_dir / ".env").exists()
+
+
+def test_deploy_skips_pre_install_steps_when_env_already_exists(tmp_path: Path) -> None:
+    install_dir = str(tmp_path / "homestack")
+    steps = [Step(number=1, description="Do prerequisite", todo="Some action")]
+    project = _project_item(required_env_files=[], pre_install_steps=steps)
+    project_dir = tmp_path / "homestack" / "compose" / "pihole-with-unbound"
+    _stage_project_files(project_dir, project)
+    (project_dir / ".env").write_text("MY_VAR=value\n", encoding="utf-8")
+
+    with (
+        patch("cli.cli._require_init_or_exit", return_value=_host_prefs(install_dir)),
+        patch("cli.cli.settings") as mock_settings,
+        patch("cli.cli._load_cached_projects", return_value=[project]),
+        patch("cli.cli._select_project_from_query", return_value=project),
+        patch("cli.cli.ask_confirm") as mock_confirm,
+        patch("cli.cli.validate_compose_config"),
+        patch("cli.cli.start_project_stack"),
+        patch("cli.cli._print_info_readme"),
+    ):
+        mock_settings.cache_api_dir = tmp_path / "cache"
+        result = runner.invoke(app, ["deploy", "pihole"])
+
+    assert result.exit_code == 0
+    mock_confirm.assert_not_called()
 
 
 def test_deploy_fails_when_compose_config_is_invalid(tmp_path: Path) -> None:
