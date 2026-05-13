@@ -12,7 +12,6 @@ import pytest
 from rich.console import Console
 from rich.panel import Panel
 from rich.text import Text
-
 from utils.rich_formatter import RichFormatter, formatter
 
 

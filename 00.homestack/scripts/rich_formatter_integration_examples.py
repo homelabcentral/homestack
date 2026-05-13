@@ -150,8 +150,9 @@ homestack status
 
 def pattern_progress_feedback():
     """Provide feedback during long-running operations."""
-    from utils.rich_formatter import formatter
     import time
+
+    from utils.rich_formatter import formatter
     
     steps = [
         ("Validating configuration", 0.5),
