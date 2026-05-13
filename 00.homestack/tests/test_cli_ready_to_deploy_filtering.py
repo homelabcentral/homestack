@@ -80,7 +80,9 @@ def _create_mock_project(
 MOCK_PROJECTS_MIXED = [
     _create_mock_project(1, "Pihole", "01.pihole", ready_to_deploy=True),
     _create_mock_project(2, "Traefik", "02.traefik", ready_to_deploy=True),
-    _create_mock_project(3, "Incomplete Project", "03.incomplete", ready_to_deploy=False),
+    _create_mock_project(
+        3, "Incomplete Project", "03.incomplete", ready_to_deploy=False
+    ),
     _create_mock_project(4, "Homepage", "04.homepage", ready_to_deploy=True),
     _create_mock_project(5, "Beta Project", "05.beta", ready_to_deploy=False),
 ]
@@ -99,16 +101,16 @@ def test_list_shows_only_ready_projects(tmp_path: Path) -> None:
     install_dir = str(tmp_path / "homestack")
     cache_dir = tmp_path / "cache"
     cache_dir.mkdir()
-    
+
     # Write mixed projects to cache
     projects_json = cache_dir / "projects.json"
-    projects_json.write_text(
-        json.dumps([asdict(p) for p in MOCK_PROJECTS_MIXED])
-    )
+    projects_json.write_text(json.dumps([asdict(p) for p in MOCK_PROJECTS_MIXED]))
 
-    with patch("cli.cli._require_init_or_exit", return_value=_host_prefs(install_dir)), \
-         patch("cli.cli.settings") as mock_settings, \
-         patch("cli.cli._refresh_projects_cache_silent"):
+    with (
+        patch("cli.cli._require_init_or_exit", return_value=_host_prefs(install_dir)),
+        patch("cli.cli.settings") as mock_settings,
+        patch("cli.cli._refresh_projects_cache_silent"),
+    ):
         mock_settings.cache_api_dir = cache_dir
         result = runner.invoke(app, ["list"])
 
@@ -127,15 +129,15 @@ def test_list_shows_ready_count(tmp_path: Path) -> None:
     install_dir = str(tmp_path / "homestack")
     cache_dir = tmp_path / "cache"
     cache_dir.mkdir()
-    
-    projects_json = cache_dir / "projects.json"
-    projects_json.write_text(
-        json.dumps([asdict(p) for p in MOCK_PROJECTS_MIXED])
-    )
 
-    with patch("cli.cli._require_init_or_exit", return_value=_host_prefs(install_dir)), \
-         patch("cli.cli.settings") as mock_settings, \
-         patch("cli.cli._refresh_projects_cache_silent"):
+    projects_json = cache_dir / "projects.json"
+    projects_json.write_text(json.dumps([asdict(p) for p in MOCK_PROJECTS_MIXED]))
+
+    with (
+        patch("cli.cli._require_init_or_exit", return_value=_host_prefs(install_dir)),
+        patch("cli.cli.settings") as mock_settings,
+        patch("cli.cli._refresh_projects_cache_silent"),
+    ):
         mock_settings.cache_api_dir = cache_dir
         result = runner.invoke(app, ["list"])
 
@@ -157,15 +159,15 @@ def test_search_shows_only_ready_projects(tmp_path: Path) -> None:
     install_dir = str(tmp_path / "homestack")
     cache_dir = tmp_path / "cache"
     cache_dir.mkdir()
-    
-    projects_json = cache_dir / "projects.json"
-    projects_json.write_text(
-        json.dumps([asdict(p) for p in MOCK_PROJECTS_MIXED])
-    )
 
-    with patch("cli.cli._require_init_or_exit", return_value=_host_prefs(install_dir)), \
-         patch("cli.cli.settings") as mock_settings, \
-         patch("cli.cli._refresh_projects_cache_silent"):
+    projects_json = cache_dir / "projects.json"
+    projects_json.write_text(json.dumps([asdict(p) for p in MOCK_PROJECTS_MIXED]))
+
+    with (
+        patch("cli.cli._require_init_or_exit", return_value=_host_prefs(install_dir)),
+        patch("cli.cli.settings") as mock_settings,
+        patch("cli.cli._refresh_projects_cache_silent"),
+    ):
         mock_settings.cache_api_dir = cache_dir
         result = runner.invoke(app, ["search", "project"])
 
@@ -182,15 +184,15 @@ def test_search_for_ready_project(tmp_path: Path) -> None:
     install_dir = str(tmp_path / "homestack")
     cache_dir = tmp_path / "cache"
     cache_dir.mkdir()
-    
-    projects_json = cache_dir / "projects.json"
-    projects_json.write_text(
-        json.dumps([asdict(p) for p in MOCK_PROJECTS_MIXED])
-    )
 
-    with patch("cli.cli._require_init_or_exit", return_value=_host_prefs(install_dir)), \
-         patch("cli.cli.settings") as mock_settings, \
-         patch("cli.cli._refresh_projects_cache_silent"):
+    projects_json = cache_dir / "projects.json"
+    projects_json.write_text(json.dumps([asdict(p) for p in MOCK_PROJECTS_MIXED]))
+
+    with (
+        patch("cli.cli._require_init_or_exit", return_value=_host_prefs(install_dir)),
+        patch("cli.cli.settings") as mock_settings,
+        patch("cli.cli._refresh_projects_cache_silent"),
+    ):
         mock_settings.cache_api_dir = cache_dir
         result = runner.invoke(app, ["search", "pihole"])
 
@@ -203,15 +205,15 @@ def test_search_for_non_ready_project_returns_nothing(tmp_path: Path) -> None:
     install_dir = str(tmp_path / "homestack")
     cache_dir = tmp_path / "cache"
     cache_dir.mkdir()
-    
-    projects_json = cache_dir / "projects.json"
-    projects_json.write_text(
-        json.dumps([asdict(p) for p in MOCK_PROJECTS_MIXED])
-    )
 
-    with patch("cli.cli._require_init_or_exit", return_value=_host_prefs(install_dir)), \
-         patch("cli.cli.settings") as mock_settings, \
-         patch("cli.cli._refresh_projects_cache_silent"):
+    projects_json = cache_dir / "projects.json"
+    projects_json.write_text(json.dumps([asdict(p) for p in MOCK_PROJECTS_MIXED]))
+
+    with (
+        patch("cli.cli._require_init_or_exit", return_value=_host_prefs(install_dir)),
+        patch("cli.cli.settings") as mock_settings,
+        patch("cli.cli._refresh_projects_cache_silent"),
+    ):
         mock_settings.cache_api_dir = cache_dir
         result = runner.invoke(app, ["search", "incomplete"])
 
@@ -230,19 +232,19 @@ def test_info_shows_ready_project(tmp_path: Path) -> None:
     install_dir = str(tmp_path / "homestack")
     cache_dir = tmp_path / "cache"
     cache_dir.mkdir()
-    
+
     projects_json = cache_dir / "projects.json"
-    projects_json.write_text(
-        json.dumps([asdict(p) for p in MOCK_PROJECTS_MIXED])
-    )
+    projects_json.write_text(json.dumps([asdict(p) for p in MOCK_PROJECTS_MIXED]))
 
     pihole_project = next(p for p in MOCK_PROJECTS_MIXED if p.project_name == "Pihole")
 
-    with patch("cli.cli._require_init_or_exit", return_value=_host_prefs(install_dir)), \
-         patch("cli.cli.settings") as mock_settings, \
-         patch("cli.cli._refresh_projects_cache_silent"), \
-         patch("cli.cli._find_project", return_value=pihole_project), \
-         patch("cli.cli._print_info_readme"):
+    with (
+        patch("cli.cli._require_init_or_exit", return_value=_host_prefs(install_dir)),
+        patch("cli.cli.settings") as mock_settings,
+        patch("cli.cli._refresh_projects_cache_silent"),
+        patch("cli.cli._find_project", return_value=pihole_project),
+        patch("cli.cli._print_info_readme"),
+    ):
         mock_settings.cache_api_dir = cache_dir
         result = runner.invoke(app, ["info", "pihole"])
 
@@ -254,15 +256,15 @@ def test_info_cannot_show_non_ready_project(tmp_path: Path) -> None:
     install_dir = str(tmp_path / "homestack")
     cache_dir = tmp_path / "cache"
     cache_dir.mkdir()
-    
-    projects_json = cache_dir / "projects.json"
-    projects_json.write_text(
-        json.dumps([asdict(p) for p in MOCK_PROJECTS_MIXED])
-    )
 
-    with patch("cli.cli._require_init_or_exit", return_value=_host_prefs(install_dir)), \
-         patch("cli.cli.settings") as mock_settings, \
-         patch("cli.cli._refresh_projects_cache_silent"):
+    projects_json = cache_dir / "projects.json"
+    projects_json.write_text(json.dumps([asdict(p) for p in MOCK_PROJECTS_MIXED]))
+
+    with (
+        patch("cli.cli._require_init_or_exit", return_value=_host_prefs(install_dir)),
+        patch("cli.cli.settings") as mock_settings,
+        patch("cli.cli._refresh_projects_cache_silent"),
+    ):
         mock_settings.cache_api_dir = cache_dir
         result = runner.invoke(app, ["info", "incomplete"])
 
@@ -280,15 +282,15 @@ def test_pull_cannot_select_non_ready_project(tmp_path: Path) -> None:
     install_dir = str(tmp_path / "homestack")
     cache_dir = tmp_path / "cache"
     cache_dir.mkdir()
-    
-    projects_json = cache_dir / "projects.json"
-    projects_json.write_text(
-        json.dumps([asdict(p) for p in MOCK_PROJECTS_MIXED])
-    )
 
-    with patch("cli.cli._require_init_or_exit", return_value=_host_prefs(install_dir)), \
-         patch("cli.cli.settings") as mock_settings, \
-         patch("cli.cli._refresh_projects_cache_silent"):
+    projects_json = cache_dir / "projects.json"
+    projects_json.write_text(json.dumps([asdict(p) for p in MOCK_PROJECTS_MIXED]))
+
+    with (
+        patch("cli.cli._require_init_or_exit", return_value=_host_prefs(install_dir)),
+        patch("cli.cli.settings") as mock_settings,
+        patch("cli.cli._refresh_projects_cache_silent"),
+    ):
         mock_settings.cache_api_dir = cache_dir
         # Try to pull non-ready project - should fail
         result = runner.invoke(app, ["pull", "incomplete"])
@@ -302,19 +304,19 @@ def test_pull_can_select_ready_project(tmp_path: Path) -> None:
     install_dir = str(tmp_path / "homestack")
     cache_dir = tmp_path / "cache"
     cache_dir.mkdir()
-    
-    projects_json = cache_dir / "projects.json"
-    projects_json.write_text(
-        json.dumps([asdict(p) for p in MOCK_PROJECTS_MIXED])
-    )
 
-    with patch("cli.cli._require_init_or_exit", return_value=_host_prefs(install_dir)), \
-         patch("cli.cli.settings") as mock_settings, \
-         patch("cli.cli._refresh_projects_cache_silent"), \
-         patch("cli.cli._pull_project_files") as mock_pull:
+    projects_json = cache_dir / "projects.json"
+    projects_json.write_text(json.dumps([asdict(p) for p in MOCK_PROJECTS_MIXED]))
+
+    with (
+        patch("cli.cli._require_init_or_exit", return_value=_host_prefs(install_dir)),
+        patch("cli.cli.settings") as mock_settings,
+        patch("cli.cli._refresh_projects_cache_silent"),
+        patch("cli.cli._pull_project_files") as mock_pull,
+    ):
         mock_settings.cache_api_dir = cache_dir
         mock_pull.return_value = (cache_dir / "pihole", 1, 0)
-        
+
         # Try to pull ready project
         result = runner.invoke(app, ["pull", "pihole"])
 
@@ -332,15 +334,15 @@ def test_deploy_cannot_select_non_ready_project(tmp_path: Path) -> None:
     install_dir = str(tmp_path / "homestack")
     cache_dir = tmp_path / "cache"
     cache_dir.mkdir()
-    
-    projects_json = cache_dir / "projects.json"
-    projects_json.write_text(
-        json.dumps([asdict(p) for p in MOCK_PROJECTS_MIXED])
-    )
 
-    with patch("cli.cli._require_init_or_exit", return_value=_host_prefs(install_dir)), \
-         patch("cli.cli.settings") as mock_settings, \
-         patch("cli.cli._refresh_projects_cache_silent"):
+    projects_json = cache_dir / "projects.json"
+    projects_json.write_text(json.dumps([asdict(p) for p in MOCK_PROJECTS_MIXED]))
+
+    with (
+        patch("cli.cli._require_init_or_exit", return_value=_host_prefs(install_dir)),
+        patch("cli.cli.settings") as mock_settings,
+        patch("cli.cli._refresh_projects_cache_silent"),
+    ):
         mock_settings.cache_api_dir = cache_dir
         # Try to deploy non-ready project
         result = runner.invoke(app, ["deploy", "beta"])
@@ -359,15 +361,15 @@ def test_upgrade_cannot_select_non_ready_project(tmp_path: Path) -> None:
     install_dir = str(tmp_path / "homestack")
     cache_dir = tmp_path / "cache"
     cache_dir.mkdir()
-    
-    projects_json = cache_dir / "projects.json"
-    projects_json.write_text(
-        json.dumps([asdict(p) for p in MOCK_PROJECTS_MIXED])
-    )
 
-    with patch("cli.cli._require_init_or_exit", return_value=_host_prefs(install_dir)), \
-         patch("cli.cli.settings") as mock_settings, \
-         patch("cli.cli._refresh_projects_cache_silent"):
+    projects_json = cache_dir / "projects.json"
+    projects_json.write_text(json.dumps([asdict(p) for p in MOCK_PROJECTS_MIXED]))
+
+    with (
+        patch("cli.cli._require_init_or_exit", return_value=_host_prefs(install_dir)),
+        patch("cli.cli.settings") as mock_settings,
+        patch("cli.cli._refresh_projects_cache_silent"),
+    ):
         mock_settings.cache_api_dir = cache_dir
         # Try to upgrade non-ready project
         result = runner.invoke(app, ["upgrade", "beta"])
@@ -381,19 +383,19 @@ def test_upgrade_can_select_ready_project(tmp_path: Path) -> None:
     install_dir = str(tmp_path / "homestack")
     cache_dir = tmp_path / "cache"
     cache_dir.mkdir()
-    
+
     projects_json = cache_dir / "projects.json"
-    projects_json.write_text(
-        json.dumps([asdict(p) for p in MOCK_PROJECTS_MIXED])
-    )
+    projects_json.write_text(json.dumps([asdict(p) for p in MOCK_PROJECTS_MIXED]))
 
     pihole_project = next(p for p in MOCK_PROJECTS_MIXED if p.project_name == "Pihole")
 
-    with patch("cli.cli._require_init_or_exit", return_value=_host_prefs(install_dir)), \
-         patch("cli.cli.settings") as mock_settings, \
-         patch("cli.cli._refresh_projects_cache_silent"), \
-         patch("cli.cli._find_project", return_value=pihole_project), \
-         patch("cli.cli._print_info_readme"):
+    with (
+        patch("cli.cli._require_init_or_exit", return_value=_host_prefs(install_dir)),
+        patch("cli.cli.settings") as mock_settings,
+        patch("cli.cli._refresh_projects_cache_silent"),
+        patch("cli.cli._find_project", return_value=pihole_project),
+        patch("cli.cli._print_info_readme"),
+    ):
         mock_settings.cache_api_dir = cache_dir
         result = runner.invoke(app, ["upgrade", "pihole"])
 
@@ -411,11 +413,9 @@ def test_start_allows_non_ready_installed_project(tmp_path: Path) -> None:
     install_dir = tmp_path / "homestack"
     cache_dir = tmp_path / "cache"
     cache_dir.mkdir()
-    
+
     projects_json = cache_dir / "projects.json"
-    projects_json.write_text(
-        json.dumps([asdict(p) for p in MOCK_PROJECTS_MIXED])
-    )
+    projects_json.write_text(json.dumps([asdict(p) for p in MOCK_PROJECTS_MIXED]))
 
     # Create the installed project directory structure using correct slug name
     compose_dir = install_dir / "compose"
@@ -429,16 +429,18 @@ def test_start_allows_non_ready_installed_project(tmp_path: Path) -> None:
     (env_dir / "host.env").write_text("HOST=value")
     (env_dir / "network.env").write_text("NETWORK=value")
 
-    incomplete_project = next(p for p in MOCK_PROJECTS_MIXED if p.project_name == "Incomplete Project")
-
-    with patch("cli.cli._require_init_or_exit", return_value=_host_prefs(str(install_dir))), \
-         patch("cli.cli.settings") as mock_settings, \
-         patch("cli.cli._refresh_projects_cache_silent"), \
-         patch("cli.cli._load_cached_projects", return_value=MOCK_PROJECTS_MIXED), \
-         patch("cli.cli.validate_compose_config"), \
-         patch("cli.cli.start_project_stack"), \
-         patch("cli.cli._print_info_readme"), \
-         patch("cli.cli._validate_project_compose_config"):
+    with (
+        patch(
+            "cli.cli._require_init_or_exit", return_value=_host_prefs(str(install_dir))
+        ),
+        patch("cli.cli.settings") as mock_settings,
+        patch("cli.cli._refresh_projects_cache_silent"),
+        patch("cli.cli._load_cached_projects", return_value=MOCK_PROJECTS_MIXED),
+        patch("cli.cli.validate_compose_config"),
+        patch("cli.cli.start_project_stack"),
+        patch("cli.cli._print_info_readme"),
+        patch("cli.cli._validate_project_compose_config"),
+    ):
         mock_settings.cache_api_dir = cache_dir
         result = runner.invoke(app, ["start", "incomplete"])
 
@@ -451,15 +453,17 @@ def test_start_rejects_non_installed_non_ready_project(tmp_path: Path) -> None:
     install_dir = tmp_path / "homestack"
     cache_dir = tmp_path / "cache"
     cache_dir.mkdir()
-    
-    projects_json = cache_dir / "projects.json"
-    projects_json.write_text(
-        json.dumps([asdict(p) for p in MOCK_PROJECTS_MIXED])
-    )
 
-    with patch("cli.cli._require_init_or_exit", return_value=_host_prefs(str(install_dir))), \
-         patch("cli.cli.settings") as mock_settings, \
-         patch("cli.cli._refresh_projects_cache_silent"):
+    projects_json = cache_dir / "projects.json"
+    projects_json.write_text(json.dumps([asdict(p) for p in MOCK_PROJECTS_MIXED]))
+
+    with (
+        patch(
+            "cli.cli._require_init_or_exit", return_value=_host_prefs(str(install_dir))
+        ),
+        patch("cli.cli.settings") as mock_settings,
+        patch("cli.cli._refresh_projects_cache_silent"),
+    ):
         mock_settings.cache_api_dir = cache_dir
         # Try to start non-ready project that isn't installed
         result = runner.invoke(app, ["start", "incomplete"])

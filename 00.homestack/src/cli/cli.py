@@ -483,10 +483,10 @@ def _load_cached_projects(
 
     payload = json.loads(projects_path.read_text(encoding="utf-8"))
     projects = [ProjectItem(**row) for row in payload]
-    
+
     if filter_ready:
         projects = [p for p in projects if p.ready_to_deploy]
-    
+
     return projects
 
 
@@ -824,7 +824,9 @@ def _print_info_readme(
     typer.echo(f"⚠ {warning}")
 
 
-def _confirm_pre_install_steps(project_name: str, steps: list[Step] | list[dict]) -> None:
+def _confirm_pre_install_steps(
+    project_name: str, steps: list[Step] | list[dict]
+) -> None:
     """Require explicit yes/no confirmation for each pre-install step."""
     normalized_steps: list[tuple[int, str, str]] = []
     for index, step in enumerate(steps, start=1):

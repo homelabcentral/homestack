@@ -238,7 +238,7 @@ def _fetch_system_timezone() -> str:
         target = target.replace("\\", "/")
         idx = target.find(_ZONEINFO_PREFIX)
         if idx != -1:
-            iana_name = target[idx + len(_ZONEINFO_PREFIX):]
+            iana_name = target[idx + len(_ZONEINFO_PREFIX) :]
             if iana_name:
                 return iana_name
     except OSError:

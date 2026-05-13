@@ -988,4 +988,6 @@ def test_generate_env_files_from_templates_skips_missing_template(
 
     assert not (env_dir / "host.env").exists()
     assert (env_dir / "network.env").exists()
-    assert (env_dir / "network.env").read_text(encoding="utf-8") == "IP_PRIVATE=10.0.0.1\n"
+    assert (env_dir / "network.env").read_text(
+        encoding="utf-8"
+    ) == "IP_PRIVATE=10.0.0.1\n"
