@@ -6,9 +6,7 @@ import re
 from pathlib import Path
 
 _ENV_KEY_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
-_TOKEN_PATTERN = re.compile(
-    r"\$(\$|\{([A-Za-z_][A-Za-z0-9_]*)(?:(:-|\?)([^}]*))?\})"
-)
+_TOKEN_PATTERN = re.compile(r"\$(\$|\{([A-Za-z_][A-Za-z0-9_]*)(?:(:-|\?)([^}]*))?\})")
 _UNRESOLVED_TOKEN_PATTERN = re.compile(r"\$\{[A-Za-z_][A-Za-z0-9_]*(?::-[^}]*)?\}")
 
 

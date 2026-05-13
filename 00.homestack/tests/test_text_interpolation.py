@@ -16,7 +16,9 @@ from utils.text_interpolation import (
 def test_interpolate_text_with_shared_and_project_env(tmp_path: Path) -> None:
     shared = tmp_path / "00.env"
     shared.mkdir()
-    (shared / "host.env").write_text("SUBDOMAIN=lab\nDOMAIN=example\n", encoding="utf-8")
+    (shared / "host.env").write_text(
+        "SUBDOMAIN=lab\nDOMAIN=example\n", encoding="utf-8"
+    )
     (shared / "network.env").write_text("IP_PRIVATE=10.0.0.10\n", encoding="utf-8")
 
     project_env = tmp_path / ".env"

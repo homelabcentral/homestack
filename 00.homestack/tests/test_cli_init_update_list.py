@@ -422,7 +422,9 @@ def test_list_deduplicates_interpolation_warnings(tmp_path: Path) -> None:
         result = runner.invoke(app, ["list"])
 
     assert result.exit_code == 0
-    warning_text = "Some placeholders in text could not be resolved and were left unchanged"
+    warning_text = (
+        "Some placeholders in text could not be resolved and were left unchanged"
+    )
     assert result.output.count(warning_text) == 1
 
 
@@ -640,7 +642,9 @@ def test_info_interpolates_project_metadata_with_env_context(tmp_path: Path) -> 
     (project_dir / "readme.md").write_text("# Pihole\n", encoding="utf-8")
 
     with (
-        patch("cli.cli._require_init_or_exit", return_value=_host_prefs(str(install_dir))),
+        patch(
+            "cli.cli._require_init_or_exit", return_value=_host_prefs(str(install_dir))
+        ),
         patch("cli.cli.settings") as mock_settings,
         patch("cli.cli._refresh_projects_cache_silent"),
         patch("cli.cli._find_project", return_value=project),
