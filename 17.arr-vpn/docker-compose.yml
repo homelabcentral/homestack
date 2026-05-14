@@ -5,6 +5,8 @@ services:
     container_name: ${CONTAINER_NAME_AR_GLUETUN:-gluetun}
     hostname: ${HOST_NAME_AR_GLUETUN:-gluetun}
     restart: ${RESTART_AR_GLUETUN:-unless-stopped}
+    cap_add:
+      - NET_ADMIN # Required for VPN functionality
     networks:
       traefiknet:
         ipv4_address: ${IP_AR_GLUETUN:-172.16.0.18}

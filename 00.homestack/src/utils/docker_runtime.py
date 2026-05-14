@@ -840,9 +840,13 @@ def _split_key_value(value: str) -> tuple[str, str | None]:
         # Templates in this repo append metadata as inline comments after values.
         # Preserve hashes inside tokens (for example, passwords) by only trimming
         # comments that are preceded by whitespace.
-        inline_comment_index = parsed_value.find(" #")
-        if inline_comment_index != -1:
-            parsed_value = parsed_value[:inline_comment_index].rstrip()
+        if parsed_value.startswith("#"):
+            # The entire right-hand side is an inline metadata comment; value is empty.
+            parsed_value = ""
+        else:
+            inline_comment_index = parsed_value.find(" #")
+            if inline_comment_index != -1:
+                parsed_value = parsed_value[:inline_comment_index].rstrip()
 
     return key.strip(), parsed_value
 

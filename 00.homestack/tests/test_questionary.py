@@ -26,6 +26,8 @@ from models.env_template import (
     ParsedEnvTemplate,
 )
 from models.generated_env import GeneratedEnv, GeneratedSecret
+from utils.compute_defaults import ComputeContext
+from utils.shared_pref import HostPreferences
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -49,6 +51,8 @@ def _var(
     remember: bool = True,
     prompt: str | None = None,
     description: str | None = None,
+    derive: str | None = None,
+    extra_metadata: dict[str, str] | None = None,
 ) -> EnvTemplateVariable:
     return EnvTemplateVariable(
         key=key,
@@ -60,6 +64,8 @@ def _var(
         remember=remember,
         prompt=prompt,
         description=description,
+        derive=derive,
+        extra_metadata=extra_metadata or {},
     )
 
 
@@ -71,6 +77,28 @@ def _mock_question(answer: str) -> MagicMock:
     mock = MagicMock()
     mock.ask.return_value = answer
     return mock
+
+
+def _compute_context(
+    *,
+    username: str = "alice",
+    uid: int | None = 1000,
+    gid: int | None = 1000,
+    docker_gid: int | None = 998,
+) -> ComputeContext:
+    return ComputeContext(
+        host_preferences=HostPreferences(
+            username=username,
+            uid=uid,
+            gid=gid,
+            docker_gid=docker_gid,
+            architecture="x86_64",
+            cpu_count=8,
+            ram_mb=16000,
+            install_dir="/tmp/homestack",
+            install_dir_total_gb=128.0,
+        )
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -218,6 +246,9 @@ class TestMakeValidator:
     def test_string_kind_no_bounds(self):
         assert make_validator(_vtype("string")) is None
 
+    def test_path_kind_no_validator(self):
+        assert make_validator(_vtype("path")) is None
+
     def test_string_with_bounds(self):
         v = make_validator(_vtype("string", 3, 8))
         assert callable(v)
@@ -328,6 +359,168 @@ class TestChoiceConversion:
 
 
 class TestBuildFormUseRecommended:
+    def test_derive_uses_interpolation_context(self):
+        var = _var(
+            "APP_URL",
+            value_type=_vtype("string"),
+            derive="${APP_NAME}.${DOMAIN}",
+        )
+        result = build_form_from_template(
+            _parsed(var),
+            use_recommended=True,
+            interpolation_context={"APP_NAME": "vault", "DOMAIN": "lan"},
+        )
+
+        assert result.values["APP_URL"] == "vault.lan"
+
+    def test_derive_prefers_current_run_values_over_initial_context(self):
+        app_name = _var("APP_NAME", recommended="new-app")
+        app_url = _var(
+            "APP_URL",
+            value_type=_vtype("string"),
+            derive="${APP_NAME}.${DOMAIN}",
+        )
+        result = build_form_from_template(
+            _parsed(app_name, app_url),
+            use_recommended=True,
+            interpolation_context={"APP_NAME": "old-app", "DOMAIN": "lan"},
+        )
+
+        assert result.values["APP_NAME"] == "new-app"
+        assert result.values["APP_URL"] == "new-app.lan"
+
+    def test_derive_unresolved_placeholder_fails_closed(self):
+        var = _var(
+            "APP_URL",
+            value_type=_vtype("string"),
+            derive="${APP_NAME}.${DOMAIN}",
+        )
+        with pytest.raises(ValueError, match="Missing variable: APP_NAME"):
+            build_form_from_template(
+                _parsed(var),
+                use_recommended=True,
+                interpolation_context={"DOMAIN": "lan"},
+            )
+
+    def test_derive_and_compute_conflict_fails_closed(self):
+        var = _var(
+            "APP_URL",
+            value_type=_vtype("string"),
+            derive="${APP_NAME}.${DOMAIN}",
+            extra_metadata={"compute": "uid"},
+        )
+        with pytest.raises(ValueError, match="derive and compute"):
+            build_form_from_template(
+                _parsed(var),
+                use_recommended=True,
+                interpolation_context={"APP_NAME": "vault", "DOMAIN": "lan"},
+                compute_context=_compute_context(),
+            )
+
+    def test_derive_immutable_does_not_prompt(self):
+        var = _var(
+            "APP_URL",
+            value_type=_vtype("string"),
+            derive="${APP_NAME}.${DOMAIN}",
+            immutable=True,
+        )
+        with patch("cli.questionary.questionary") as mock_q:
+            result = build_form_from_template(
+                _parsed(var),
+                use_recommended=False,
+                interpolation_context={"APP_NAME": "vault", "DOMAIN": "lan"},
+            )
+
+        assert result.values["APP_URL"] == "vault.lan"
+        mock_q.text.assert_not_called()
+        mock_q.path.assert_not_called()
+        mock_q.password.assert_not_called()
+        mock_q.select.assert_not_called()
+
+    def test_derive_mutable_prompts_with_derived_default(self):
+        var = _var(
+            "APP_URL",
+            value_type=_vtype("string"),
+            derive="https://${APP_NAME}.${DOMAIN}",
+        )
+        with patch("cli.questionary.questionary") as mock_q:
+            mock_q.text.return_value = _mock_question("https://custom.lan")
+            result = build_form_from_template(
+                _parsed(var),
+                use_recommended=False,
+                interpolation_context={"APP_NAME": "vault", "DOMAIN": "lan"},
+            )
+
+        assert result.values["APP_URL"] == "https://custom.lan"
+        mock_q.text.assert_called_once()
+        assert mock_q.text.call_args.kwargs["default"] == "https://vault.lan"
+
+    def test_compute_uid_applied_in_use_recommended(self):
+        var = _var(
+            "UID",
+            value_type=_vtype("int"),
+            extra_metadata={"compute": "uid"},
+        )
+        result = build_form_from_template(
+            _parsed(var),
+            use_recommended=True,
+            compute_context=_compute_context(uid=1234),
+        )
+
+        assert result.values["UID"] == "1234"
+
+    def test_compute_rejected_for_secret_type(self):
+        var = _var(
+            "APP_SECRET",
+            value_type=_vtype("password"),
+            extra_metadata={"compute": "uid"},
+        )
+        with pytest.raises(ValueError, match="not allowed for secret type"):
+            build_form_from_template(
+                _parsed(var),
+                use_recommended=True,
+                compute_context=_compute_context(),
+            )
+
+    def test_compute_unknown_name_fails_closed(self):
+        var = _var("UID", extra_metadata={"compute": "hostname"})
+        with pytest.raises(ValueError, match="Unknown compute resolver"):
+            build_form_from_template(
+                _parsed(var),
+                use_recommended=True,
+                compute_context=_compute_context(),
+            )
+
+    def test_compute_command_like_name_fails_closed(self):
+        var = _var("UID", extra_metadata={"compute": "id -u"})
+        with pytest.raises(ValueError, match="Invalid compute resolver"):
+            build_form_from_template(
+                _parsed(var),
+                use_recommended=True,
+                compute_context=_compute_context(),
+            )
+
+    def test_compute_value_must_match_choices(self):
+        var = _var(
+            "MODE",
+            choices=[
+                EnvTemplateChoice(value="1001"),
+                EnvTemplateChoice(value="1002", default=True),
+            ],
+            extra_metadata={"compute": "uid"},
+        )
+        with pytest.raises(ValueError, match="not in allowed choices"):
+            build_form_from_template(
+                _parsed(var),
+                use_recommended=True,
+                compute_context=_compute_context(uid=9999),
+            )
+
+    def test_compute_requires_context(self):
+        var = _var("UID", extra_metadata={"compute": "uid"})
+        with pytest.raises(ValueError, match="requires initialized host preferences"):
+            build_form_from_template(_parsed(var), use_recommended=True)
+
     def test_standard_field_uses_recommended(self):
         var = _var("DB_HOST", recommended="localhost")
         result = build_form_from_template(_parsed(var), use_recommended=True)
@@ -486,6 +679,90 @@ class TestBuildFormUseRecommended:
 
 
 class TestBuildFormInteractive:
+    def test_blank_recommended_compute_does_not_prefill_interactive_prompt(self):
+        var = _var(
+            "USER_NAME",
+            value_type=_vtype("string"),
+            extra_metadata={"compute": "username"},
+        )
+        with patch("cli.questionary.questionary") as mock_q:
+            mock_q.text.return_value = self._mock_ask("alice")
+            result = build_form_from_template(
+                _parsed(var),
+                use_recommended=False,
+                compute_context=_compute_context(username="alice"),
+            )
+
+        assert result.values["USER_NAME"] == "alice"
+        assert mock_q.text.call_args.kwargs["default"] == ""
+
+    def test_empty_interactive_answer_falls_back_to_compute(self):
+        var = _var(
+            "USER_NAME",
+            value_type=_vtype("string"),
+            extra_metadata={"compute": "username"},
+        )
+        with patch("cli.questionary.questionary") as mock_q:
+            mock_q.text.return_value = self._mock_ask("")
+            result = build_form_from_template(
+                _parsed(var),
+                use_recommended=False,
+                compute_context=_compute_context(username="alice"),
+            )
+
+        assert result.values["USER_NAME"] == "alice"
+        assert mock_q.text.call_args.kwargs["default"] == ""
+
+    def test_empty_interactive_answer_leaves_empty_when_compute_fails(self):
+        var = _var(
+            "USER_NAME",
+            value_type=_vtype("string"),
+            extra_metadata={"compute": "username"},
+        )
+        with patch("cli.questionary.questionary") as mock_q:
+            mock_q.text.return_value = self._mock_ask("")
+            result = build_form_from_template(
+                _parsed(var),
+                use_recommended=False,
+                compute_context=None,
+            )
+
+        assert result.values["USER_NAME"] == ""
+
+    def test_non_empty_interactive_answer_skips_compute_fallback(self):
+        var = _var(
+            "USER_ID",
+            value_type=_vtype("int"),
+            extra_metadata={"compute": "uid"},
+        )
+        with patch("cli.questionary.questionary") as mock_q:
+            mock_q.text.return_value = self._mock_ask("2000")
+            result = build_form_from_template(
+                _parsed(var),
+                use_recommended=False,
+                compute_context=_compute_context(uid=1001),
+            )
+
+        assert result.values["USER_ID"] == "2000"
+
+    def test_compute_still_prefills_when_recommended_exists(self):
+        var = _var(
+            "USER_NAME",
+            value_type=_vtype("string"),
+            recommended="preset",
+            extra_metadata={"compute": "username"},
+        )
+        with patch("cli.questionary.questionary") as mock_q:
+            mock_q.text.return_value = self._mock_ask("alice")
+            result = build_form_from_template(
+                _parsed(var),
+                use_recommended=False,
+                compute_context=_compute_context(username="alice"),
+            )
+
+        assert result.values["USER_NAME"] == "alice"
+        assert mock_q.text.call_args.kwargs["default"] == "alice"
+
     def _mock_ask(self, answer: str):
         """Return a mock questionary question object whose .ask() returns *answer*."""
         mock = MagicMock()
@@ -524,6 +801,23 @@ class TestBuildFormInteractive:
             result = build_form_from_template(_parsed(var), use_recommended=False)
         assert result.values["FEATURE_ENABLED"] == "true"
         mock_q.confirm.assert_called_once()
+        mock_q.text.assert_not_called()
+
+    def test_path_question_called_for_path_field(self):
+        var = _var(
+            "DIR_DATA",
+            value_type=_vtype("path"),
+            prompt="Enter data directory:",
+            recommended="/srv/data",
+        )
+        with patch("cli.questionary.questionary") as mock_q:
+            mock_q.path.return_value = self._mock_ask("/mnt/data")
+            result = build_form_from_template(_parsed(var), use_recommended=False)
+
+        assert result.values["DIR_DATA"] == "/mnt/data"
+        mock_q.path.assert_called_once()
+        assert mock_q.path.call_args.args[0] == "Enter data directory:"
+        assert mock_q.path.call_args.kwargs["default"] == "/srv/data"
         mock_q.text.assert_not_called()
 
     def test_password_prompt_appends_auto_generate_instruction(self):

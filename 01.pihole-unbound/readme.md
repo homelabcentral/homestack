@@ -28,3 +28,15 @@ supported_architecture:
     - arm64
 ready_to_deploy: true
 ---
+
+# Pihole With Unbound
+
+Pihole is a network wide ad blocker and unbound is a DNS resolver. This container helps with resolving DNS records in your homelab at the same time blocking ads.
+
+## How To Deploy
+
+Deploy this project easily with a single command `homestack deploy pihole`. Follow the instructions properly to set it up correctly. If you want to make changes, you can edit the `docker-compose.yml` and `.env` files in `<path-to-your-homestack-directory/compose/pihole-with-unbound>` directory.
+
+## Post-Install
+
+After you have installed this project. You can go add block lists from [firebog](https://firebog.net/).

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -221,6 +222,7 @@ def test_init_force_reinitializes_when_already_initialized(tmp_path: Path) -> No
         patch("cli.cli.SharedPreferences") as mock_prefs_cls,
         patch("cli.cli.ensure_traefik_bridge_network"),
         patch("cli.cli._download_env_templates"),
+        patch("cli.cli._generate_env_files_from_templates"),
         patch("cli.cli.typer.prompt", return_value=install_dir),
     ):
         mock_prefs = MagicMock()
@@ -371,6 +373,59 @@ def test_list_reads_cached_projects(tmp_path: Path) -> None:
 
     assert result.exit_code == 0
     assert "Pihole" in result.output or "Traefik" in result.output
+
+
+def test_list_deduplicates_interpolation_warnings(tmp_path: Path) -> None:
+    install_dir = tmp_path / "homestack"
+    cache_dir = tmp_path / "cache"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+
+    items = [
+        {
+            "project_index": 1,
+            "project_name": "Project One",
+            "dir_name": "01.project-one",
+            "compose": "docker-compose.yml",
+            "env": ".env.template",
+            "readme": "readme.md",
+            "config_files": [],
+            "required_env_files": ["network.env"],
+            "project_description": "Service at ${MISSING_HOST}",
+            "supported_architecture": ["amd64"],
+            "ready_to_deploy": True,
+        },
+        {
+            "project_index": 2,
+            "project_name": "Project Two",
+            "dir_name": "02.project-two",
+            "compose": "docker-compose.yml",
+            "env": ".env.template",
+            "readme": "readme.md",
+            "config_files": [],
+            "required_env_files": ["network.env"],
+            "project_description": "Dashboard at ${MISSING_HOST}",
+            "supported_architecture": ["amd64"],
+            "ready_to_deploy": True,
+        },
+    ]
+    (cache_dir / "projects.json").write_text(json.dumps(items), encoding="utf-8")
+
+    with (
+        patch(
+            "cli.cli._require_init_or_exit",
+            return_value=_host_prefs(str(install_dir)),
+        ),
+        patch("cli.cli.settings") as mock_settings,
+        patch("cli.cli._refresh_projects_cache_silent"),
+    ):
+        mock_settings.cache_api_dir = cache_dir
+        result = runner.invoke(app, ["list"])
+
+    assert result.exit_code == 0
+    warning_text = (
+        "Some placeholders in text could not be resolved and were left unchanged"
+    )
+    assert result.output.count(warning_text) == 1
 
 
 def test_search_filters_cached_projects(tmp_path: Path) -> None:
@@ -559,6 +614,47 @@ def test_info_warns_when_remote_readme_is_unreachable(tmp_path: Path) -> None:
         or "warn" in result.output.lower()
         or "reach" in result.output.lower()
     )
+
+
+def test_info_interpolates_project_metadata_with_env_context(tmp_path: Path) -> None:
+    install_dir = tmp_path / "homestack"
+    cache_dir = tmp_path / "cache"
+    items = _write_sample_cache(cache_dir)
+
+    # Add placeholder-based metadata for interpolation.
+    project = replace(
+        items[0],
+        project_website="https://${APP_NAME}.${SUBDOMAIN}.${DOMAIN}",
+        project_docs="https://${APP_NAME}.${SUBDOMAIN}.${DOMAIN}/docs",
+    )
+
+    # Prepare shared and project env context.
+    shared_env_dir = install_dir / "compose" / "00.env"
+    shared_env_dir.mkdir(parents=True, exist_ok=True)
+    (shared_env_dir / "host.env").write_text(
+        "SUBDOMAIN=lab\nDOMAIN=example.com\n",
+        encoding="utf-8",
+    )
+
+    project_dir = install_dir / "compose" / "pihole-with-unbound"
+    project_dir.mkdir(parents=True, exist_ok=True)
+    (project_dir / ".env").write_text("APP_NAME=pihole\n", encoding="utf-8")
+    (project_dir / "readme.md").write_text("# Pihole\n", encoding="utf-8")
+
+    with (
+        patch(
+            "cli.cli._require_init_or_exit", return_value=_host_prefs(str(install_dir))
+        ),
+        patch("cli.cli.settings") as mock_settings,
+        patch("cli.cli._refresh_projects_cache_silent"),
+        patch("cli.cli._find_project", return_value=project),
+        patch("cli.cli._print_info_readme"),
+    ):
+        mock_settings.cache_api_dir = cache_dir
+        result = runner.invoke(app, ["info", "pihole"])
+
+    assert result.exit_code == 0
+    assert "https://pihole.lab.example.com" in result.output
 
 
 def test_info_remote_readme_uses_repository_base_url(tmp_path: Path) -> None:
@@ -925,3 +1021,68 @@ def test_upgrade_exits_on_unexpected_cache_error(tmp_path: Path) -> None:
     assert result.exit_code == 1
     assert "Traceback" not in result.output
     assert "Upgrade failed" in result.output or "disk error" in result.output
+
+
+# ---------------------------------------------------------------------------
+# _generate_env_files_from_templates
+# ---------------------------------------------------------------------------
+
+
+def _write_minimal_template(path: Path, key: str = "MY_VAR") -> None:
+    path.write_text(
+        "# METADATA --- START\n"
+        "# DO NOT CHANGE THE BELOW\n"
+        "Description=Test\n"
+        "Required=true\n"
+        "# METADATA --- END\n"
+        f"\n{key}= # type=string | prompt=Enter value\n",
+        encoding="utf-8",
+    )
+
+
+def test_generate_env_files_from_templates_writes_both_env_files(
+    tmp_path: Path,
+) -> None:
+    import logging
+
+    env_dir = tmp_path / "00.env"
+    env_dir.mkdir()
+    _write_minimal_template(env_dir / "host.env.template", "USER_NAME")
+    _write_minimal_template(env_dir / "network.env.template", "IP_PRIVATE")
+
+    mock_generated = MagicMock()
+    mock_generated.to_env_string.return_value = "USER_NAME=alice\n"
+
+    with patch("cli.cli.build_form_from_template", return_value=mock_generated):
+        cli_module._generate_env_files_from_templates(
+            env_dir, _host_prefs(str(tmp_path)), logging.getLogger("test")
+        )
+
+    assert (env_dir / "host.env").exists()
+    assert (env_dir / "host.env").read_text(encoding="utf-8") == "USER_NAME=alice\n"
+    assert (env_dir / "network.env").exists()
+
+
+def test_generate_env_files_from_templates_skips_missing_template(
+    tmp_path: Path,
+) -> None:
+    import logging
+
+    env_dir = tmp_path / "00.env"
+    env_dir.mkdir()
+    # Only network template is present; host template is absent
+    _write_minimal_template(env_dir / "network.env.template", "IP_PRIVATE")
+
+    mock_generated = MagicMock()
+    mock_generated.to_env_string.return_value = "IP_PRIVATE=10.0.0.1\n"
+
+    with patch("cli.cli.build_form_from_template", return_value=mock_generated):
+        cli_module._generate_env_files_from_templates(
+            env_dir, _host_prefs(str(tmp_path)), logging.getLogger("test")
+        )
+
+    assert not (env_dir / "host.env").exists()
+    assert (env_dir / "network.env").exists()
+    assert (env_dir / "network.env").read_text(
+        encoding="utf-8"
+    ) == "IP_PRIVATE=10.0.0.1\n"

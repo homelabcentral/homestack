@@ -22,6 +22,8 @@ class EnvTemplateParsingError(Exception):
 class EnvTemplateParser:
     """Parses `.env.template` metadata and variable inline annotations."""
 
+    _COMPUTE_RESOLVER_PATTERN = re.compile(r"^[a-z][a-z0-9_]{0,63}$")
+
     def __init__(self, file_path: Path | str) -> None:
         self.file_path = Path(file_path)
         if not self.file_path.exists():
@@ -227,6 +229,7 @@ class EnvTemplateParser:
         prompt = metadata_map.get("prompt")
         instruction = metadata_map.get("instruction")
         description = metadata_map.get("description")
+        derive = metadata_map.get("derive")
 
         immutable = False
         if "immutable" in metadata_map:
@@ -278,6 +281,45 @@ class EnvTemplateParser:
                 metadata_map["choices"], line_number, warnings
             )
 
+        compute_hint = metadata_map.get("compute")
+        if compute_hint is not None:
+            normalized_compute = compute_hint.strip().lower()
+            if not self._COMPUTE_RESOLVER_PATTERN.fullmatch(normalized_compute):
+                warnings.append(
+                    EnvTemplateWarning(
+                        line=line_number,
+                        field="compute",
+                        message=(
+                            "Invalid compute resolver format; use a simple "
+                            "identifier like uid or docker_gid"
+                        ),
+                        raw_fragment=compute_hint,
+                    )
+                )
+
+        if derive is not None and not derive.strip():
+            warnings.append(
+                EnvTemplateWarning(
+                    line=line_number,
+                    field="derive",
+                    message="Derive expression is empty; ignoring derive metadata",
+                    raw_fragment=derive,
+                )
+            )
+            derive = None
+
+        if derive and compute_hint is not None:
+            warnings.append(
+                EnvTemplateWarning(
+                    line=line_number,
+                    field="derive",
+                    message=(
+                        "Both derive and compute are declared; derive takes precedence"
+                    ),
+                    raw_fragment=f"derive={derive}",
+                )
+            )
+
         extra_metadata = {
             k: v
             for k, v in metadata_map.items()
@@ -306,6 +348,7 @@ class EnvTemplateParser:
                 immutable=immutable,
                 remember=remember,
                 description=description,
+                derive=derive,
                 extra_metadata=extra_metadata,
                 line_number=line_number,
             )
@@ -329,6 +372,7 @@ class EnvTemplateParser:
                 immutable=immutable,
                 remember=remember,
                 description=description,
+                derive=derive,
                 extra_metadata=extra_metadata,
                 line_number=line_number,
             )

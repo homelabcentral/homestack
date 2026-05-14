@@ -64,6 +64,8 @@ import platform
 import re
 import shutil
 from collections.abc import Callable
+from contextlib import nullcontext
+from dataclasses import replace
 from pathlib import Path
 from uuid import uuid4
 
@@ -83,12 +85,16 @@ from client.downloader import (
     DownloadHTTPError,
     DownloadJob,
 )
+from models.env_template import EnvValueKind
+from models.generated_env import GeneratedSecret
 from models.meta import MetaItem
 from models.projects import ProjectItem
+from models.readme_frontmatter import Step
 from parsers import EnvTemplateParser
 from rich.console import Console
 from settings.settings import settings
 from utils.app_logger import get_command_logger, setup_logging
+from utils.compute_defaults import ComputeContext
 from utils.docker_runtime import (
     DockerNetworkConflictError,
     DockerRuntimeError,
@@ -105,8 +111,18 @@ from utils.markdown_printer import MarkdownPrinter
 from utils.progress import DownloadProgressBar, OperationSpinner
 from utils.project_table import ProjectTableBuilder
 from utils.shared_pref import HostPreferences, SharedPreferences, SharedPrefsError
+from utils.text_interpolation import (
+    find_unresolved_placeholders,
+    interpolate_text,
+    load_interpolation_context,
+)
 
-from cli.questionary import ask_select, build_form_from_template, print_secrets_summary
+from cli.questionary import (
+    ask_confirm,
+    ask_select,
+    build_form_from_template,
+    print_secrets_summary,
+)
 
 # ---------------------------------------------------------------------------
 # Root application
@@ -127,6 +143,20 @@ app = typer.Typer(
 
 setup_logging()
 console = Console()
+
+_SECRET_VALUE_KINDS = {
+    EnvValueKind.PASSWORD.value,
+    EnvValueKind.PASSPHRASE.value,
+    EnvValueKind.BASE64.value,
+    EnvValueKind.BASE64URLSAFE.value,
+    EnvValueKind.BCRYPTHASH.value,
+}
+
+
+def _operation_spinner(message: str, *, verbose: bool, console: Console):
+    if verbose:
+        return nullcontext()
+    return OperationSpinner(message, console=console)
 
 
 def _require_init_or_exit() -> HostPreferences:
@@ -272,6 +302,102 @@ def _read_local_meta(cache_dir: Path) -> dict[str, MetaItem]:
     return {item.file_name: item for item in items}
 
 
+def _read_env_file_values(env_path: Path) -> dict[str, str]:
+    """Parse a simple KEY=VALUE .env file into a dictionary.
+
+    This parser intentionally keeps values as-is (no interpolation) so the
+    command can show exactly what is currently stored on disk.
+    """
+
+    values: dict[str, str] = {}
+    for raw_line in env_path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+
+        if line.startswith("export "):
+            line = line[len("export ") :].strip()
+
+        if "=" not in line:
+            continue
+
+        key, value = line.split("=", 1)
+        normalized_key = key.strip()
+        if not normalized_key:
+            continue
+
+        normalized_value = value.strip()
+        if (
+            len(normalized_value) >= 2
+            and normalized_value[0] == normalized_value[-1]
+            and normalized_value[0] in {'"', "'"}
+        ):
+            normalized_value = normalized_value[1:-1]
+
+        values[normalized_key] = normalized_value
+
+    return values
+
+
+def _value_kind_to_text(kind: EnvValueKind | str) -> str:
+    if isinstance(kind, EnvValueKind):
+        return kind.value
+    return str(kind)
+
+
+_HOST_ENV_TEMPLATE_PAIRS = (
+    ("host.env.template", "host.env"),
+    ("network.env.template", "network.env"),
+)
+
+
+def _generate_env_files_from_templates(
+    env_dir: Path,
+    host_prefs: HostPreferences,
+    logger: logging.Logger,
+) -> None:
+    """Generate host.env and network.env from their downloaded .template counterparts.
+
+    Uses the same EnvTemplateParser → build_form_from_template pipeline as the
+    deploy command. Failures are logged as warnings and skip that file — the user
+    can re-generate manually later.
+    """
+    for template_name, output_name in _HOST_ENV_TEMPLATE_PAIRS:
+        template_path = env_dir / template_name
+        env_file = env_dir / output_name
+
+        if not template_path.exists():
+            logger.warning("Env template not found, skipping: %s", template_path)
+            typer.echo(
+                f"⚠ Template not found, skipping {output_name} generation",
+                err=False,
+            )
+            continue
+
+        try:
+            parser = EnvTemplateParser(template_path)
+            parsed = parser.parse()
+
+            if parsed.warnings:
+                for warning in parsed.warnings:
+                    logger.warning(
+                        "Template warning (%s): %s", template_name, warning.message
+                    )
+
+            generated = build_form_from_template(
+                parsed,
+                compute_context=ComputeContext(host_preferences=host_prefs),
+            )
+            env_file.write_text(generated.to_env_string())
+            logger.info("Generated %s at %s", output_name, env_file)
+            typer.echo(f"✓ Generated {output_name}")
+        except KeyboardInterrupt:
+            raise
+        except Exception as exc:
+            logger.warning("Failed to generate %s: %s", output_name, exc)
+            typer.echo(f"⚠ Could not generate {output_name}: {exc}", err=False)
+
+
 def _download_env_templates(
     compose_dir: Path,
     logger: logging.Logger,
@@ -401,7 +527,7 @@ def _refresh_projects_cache_silent(cache_dir: Path) -> None:
 
 
 def _load_cached_projects(
-    cache_dir: Path, check_remote_change: bool = False
+    cache_dir: Path, check_remote_change: bool = False, filter_ready: bool = True
 ) -> list[ProjectItem]:
     projects_path = cache_dir / "projects.json"
 
@@ -415,7 +541,12 @@ def _load_cached_projects(
         raise FileNotFoundError("projects.json is missing in local cache")
 
     payload = json.loads(projects_path.read_text(encoding="utf-8"))
-    return [ProjectItem(**row) for row in payload]
+    projects = [ProjectItem(**row) for row in payload]
+
+    if filter_ready:
+        projects = [p for p in projects if p.ready_to_deploy]
+
+    return projects
 
 
 def _find_project(project_name: str, projects: list[ProjectItem]) -> ProjectItem | None:
@@ -665,6 +796,109 @@ def _local_project_readme_path(project: ProjectItem, install_dir: Path) -> Path:
     return project_dir / _project_readme_name(project)
 
 
+def _interpolate_project_text(
+    text: str,
+    project: ProjectItem,
+    install_dir: Path,
+    logger: logging.Logger,
+    *,
+    warning_collector: set[str] | None = None,
+    emit_warnings: bool = True,
+) -> str:
+    """Interpolate text with project + shared env values in lenient mode."""
+    compose_dir = _compose_dir_from_install_dir(install_dir)
+    project_dir = compose_dir / _slug_project_name(project.project_name)
+    shared_env_dir = compose_dir / "00.env"
+    project_env_file = project_dir / ".env"
+
+    context = load_interpolation_context(
+        shared_env_dir=shared_env_dir,
+        project_env_file=project_env_file,
+        strict=False,
+    )
+
+    unresolved_in_context: list[str] = []
+    for value in context.values():
+        unresolved_in_context.extend(find_unresolved_placeholders(value))
+
+    if unresolved_in_context:
+        unique_context_tokens = sorted(set(unresolved_in_context))
+        warning = (
+            "Some env values contain unresolved placeholders; output will keep them "
+            f"as-is: {', '.join(unique_context_tokens)}"
+        )
+        if warning_collector is not None:
+            warning_collector.add(warning)
+        if emit_warnings:
+            logger.warning(warning)
+            typer.echo(f"⚠ {warning}")
+
+    rendered = interpolate_text(text, context, strict=False)
+    unresolved_in_text = find_unresolved_placeholders(rendered)
+    if unresolved_in_text:
+        warning = (
+            "Some placeholders in text could not be resolved and were left unchanged: "
+            f"{', '.join(unresolved_in_text)}"
+        )
+        if warning_collector is not None:
+            warning_collector.add(warning)
+        if emit_warnings:
+            logger.warning(warning)
+            typer.echo(f"⚠ {warning}")
+
+    return rendered
+
+
+def _interpolate_project_metadata(
+    project: ProjectItem,
+    install_dir: Path,
+    logger: logging.Logger,
+    *,
+    warning_collector: set[str] | None = None,
+    emit_warnings: bool = True,
+) -> ProjectItem:
+    """Return a project copy with string metadata interpolated."""
+    fields_to_render = {
+        "description": project.description,
+        "project_description": project.project_description,
+        "project_website": project.project_website,
+        "project_source": project.project_source,
+        "project_docs": project.project_docs,
+    }
+
+    rendered_fields: dict[str, str | None] = {}
+    for field_name, value in fields_to_render.items():
+        if value:
+            rendered_fields[field_name] = _interpolate_project_text(
+                value,
+                project,
+                install_dir,
+                logger,
+                warning_collector=warning_collector,
+                emit_warnings=emit_warnings,
+            )
+        else:
+            rendered_fields[field_name] = value
+
+    return replace(project, **rendered_fields)
+
+
+def _print_project_access_hints(
+    project: ProjectItem,
+    install_dir: Path,
+    logger: logging.Logger,
+) -> None:
+    """Display interpolated access URLs/docs after successful interactive commands."""
+    rendered = _interpolate_project_metadata(project, install_dir, logger)
+    website = (rendered.project_website or "").strip()
+    docs = (rendered.project_docs or "").strip()
+
+    if website:
+        typer.echo(f"Access URL: {website}")
+    if docs:
+        typer.echo(f"Docs: {docs}")
+
+
 def _print_info_readme(
     project: ProjectItem, install_dir: Path, logger: logging.Logger
 ) -> None:
@@ -674,12 +908,25 @@ def _print_info_readme(
     remote_readme_path = f"{project.dir_name}/{readme_name}"
 
     local_exists = local_readme_path.exists()
-    if local_exists and MarkdownPrinter.print_markdown_file(
-        console,
-        local_readme_path,
-        title=readme_title,
-    ):
-        return
+    if local_exists:
+        try:
+            local_text = local_readme_path.read_text(encoding="utf-8")
+        except (UnicodeDecodeError, OSError):
+            local_text = None
+
+        if local_text is not None:
+            rendered_local = _interpolate_project_text(
+                local_text,
+                project,
+                install_dir,
+                logger,
+            )
+            if MarkdownPrinter.print_markdown_text(
+                console,
+                rendered_local,
+                title=readme_title,
+            ):
+                return
 
     if local_exists:
         warning = (
@@ -693,7 +940,6 @@ def _print_info_readme(
         )
     logger.warning(warning)
     typer.echo(f"⚠ {warning}")
-
     try:
         # README files live at the repository root project directories, not under
         # the static API path (00.api/v1).
@@ -728,8 +974,17 @@ def _print_info_readme(
         typer.echo(f"⚠ {warning}")
         return
 
+    rendered_remote = _interpolate_project_text(
+        remote_readme,
+        project,
+        install_dir,
+        logger,
+    )
+
     if not MarkdownPrinter.print_markdown_text(
-        console, remote_readme, title=readme_title
+        console,
+        rendered_remote,
+        title=readme_title,
     ):
         warning = (
             f"README from remote path {remote_readme_path} is empty. "
@@ -751,6 +1006,51 @@ def _print_info_readme(
         )
     logger.warning(warning)
     typer.echo(f"⚠ {warning}")
+
+
+def _confirm_pre_install_steps(
+    project_name: str, steps: list[Step] | list[dict]
+) -> None:
+    """Require explicit yes/no confirmation for each pre-install step."""
+    normalized_steps: list[tuple[int, str, str]] = []
+    for index, step in enumerate(steps, start=1):
+        if isinstance(step, dict):
+            raw_number = step.get("number", index)
+            description = str(step.get("description", "")).strip()
+            todo = str(step.get("todo", "")).strip()
+        else:
+            raw_number = getattr(step, "number", index)
+            description = str(getattr(step, "description", "")).strip()
+            todo = str(getattr(step, "todo", "")).strip()
+
+        try:
+            number = int(raw_number)
+        except (TypeError, ValueError):
+            number = index
+
+        normalized_steps.append((number, description, todo))
+
+    normalized_steps.sort(key=lambda item: item[0])
+
+    for number, description, todo in normalized_steps:
+        title = description if description else "Complete pre-install task"
+        completed = ask_confirm(
+            f"Pre-install step {number}: {title}. Completed?",
+            instruction=todo if todo else None,
+            default=False,
+        )
+
+        if completed:
+            continue
+
+        typer.echo(
+            f"Pre-install steps are required before deploying '{project_name}'.",
+            err=True,
+        )
+        typer.echo(f"Step {number}: {title}", err=True)
+        if todo:
+            typer.echo(f"Description: {todo}", err=True)
+        raise typer.Exit(code=1)
 
 
 # ---------------------------------------------------------------------------
@@ -849,6 +1149,12 @@ def init(
             typer.echo("Downloading environment templates...")
             _download_env_templates(compose_dir, logger, console=console)
 
+            # Generate host.env and network.env from the downloaded templates
+            typer.echo("Generating environment files...")
+            _generate_env_files_from_templates(
+                compose_dir / "00.env", host_prefs, logger
+            )
+
             typer.echo("homestack initialization completed.")
             typer.echo(f"Install directory: {host_prefs.install_dir}")
             typer.echo(
@@ -943,7 +1249,8 @@ def list_projects() -> None:
     local cache data can still be displayed.
     """
     logger = get_command_logger("list")
-    _require_init_or_exit()
+    host_prefs = _require_init_or_exit()
+    install_dir = Path(host_prefs.install_dir)
 
     cache_dir = settings.cache_api_dir
     try:
@@ -951,9 +1258,26 @@ def list_projects() -> None:
             _load_cached_projects(cache_dir, check_remote_change=True),
             key=lambda p: p.project_index,
         )
-        table = ProjectTableBuilder.build(projects, title="Deployable Projects")
+        warnings: set[str] = set()
+        rendered_projects = [
+            _interpolate_project_metadata(
+                project,
+                install_dir,
+                logger,
+                warning_collector=warnings,
+                emit_warnings=False,
+            )
+            for project in projects
+        ]
+        for warning in sorted(warnings):
+            logger.warning(warning)
+            typer.echo(f"⚠ {warning}")
+
+        table = ProjectTableBuilder.build(
+            rendered_projects, title="Deployable Projects"
+        )
         console.print(table)
-        logger.info("Listed %d project(s)", len(projects))
+        logger.info("Listed %d project(s)", len(rendered_projects))
     except Exception as exc:
         logger.exception("List command failed")
         typer.echo(f"List failed: {exc}", err=True)
@@ -1047,14 +1371,180 @@ def info(
             typer.echo(f"Project '{project_name}' not found.", err=True)
             raise typer.Exit(code=1)
 
-        console.print(ProjectTableBuilder.build_project_info(project))
+        rendered_project = _interpolate_project_metadata(
+            project,
+            Path(host_prefs.install_dir),
+            logger,
+        )
+        console.print(ProjectTableBuilder.build_project_info(rendered_project))
         _print_info_readme(project, Path(host_prefs.install_dir), logger)
+        _print_project_access_hints(project, Path(host_prefs.install_dir), logger)
         logger.info("Displayed info for %s", project.project_name)
     except typer.Exit:
         raise
     except Exception as exc:
         logger.exception("Info command failed for %s", project_name)
         typer.echo(f"Info failed: {exc}", err=True)
+        raise typer.Exit(code=1)
+
+
+@app.command(name="show-secrets")
+def show_secrets(
+    project_name: str = typer.Argument(
+        ...,
+        help="Name of the project to show stored secrets for.",
+        show_default=False,
+    ),
+    include_all: bool = typer.Option(
+        False,
+        "--all",
+        help="Include secret variables marked remember=false in addition to remember=true.",
+    ),
+    keys_only: bool = typer.Option(
+        False,
+        "--keys-only",
+        help="List matching secret variable names only, without printing stored values.",
+    ),
+) -> None:
+    """Display secret values currently stored in a project's local .env file.
+
+    By default, only secret variables marked remember=true in .env.template are
+    shown. Pass --all to include all template-defined secret variables.
+
+    Use --keys-only to list only variable names without printing plaintext values.
+    """
+
+    logger = get_command_logger("show-secrets")
+    host_prefs = _require_init_or_exit()
+
+    cache_dir = settings.cache_api_dir
+    try:
+        projects = _load_cached_projects(cache_dir, check_remote_change=True)
+        selected = _select_project_from_query(project_name, projects)
+
+        install_dir = Path(host_prefs.install_dir)
+        compose_dir = _compose_dir_from_install_dir(install_dir)
+        project_dir = compose_dir / _slug_project_name(selected.project_name)
+        template_path = project_dir / selected.env
+        env_path = project_dir / ".env"
+
+        if not template_path.exists():
+            typer.echo(f"No env template found at {template_path}", err=True)
+            raise typer.Exit(code=1)
+
+        if not env_path.exists():
+            typer.echo(
+                f"No local env file found at {env_path}. Run 'homestack deploy {selected.project_name}' first.",
+                err=True,
+            )
+            raise typer.Exit(code=1)
+
+        parser = EnvTemplateParser(template_path)
+        parsed = parser.parse()
+        env_values = _read_env_file_values(env_path)
+
+        if parsed.warnings:
+            for warning in parsed.warnings:
+                logger.warning("Template warning: %s", warning.message)
+                typer.echo(f"[warn] {warning.message}", err=True)
+
+        candidate_secret_vars = []
+        for var in parsed.variables:
+            if var.value_type is None:
+                continue
+
+            kind_text = _value_kind_to_text(var.value_type.kind)
+            if kind_text not in _SECRET_VALUE_KINDS:
+                continue
+
+            if not include_all and not var.remember:
+                continue
+
+            candidate_secret_vars.append(var)
+
+        if not candidate_secret_vars:
+            filter_label = "remember=true" if not include_all else "any remember value"
+            typer.echo(
+                f"No template-defined secret variables found for {filter_label}."
+            )
+            return
+
+        matched_secret_vars = []
+        missing_secret_keys: list[str] = []
+
+        for var in candidate_secret_vars:
+            value = env_values.get(var.key)
+            if value is None:
+                missing_secret_keys.append(var.key)
+                continue
+
+            matched_secret_vars.append((var, value))
+
+        if not matched_secret_vars:
+            typer.echo(
+                "No matching secret values were found in the local .env file for the selected filter."
+            )
+            return
+
+        if keys_only:
+            typer.echo(f"Secret keys for {selected.project_name}:")
+            for var, _ in matched_secret_vars:
+                typer.echo(var.key)
+
+            if missing_secret_keys:
+                typer.echo(
+                    f"Skipped {len(missing_secret_keys)} secret key(s) not present in {env_path.name}."
+                )
+
+            logger.info(
+                "Displayed %d secret key(s) for project %s (include_all=%s)",
+                len(matched_secret_vars),
+                selected.project_name,
+                include_all,
+            )
+            return
+
+        secrets: list[GeneratedSecret] = []
+        for var, value in matched_secret_vars:
+            kind_text = _value_kind_to_text(var.value_type.kind)
+            secrets.append(
+                GeneratedSecret(
+                    key=var.key,
+                    kind=kind_text,
+                    plaintext=value,
+                    description=var.description,
+                )
+            )
+
+        console.print()
+        console.print(
+            "[bold yellow]⚠  DISPLAYING STORED SECRET VALUES FROM YOUR LOCAL .env FILE.[/bold yellow]"
+        )
+        console.print()
+        console.print(
+            ProjectTableBuilder.build_secrets_summary(
+                secrets,
+                title=f"Project Secrets: {selected.project_name}",
+            )
+        )
+        console.print()
+
+        if missing_secret_keys:
+            typer.echo(
+                f"Skipped {len(missing_secret_keys)} secret key(s) not present in {env_path.name}."
+            )
+
+        logger.info(
+            "Displayed %d secret value(s) for project %s (include_all=%s)",
+            len(secrets),
+            selected.project_name,
+            include_all,
+        )
+    except typer.Exit:
+        raise
+    except Exception as exc:
+        logger.exception("show-secrets failed for %s", project_name)
+        typer.echo(f"show-secrets failed: {exc}", err=True)
         raise typer.Exit(code=1)
 
 
@@ -1173,8 +1663,9 @@ def deploy(
             project_dir,
         )
         try:
-            with OperationSpinner(
+            with _operation_spinner(
                 f"Deploying {selected.project_name}\u2026",
+                verbose=verbose,
                 console=console,
             ):
                 _validate_project_compose_config(
@@ -1198,7 +1689,11 @@ def deploy(
         logger.info("Docker start-equivalent deploy completed successfully")
         typer.echo("Docker deployment completed successfully.")
         _print_info_readme(selected, install_dir, logger)
+        _print_project_access_hints(selected, install_dir, logger)
         return
+
+    if selected.pre_install_steps:
+        _confirm_pre_install_steps(selected.project_name, selected.pre_install_steps)
 
     parser = EnvTemplateParser(template_path)
     parsed = parser.parse()
@@ -1209,10 +1704,18 @@ def deploy(
             typer.echo(f"[warn] {warning.message}", err=True)
 
     try:
-        generated = build_form_from_template(parsed, use_recommended=use_recommended)
+        generated = build_form_from_template(
+            parsed,
+            use_recommended=use_recommended,
+            compute_context=ComputeContext(host_preferences=host_prefs),
+        )
     except KeyboardInterrupt:
         logger.info("Deploy aborted by user during interactive prompts")
         typer.echo("\nAborted. No .env file was written.", err=True)
+        raise typer.Exit(code=1)
+    except ValueError as exc:
+        logger.error("Deploy failed while resolving template values: %s", exc)
+        typer.echo(f"Invalid template compute configuration: {exc}", err=True)
         raise typer.Exit(code=1)
     env_file.write_text(generated.to_env_string())
     typer.echo(f".env written to {env_file}")
@@ -1241,8 +1744,9 @@ def deploy(
         project_dir,
     )
     try:
-        with OperationSpinner(
+        with _operation_spinner(
             f"Deploying {selected.project_name}\u2026",
+            verbose=verbose,
             console=console,
         ):
             _validate_project_compose_config(
@@ -1270,6 +1774,7 @@ def deploy(
         console.print(ProjectTableBuilder.build_container_status(deployment.containers))
 
     _print_info_readme(selected, install_dir, logger)
+    _print_project_access_hints(selected, install_dir, logger)
 
 
 @app.command()
@@ -1295,7 +1800,7 @@ def start(
     host_prefs = _require_init_or_exit()
 
     cache_dir = settings.cache_api_dir
-    projects = _load_cached_projects(cache_dir)
+    projects = _load_cached_projects(cache_dir, filter_ready=False)
     install_dir = Path(host_prefs.install_dir)
     compose_dir = _compose_dir_from_install_dir(install_dir)
     installed_projects = [
@@ -1344,8 +1849,9 @@ def start(
         project_dir,
     )
     try:
-        with OperationSpinner(
+        with _operation_spinner(
             f"Starting {selected.project_name}\u2026",
+            verbose=verbose,
             console=console,
         ):
             _validate_project_compose_config(
@@ -1369,6 +1875,7 @@ def start(
     logger.info("Docker compose start completed successfully")
     typer.echo("Docker start completed successfully.")
     _print_info_readme(selected, install_dir, logger)
+    _print_project_access_hints(selected, install_dir, logger)
 
 
 @app.command()
@@ -1394,7 +1901,7 @@ def recreate(
     host_prefs = _require_init_or_exit()
 
     cache_dir = settings.cache_api_dir
-    projects = _load_cached_projects(cache_dir)
+    projects = _load_cached_projects(cache_dir, filter_ready=False)
     install_dir = Path(host_prefs.install_dir)
     compose_dir = _compose_dir_from_install_dir(install_dir)
     installed_projects = [
@@ -1443,8 +1950,9 @@ def recreate(
         project_dir,
     )
     try:
-        with OperationSpinner(
+        with _operation_spinner(
             f"Recreating {selected.project_name}\u2026",
+            verbose=verbose,
             console=console,
         ):
             _validate_project_compose_config(
@@ -1468,6 +1976,7 @@ def recreate(
     logger.info("Docker compose recreate completed successfully")
     typer.echo("Docker recreate completed successfully.")
     _print_info_readme(selected, install_dir, logger)
+    _print_project_access_hints(selected, install_dir, logger)
 
 
 @app.command()
@@ -1493,7 +2002,7 @@ def restart(
     host_prefs = _require_init_or_exit()
 
     cache_dir = settings.cache_api_dir
-    projects = _load_cached_projects(cache_dir)
+    projects = _load_cached_projects(cache_dir, filter_ready=False)
     install_dir = Path(host_prefs.install_dir)
     compose_dir = _compose_dir_from_install_dir(install_dir)
     installed_projects = [
@@ -1542,8 +2051,9 @@ def restart(
         project_dir,
     )
     try:
-        with OperationSpinner(
+        with _operation_spinner(
             f"Restarting {selected.project_name}\u2026",
+            verbose=verbose,
             console=console,
         ):
             _validate_project_compose_config(
@@ -1567,6 +2077,7 @@ def restart(
     logger.info("Docker compose restart completed successfully")
     typer.echo("Docker restart completed successfully.")
     _print_info_readme(selected, install_dir, logger)
+    _print_project_access_hints(selected, install_dir, logger)
 
 
 @app.command()
@@ -1593,7 +2104,7 @@ def stop(
     host_prefs = _require_init_or_exit()
 
     cache_dir = settings.cache_api_dir
-    projects = _load_cached_projects(cache_dir)
+    projects = _load_cached_projects(cache_dir, filter_ready=False)
     install_dir = Path(host_prefs.install_dir)
     compose_dir = _compose_dir_from_install_dir(install_dir)
     installed_projects = [
@@ -1642,8 +2153,9 @@ def stop(
         project_dir,
     )
     try:
-        with OperationSpinner(
+        with _operation_spinner(
             f"Stopping {selected.project_name}\u2026",
+            verbose=verbose,
             console=console,
         ):
             _validate_project_compose_config(
@@ -1691,7 +2203,7 @@ def remove(
     host_prefs = _require_init_or_exit()
 
     cache_dir = settings.cache_api_dir
-    projects = _load_cached_projects(cache_dir)
+    projects = _load_cached_projects(cache_dir, filter_ready=False)
     install_dir = Path(host_prefs.install_dir)
     compose_dir = _compose_dir_from_install_dir(install_dir)
     installed_projects = [
@@ -1740,8 +2252,9 @@ def remove(
         project_dir,
     )
     try:
-        with OperationSpinner(
+        with _operation_spinner(
             f"Removing {selected.project_name}\u2026",
+            verbose=verbose,
             console=console,
         ):
             _validate_project_compose_config(
@@ -1788,13 +2301,28 @@ def search(
     triggers an API-layer conditional refresh and then searches local cache.
     """
     logger = get_command_logger("search")
-    _require_init_or_exit()
+    host_prefs = _require_init_or_exit()
+    install_dir = Path(host_prefs.install_dir)
 
     cache_dir = settings.cache_api_dir
     try:
         projects = _load_cached_projects(cache_dir, check_remote_change=True)
+        warnings: set[str] = set()
+        rendered_projects = [
+            _interpolate_project_metadata(
+                project,
+                install_dir,
+                logger,
+                warning_collector=warnings,
+                emit_warnings=False,
+            )
+            for project in projects
+        ]
+        for warning in sorted(warnings):
+            logger.warning(warning)
+            typer.echo(f"⚠ {warning}")
 
-        matches = _filter_projects(project_name, projects)
+        matches = _filter_projects(project_name, rendered_projects)
 
         if not matches:
             typer.echo(f"No projects found matching '{project_name}'.")
@@ -1840,8 +2368,14 @@ def upgrade(
             typer.echo(f"Project '{project_name}' not found.", err=True)
             raise typer.Exit(code=1)
 
-        console.print(ProjectTableBuilder.build_project_info(project))
+        rendered_project = _interpolate_project_metadata(
+            project,
+            Path(host_prefs.install_dir),
+            logger,
+        )
+        console.print(ProjectTableBuilder.build_project_info(rendered_project))
         _print_info_readme(project, Path(host_prefs.install_dir), logger)
+        _print_project_access_hints(project, Path(host_prefs.install_dir), logger)
         logger.info("Displayed info for %s", project.project_name)
     except typer.Exit:
         raise
