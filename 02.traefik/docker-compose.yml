@@ -35,9 +35,9 @@ services:
     volumes:
       - /etc/localtime:/etc/localtime:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ${DIR_COMPOSE}/${DIR_NAME_TR_TRAEFIK}/data/traefik.yml:/traefik.yml:ro
-      - ${DIR_COMPOSE}/${DIR_NAME_TR_TRAEFIK}/data/acme.json:/acme.json
-      - ${DIR_COMPOSE}/${DIR_NAME_TR_TRAEFIK}/data/config.yml:/config.yml:ro
+      - ${DIR_COMPOSE}/${DIR_TR_TRAEFIK}/data/traefik.yml:/traefik.yml:ro
+      - ${DIR_COMPOSE}/${DIR_TR_TRAEFIK}/data/acme.json:/acme.json
+      - ${DIR_COMPOSE}/${DIR_TR_TRAEFIK}/data/config.yml:/config.yml:ro
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.traefik.entrypoints=http"

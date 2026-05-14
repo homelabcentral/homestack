@@ -47,83 +47,32 @@
   },
   {
     "project_index": 2,
-    "project_name": "Traefik",
+    "project_name": "traefik",
     "dir_name": "02.traefik",
     "compose": "docker-compose.yml",
     "env": ".env.template",
     "readme": "readme.md",
-    "description": "The Cloud Native Application Proxy",
-    "project_description": "The Cloud Native Application Proxy",
-    "author": "Homelab Central",
-    "project_source": "https://github.com/traefik/traefik",
-    "project_website": "https://traefik.io/",
-    "project_docs": "https://doc.traefik.io/traefik/",
-    "project_status": "Active",
-    "stable_images": [
-      "traefik:v3.6.14",
-      "traefik:v3.6"
-    ],
-    "stable_versions": [
-      "v3.6.14"
-    ],
-    "latest_images": [
-      "traefik:latest"
-    ],
-    "latest_versions": [
-      "latest"
-    ],
-    "warning": "none",
-    "date": "2026-04-23",
-    "last_updated": "2026-04-23",
-    "required_env_files": [
-      "host.env",
-      "network.env"
-    ],
-    "supported_architecture": [
-      "amd64",
-      "x86",
-      "arm64"
-    ],
-    "ready_to_deploy": true,
-    "config_files": [
-      {
-        "path": "data/acme.json",
-        "constant": true
-      },
-      {
-        "path": "data/traefik.yml",
-        "constant": false
-      },
-      {
-        "path": "data/config.yml",
-        "constant": false,
-        "keys": {
-          "key1": "value1",
-          "key2": "value2"
-        }
-      }
-    ],
-    "pre_install_steps": [
-      {
-        "number": 1,
-        "description": "Description of step 1",
-        "todo": "Todo for step 1"
-      }
-    ],
-    "post_install_steps": [
-      {
-        "number": 1,
-        "description": "Description of post-install step 1",
-        "todo": "Todo for post-install step 1"
-      }
-    ],
-    "post_setup_steps": [
-      {
-        "number": 1,
-        "description": "Description for post setup",
-        "todo": "Todo for post setup steps"
-      }
-    ]
+    "description": "",
+    "project_description": null,
+    "author": null,
+    "project_source": null,
+    "project_website": null,
+    "project_docs": null,
+    "project_status": null,
+    "stable_images": null,
+    "stable_versions": null,
+    "latest_images": null,
+    "latest_versions": null,
+    "warning": null,
+    "date": null,
+    "last_updated": null,
+    "required_env_files": null,
+    "supported_architecture": null,
+    "ready_to_deploy": null,
+    "config_files": null,
+    "pre_install_steps": null,
+    "post_install_steps": null,
+    "post_setup_steps": null
   },
   {
     "project_index": 3,

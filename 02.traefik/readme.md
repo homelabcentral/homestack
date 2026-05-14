@@ -24,40 +24,49 @@ required_env_files:
 config_files:
   - config_file:
       path: data/acme.json
-      constant: true
-      uid: UID
-      gid: GID
       permissions: 600
   - config_file:
       path: data/traefik.yml
       constant: false
-      uid: UID
-      gid: GID
       permissions: 644
   - config_file:
       path: data/config.yml
       constant: false
       permissions: 644
-      keys:
-        key1: value1
-        key2: value2
 pre_install_steps:
   - step:
       number: 1
-      description: Description of step 1
-      todo: Todo for step 1
+      description: Create `acme.json` and set permissions
+      todo: Create a file called `acme.json` in directory `${DIR_HOMESTACK}/compose/${DIR_TR_TRAEFIK}/data` if it does not exist already and then change the permissions use these commands `cd ${DIR_HOMESTACK}/compose/${DIR_TR_TRAEFIK}/data && touch acme.json && chmod 600 acme.json`
+      required: true
+  - step:
+      number: 2
+      description: Change email in `treafik.yml`
+      todo: Change this email `email: youremail@email.com` to your email that you used for cloudflare account in `${DIR_HOMESTACK}/compose/${DIR_TR_TRAEFIK}/data/traefik.yml`
+      required: true
+  - step:
+      number: 3
+      description: Configure `config.yml` if you require
+      todo: If you have any other services that are not run in a docker container then edit the `${DIR_HOMESTACK}/compose/${DIR_TR_TRAEFIK}/data/config.yml`
+      required: false
 post_install_steps:
   - step:
-      description: Description of post-install step 1
-      todo: Todo for post-install step 1
+      number: 1
+      description: Check if it works
+      todo: Do a `docker logs traefik` command in your console to see if treafik is working. If you don't see anything, that is a good sign. That means it is working. If there are any warnings or errors then you might need to resolve those
+      required: true
+  - step:
+      number: 2
+      description: Add DNS entry for traefik
+      todo: Add DNS entry for `${APP_NAME_TR_TRAEFIK}.${SUB_DOMAIN}.${DOMAIN}` and your IP address (tailscale or private ip) in your pihole or any other DNS server that you are running
+      required: true
 post_setup_steps:
   - step:
       number: 1
-      description: Description for post setup
-      todo: Todo for post setup steps
+      description: Go to the website
+      todo: Go to `https://${APP_NAME_TR_TRAEFIK}.${SUB_DOMAIN}.${DOMAIN}` to open up the traefik dashboard
 supported_architecture:
-  - amd64
-  - x86
+  - x86_64
   - arm64
 ready_to_deploy: true
 ---
