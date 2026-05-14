@@ -16,7 +16,7 @@ class ConfigFile(BaseModel):
 
     path: str = Field(..., description="File path relative to project root")
     constant: bool = Field(
-        ..., description="Whether the configuration is constant/read-only"
+        False, description="Whether the configuration is constant/read-only"
     )
     keys: dict[str, str] | None = Field(
         None, description="Optional mapping of configuration keys"

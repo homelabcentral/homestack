@@ -37,7 +37,8 @@ stable_images:
 date: 2026-04-26
 last_updated: 2026-04-26
 supported_architecture:
-  
+    - x86_64
+    - arm64
 ready_to_deploy: true
 ---
 # Test Project

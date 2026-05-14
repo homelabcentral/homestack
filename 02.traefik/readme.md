@@ -42,7 +42,7 @@ pre_install_steps:
   - step:
       number: 2
       description: Change email in `treafik.yml`
-      todo: Change this email `email: youremail@email.com` to your email that you used for cloudflare account in `${DIR_HOMESTACK}/compose/${DIR_TR_TRAEFIK}/data/traefik.yml`
+      todo: "Change this email `email: youremail@email.com` to your email that you used for cloudflare account in `${DIR_HOMESTACK}/compose/${DIR_TR_TRAEFIK}/data/traefik.yml`"
       required: true
   - step:
       number: 3

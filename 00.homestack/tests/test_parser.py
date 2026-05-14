@@ -177,7 +177,8 @@ stable_images:
 date: 2026-04-23
 last_updated: 2026-04-23
 supported_architecture:
-  
+    - x86_64
+    - arm64
 ready_to_deploy: true
 ---
 # Tëst"""
@@ -238,6 +239,8 @@ post_install_steps:
             description: Verify
             todo: Check service
 supported_architecture:
+    - x86_64
+    - arm64
 ready_to_deploy: true
 ---
 """
@@ -271,7 +274,9 @@ ready_to_deploy: true
               - step:
                   description: Legacy key
                   todo: Replace key
-            supported_architecture:          
+                        supported_architecture:
+                            - x86_64
+                            - arm64
             ready_to_deploy: true
             ---
             """
@@ -307,6 +312,8 @@ pre_install_steps:
             description: Set password
             todo: Configure password
 supported_architecture:
+    - x86_64
+    - arm64
 ready_to_deploy: |true,false|
 ---
 """

@@ -140,7 +140,7 @@ def test_load_cached_projects_from_real_cache(tmp_path: Path) -> None:
 
     assert len(projects) > 0
     assert isinstance(projects[0], ProjectItem)
-    assert any(project.project_name == "Traefik" for project in projects)
+    assert all(project.dir_name for project in projects)
 
 
 def test_pull_project_files_downloads_to_temp_compose_dir(

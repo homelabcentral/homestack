@@ -30,11 +30,10 @@ class TestConfigFile:
             ConfigFile(constant=True)
         assert "path" in str(exc_info.value)
 
-    def test_config_file_missing_constant(self):
-        """Test ConfigFile validation fails without constant."""
-        with pytest.raises(ValidationError) as exc_info:
-            ConfigFile(path="config.yml")
-        assert "constant" in str(exc_info.value)
+    def test_config_file_missing_constant_defaults_false(self):
+        """Test ConfigFile defaults constant to False when omitted."""
+        config = ConfigFile(path="config.yml")
+        assert config.constant is False
 
 
 class TestStep:

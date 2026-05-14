@@ -46,32 +46,93 @@
   },
   {
     "project_index": 2,
-    "project_name": "traefik",
+    "project_name": "Traefik",
     "dir_name": "02.traefik",
     "compose": "docker-compose.yml",
     "env": ".env.template",
     "readme": "readme.md",
-    "description": "",
-    "project_description": null,
-    "author": null,
-    "project_source": null,
-    "project_website": null,
-    "project_docs": null,
-    "project_status": null,
-    "stable_images": null,
-    "stable_versions": null,
-    "latest_images": null,
-    "latest_versions": null,
-    "warning": null,
-    "date": null,
-    "last_updated": null,
-    "required_env_files": null,
-    "supported_architecture": null,
-    "ready_to_deploy": null,
-    "config_files": null,
-    "pre_install_steps": null,
-    "post_install_steps": null,
-    "post_setup_steps": null
+    "description": "The Cloud Native Application Proxy",
+    "project_description": "The Cloud Native Application Proxy",
+    "author": "Homelab Central",
+    "project_source": "https://github.com/traefik/traefik",
+    "project_website": "https://traefik.io/",
+    "project_docs": "https://doc.traefik.io/traefik/",
+    "project_status": "Active",
+    "stable_images": [
+      "traefik:v3.6.14",
+      "traefik:v3.6"
+    ],
+    "stable_versions": [
+      "v3.6.14"
+    ],
+    "latest_images": [
+      "traefik:latest"
+    ],
+    "latest_versions": [
+      "latest"
+    ],
+    "warning": "none",
+    "date": "2026-04-23",
+    "last_updated": "2026-04-23",
+    "required_env_files": [
+      "host.env",
+      "network.env"
+    ],
+    "supported_architecture": [
+      "x86_64",
+      "arm64"
+    ],
+    "ready_to_deploy": true,
+    "config_files": [
+      {
+        "path": "data/acme.json",
+        "constant": false
+      },
+      {
+        "path": "data/traefik.yml",
+        "constant": false
+      },
+      {
+        "path": "data/config.yml",
+        "constant": false
+      }
+    ],
+    "pre_install_steps": [
+      {
+        "number": 1,
+        "description": "Create `acme.json` and set permissions",
+        "todo": "Create a file called `acme.json` in directory `${DIR_HOMESTACK}/compose/${DIR_TR_TRAEFIK}/data` if it does not exist already and then change the permissions use these commands `cd ${DIR_HOMESTACK}/compose/${DIR_TR_TRAEFIK}/data && touch acme.json && chmod 600 acme.json`"
+      },
+      {
+        "number": 2,
+        "description": "Change email in `treafik.yml`",
+        "todo": "Change this email `email: youremail@email.com` to your email that you used for cloudflare account in `${DIR_HOMESTACK}/compose/${DIR_TR_TRAEFIK}/data/traefik.yml`"
+      },
+      {
+        "number": 3,
+        "description": "Configure `config.yml` if you require",
+        "todo": "If you have any other services that are not run in a docker container then edit the `${DIR_HOMESTACK}/compose/${DIR_TR_TRAEFIK}/data/config.yml`"
+      }
+    ],
+    "post_install_steps": [
+      {
+        "number": 1,
+        "description": "Check if it works",
+        "todo": "Do a `docker logs traefik` command in your console to see if treafik is working. If you don't see anything, that is a good sign. That means it is working. If there are any warnings or errors then you might need to resolve those"
+      },
+      {
+        "number": 2,
+        "description": "Add DNS entry for traefik",
+        "todo": "Add DNS entry for `${APP_NAME_TR_TRAEFIK}.${SUB_DOMAIN}.${DOMAIN}` and your IP address (tailscale or private ip) in your pihole or any other DNS server that you are running"
+      }
+    ],
+    "post_setup_steps": [
+      {
+        "number": 1,
+        "description": "Go to the website",
+        "todo": "Go to `https://${APP_NAME_TR_TRAEFIK}.${SUB_DOMAIN}.${DOMAIN}` to open up the traefik dashboard"
+      }
+    ]
   },
   {
     "project_index": 3,
