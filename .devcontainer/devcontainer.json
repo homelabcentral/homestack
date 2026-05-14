@@ -62,7 +62,8 @@
 				"donjayamanne.python-extension-pack",
 				"DavidAnson.vscode-markdownlint",
 				"yzhang.markdown-all-in-one",
-				"wenfangdu.snippet-generator"
+				"wenfangdu.snippet-generator",
+				"ultram4rine.vscode-choosealicense"
 			]
 		}
 	},
