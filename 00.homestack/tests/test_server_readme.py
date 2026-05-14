@@ -73,7 +73,7 @@ stable_images:
 date: 2026-04-23
 last_updated: 2026-04-23
 supported_architecture:
-  - amd64
+  
 ready_to_deploy: true
 ---
 # Test"""
@@ -135,7 +135,7 @@ stable_images:
 date: 2026-04-23
 last_updated: 2026-04-23
 supported_architecture:
-  - amd64
+  
 ready_to_deploy: true
 ---
 # Good"""
@@ -165,7 +165,7 @@ stable_images:
 date: 2026-04-23
 last_updated: 2026-04-23
 supported_architecture:
-  - amd64
+  
 ready_to_deploy: true
 ---
 # Project {i}"""

@@ -29,8 +29,7 @@ post_setup_steps:
       description: Configure your dashboard
       todo: Read the docs website to see as to how to customize the homepage
 supported_architecture:
-  - amd64
-  - x86
+  - x86_64
   - arm64
 ready_to_deploy: true
 ---

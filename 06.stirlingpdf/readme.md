@@ -38,8 +38,7 @@ pre_install_steps:
       todo: Set your preferred password as `PASSWORD_SP_STIRLINGPDF` in the .env
       required: false
 supported_architecture:
-  - amd64
-  - x86
+  - x86_64
   - arm64
 ready_to_deploy: true
 ---

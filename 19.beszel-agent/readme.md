@@ -26,8 +26,7 @@ pre_install_steps:
       description: Get token and public key from Beszel Hub
       todo: In Beszel Hub, choose Add system, copy the token and public key, then run `homestack deploy beszel-agent` on the host to monitor and enter those values when prompted.
 supported_architecture:
-  - amd64
-  - x86
+  - x86_64
   - arm64
 ready_to_deploy: true
 ---

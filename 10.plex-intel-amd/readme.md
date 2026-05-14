@@ -32,8 +32,7 @@ post_setup_steps:
       todo: Go to plex settings -> network -> LAN networks -> add your subnet -> eg. "192.168.0.1/24,10.0.0.1/24" etc. without quotes.
       required: true
 supported_architecture:
-  - amd64
-  - x86
+  - x86_64
   - arm64
 ready_to_deploy: true
 ---

@@ -38,8 +38,7 @@ post_setup_steps:
       description: Delete this step
       todo: Delete this step
 supported_architecture:
-  - amd64
-  - x86
+  - x86_64
   - arm64
 ready_to_deploy: true
 ---

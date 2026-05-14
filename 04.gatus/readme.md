@@ -32,8 +32,7 @@ pre_install_steps:
       description: Configure config.yml
       todo: Configure config.yml according to your needs as to what you want to monitor. Docs are here - https://github.com/TwiN/gatus#configuration
 supported_architecture:
-  - amd64
-  - x86
+  - x86_64
   - arm64
 ready_to_deploy: true
 ---

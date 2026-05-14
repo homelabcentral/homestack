@@ -26,8 +26,7 @@ pre_install_steps:
       description: Change some .env variables
       todo: Change `NEXTAUTH_URL` to the external URL of the app, if you don't have one then internal URL is fine. Change `NEXTAUTH_SECRET` and `MEILI_MASTER_KEY` using `openssl rand -base64 32` to do this.
 supported_architecture:
-  - amd64
-  - x86
+  - x86_64
   - arm64
 ready_to_deploy: true
 ---

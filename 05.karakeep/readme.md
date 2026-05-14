@@ -51,8 +51,7 @@ post_setup_steps:
       description: Description for post setup
       todo: Todo for post setup steps
 supported_architecture:
-  - amd64
-  - x86
+  - x86_64
   - arm64
 ready_to_deploy: true
 ---

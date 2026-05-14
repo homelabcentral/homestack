@@ -25,8 +25,7 @@ required_env_files:
   - host.env
   - network.env
 supported_architecture:
-  - amd64
-  - x86
+  - x86_64
   - arm64
 ready_to_deploy: true
 ---

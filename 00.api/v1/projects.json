@@ -35,8 +35,7 @@
       "network.env"
     ],
     "supported_architecture": [
-      "amd64",
-      "x86",
+      "x86_64",
       "arm64"
     ],
     "ready_to_deploy": true,
@@ -110,8 +109,7 @@
       "network.env"
     ],
     "supported_architecture": [
-      "amd64",
-      "x86",
+      "x86_64",
       "arm64"
     ],
     "ready_to_deploy": true,
@@ -174,8 +172,7 @@
       "network.env"
     ],
     "supported_architecture": [
-      "amd64",
-      "x86",
+      "x86_64",
       "arm64"
     ],
     "ready_to_deploy": true,
@@ -229,8 +226,7 @@
       "network.env"
     ],
     "supported_architecture": [
-      "amd64",
-      "x86",
+      "x86_64",
       "arm64"
     ],
     "ready_to_deploy": true,
@@ -312,8 +308,7 @@
       "network.env"
     ],
     "supported_architecture": [
-      "amd64",
-      "x86",
+      "x86_64",
       "arm64"
     ],
     "ready_to_deploy": true,
@@ -367,8 +362,7 @@
       "network.env"
     ],
     "supported_architecture": [
-      "amd64",
-      "x86",
+      "x86_64",
       "arm64"
     ],
     "ready_to_deploy": true,
@@ -419,8 +413,7 @@
       "network.env"
     ],
     "supported_architecture": [
-      "amd64",
-      "x86",
+      "x86_64",
       "arm64"
     ],
     "ready_to_deploy": true,
@@ -466,8 +459,7 @@
       "network.env"
     ],
     "supported_architecture": [
-      "amd64",
-      "x86",
+      "x86_64",
       "arm64"
     ],
     "ready_to_deploy": true,
@@ -516,8 +508,7 @@
       "network.env"
     ],
     "supported_architecture": [
-      "amd64",
-      "x86",
+      "x86_64",
       "arm64"
     ],
     "ready_to_deploy": true,
@@ -571,8 +562,7 @@
       "network.env"
     ],
     "supported_architecture": [
-      "amd64",
-      "x86",
+      "x86_64",
       "arm64"
     ],
     "ready_to_deploy": true,
@@ -626,8 +616,7 @@
       "network.env"
     ],
     "supported_architecture": [
-      "amd64",
-      "x86",
+      "x86_64",
       "arm64"
     ],
     "ready_to_deploy": true,
@@ -678,8 +667,7 @@
       "network.env"
     ],
     "supported_architecture": [
-      "amd64",
-      "x86",
+      "x86_64",
       "arm64"
     ],
     "ready_to_deploy": true,
@@ -732,8 +720,7 @@
       "network.env"
     ],
     "supported_architecture": [
-      "amd64",
-      "x86",
+      "x86_64",
       "arm64"
     ],
     "ready_to_deploy": true,
@@ -776,8 +763,7 @@
       "network.env"
     ],
     "supported_architecture": [
-      "amd64",
-      "x86",
+      "x86_64",
       "arm64"
     ],
     "ready_to_deploy": true,
@@ -820,8 +806,7 @@
       "network.env"
     ],
     "supported_architecture": [
-      "amd64",
-      "x86",
+      "x86_64",
       "arm64"
     ],
     "ready_to_deploy": true,
@@ -867,8 +852,7 @@
       "email.env"
     ],
     "supported_architecture": [
-      "amd64",
-      "x86",
+      "x86_64",
       "arm64"
     ],
     "ready_to_deploy": true,
@@ -913,8 +897,7 @@
       "network.env"
     ],
     "supported_architecture": [
-      "amd64",
-      "x86",
+      "x86_64",
       "arm64"
     ],
     "ready_to_deploy": true,
@@ -984,8 +967,7 @@
       "vpn.env"
     ],
     "supported_architecture": [
-      "amd64",
-      "x86",
+      "x86_64",
       "arm64"
     ],
     "ready_to_deploy": true,
@@ -1028,8 +1010,7 @@
       "network.env"
     ],
     "supported_architecture": [
-      "amd64",
-      "x86",
+      "x86_64",
       "arm64"
     ],
     "ready_to_deploy": true,
@@ -1072,8 +1053,7 @@
       "network.env"
     ],
     "supported_architecture": [
-      "amd64",
-      "x86",
+      "x86_64",
       "arm64"
     ],
     "ready_to_deploy": true,
@@ -1122,8 +1102,7 @@
       "network.env"
     ],
     "supported_architecture": [
-      "amd64",
-      "x86",
+      "x86_64",
       "arm64"
     ],
     "ready_to_deploy": true,
@@ -1178,8 +1157,7 @@
       "network.env"
     ],
     "supported_architecture": [
-      "amd64",
-      "x86",
+      "x86_64",
       "arm64"
     ],
     "ready_to_deploy": true,

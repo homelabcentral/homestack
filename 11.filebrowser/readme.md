@@ -23,8 +23,7 @@ pre_install_steps:
       description: Notedown password
       todo: Please note down the password, it won't be displayed again. If you forget or lose the password, you need to manually delete the database and start filebrowser again.
 supported_architecture:
-  - amd64
-  - x86
+  - x86_64
   - arm64
 ready_to_deploy: true
 ---

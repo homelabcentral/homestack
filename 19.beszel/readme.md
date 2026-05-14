@@ -26,8 +26,7 @@ post_install_steps:
       description: Connect a monitored system
       todo: After Beszel Hub is running, open the Beszel UI, choose Add system, copy the token and public key, then deploy `homestack deploy beszel-agent` on the target host and provide those values during setup.
 supported_architecture:
-  - amd64
-  - x86
+  - x86_64
   - arm64
 ready_to_deploy: true
 ---

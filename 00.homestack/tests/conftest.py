@@ -64,7 +64,7 @@ post_setup_steps:
     description: Final step
     todo: systemctl restart service
 supported_architecture:
-  - amd64
+  
   - arm64
 ready_to_deploy: true
 ---
@@ -94,7 +94,7 @@ stable_images:
 date: 2026-04-23
 last_updated: 2026-04-23
 supported_architecture:
-  - amd64
+  
 ready_to_deploy: true
 ---
 
@@ -160,7 +160,7 @@ stable_images:
 date: 2026-04-23
 last_updated: 2026-04-23
 supported_architecture:
-  - amd64
+  
 ready_to_deploy: true
 ---
 
@@ -209,7 +209,7 @@ def temp_project_dir(tmp_path):
                     "date: 2026-01-01",
                     "last_updated: 2026-01-01",
                     "supported_architecture:",
-                    "  - amd64",
+                    "  ",
                     "ready_to_deploy: true",
                     "---",
                     f"# {project['project_name']}",
