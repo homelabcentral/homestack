@@ -47,6 +47,7 @@ Deploy self-hosted Docker Compose stacks with ease — works similarly to Homebr
     - [`list`](#list)
     - [`search`](#search)
     - [`info`](#info)
+    - [`show-secrets`](#show-secrets)
     - [`pull`](#pull)
     - [`deploy`](#deploy)
     - [`start`](#start)
@@ -411,6 +412,34 @@ Displays detailed metadata for a single project: description, supported architec
 ```bash
 homestack info karakeep
 ```
+
+---
+
+### `show-secrets`
+
+```bash
+homestack show-secrets <project> [--all] [--keys-only]
+```
+
+Displays secret values currently stored in the local `<project>/.env` file.
+
+- By default, only secret variables with `remember=true` in the project's `.env.template` are shown.
+- With `--all`, secrets marked `remember=false` are included as well.
+- With `--keys-only`, only matching secret variable names are printed (no plaintext values).
+
+```bash
+# show only remember=true secrets
+homestack show-secrets karakeep
+
+# show all template-defined secret values
+homestack show-secrets karakeep --all
+
+# show secret variable names only
+homestack show-secrets karakeep --keys-only
+```
+
+> [!WARNING]
+> This command prints plaintext values from your local `.env` file to the terminal.
 
 ---
 

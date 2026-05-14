@@ -85,6 +85,8 @@ from client.downloader import (
     DownloadHTTPError,
     DownloadJob,
 )
+from models.env_template import EnvValueKind
+from models.generated_env import GeneratedSecret
 from models.meta import MetaItem
 from models.projects import ProjectItem
 from models.readme_frontmatter import Step
@@ -141,6 +143,14 @@ app = typer.Typer(
 
 setup_logging()
 console = Console()
+
+_SECRET_VALUE_KINDS = {
+    EnvValueKind.PASSWORD.value,
+    EnvValueKind.PASSPHRASE.value,
+    EnvValueKind.BASE64.value,
+    EnvValueKind.BASE64URLSAFE.value,
+    EnvValueKind.BCRYPTHASH.value,
+}
 
 
 def _operation_spinner(message: str, *, verbose: bool, console: Console):
@@ -292,6 +302,49 @@ def _read_local_meta(cache_dir: Path) -> dict[str, MetaItem]:
     return {item.file_name: item for item in items}
 
 
+def _read_env_file_values(env_path: Path) -> dict[str, str]:
+    """Parse a simple KEY=VALUE .env file into a dictionary.
+
+    This parser intentionally keeps values as-is (no interpolation) so the
+    command can show exactly what is currently stored on disk.
+    """
+
+    values: dict[str, str] = {}
+    for raw_line in env_path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+
+        if line.startswith("export "):
+            line = line[len("export ") :].strip()
+
+        if "=" not in line:
+            continue
+
+        key, value = line.split("=", 1)
+        normalized_key = key.strip()
+        if not normalized_key:
+            continue
+
+        normalized_value = value.strip()
+        if (
+            len(normalized_value) >= 2
+            and normalized_value[0] == normalized_value[-1]
+            and normalized_value[0] in {'"', "'"}
+        ):
+            normalized_value = normalized_value[1:-1]
+
+        values[normalized_key] = normalized_value
+
+    return values
+
+
+def _value_kind_to_text(kind: EnvValueKind | str) -> str:
+    if isinstance(kind, EnvValueKind):
+        return kind.value
+    return str(kind)
+
+
 _HOST_ENV_TEMPLATE_PAIRS = (
     ("host.env.template", "host.env"),
     ("network.env.template", "network.env"),
@@ -334,11 +387,6 @@ def _generate_env_files_from_templates(
             generated = build_form_from_template(
                 parsed,
                 compute_context=ComputeContext(host_preferences=host_prefs),
-                interpolation_context=load_interpolation_context(
-                    shared_env_dir=env_dir,
-                    project_env_file=env_file,
-                    strict=False,
-                ),
             )
             env_file.write_text(generated.to_env_string())
             logger.info("Generated %s at %s", output_name, env_file)
@@ -1225,9 +1273,7 @@ def list_projects() -> None:
             logger.warning(warning)
             typer.echo(f"⚠ {warning}")
 
-        table = ProjectTableBuilder.build(
-            rendered_projects, title="Deployable Projects"
-        )
+        table = ProjectTableBuilder.build(rendered_projects, title="Deployable Projects")
         console.print(table)
         logger.info("Listed %d project(s)", len(rendered_projects))
     except Exception as exc:
@@ -1337,6 +1383,166 @@ def info(
     except Exception as exc:
         logger.exception("Info command failed for %s", project_name)
         typer.echo(f"Info failed: {exc}", err=True)
+        raise typer.Exit(code=1)
+
+
+@app.command(name="show-secrets")
+def show_secrets(
+    project_name: str = typer.Argument(
+        ...,
+        help="Name of the project to show stored secrets for.",
+        show_default=False,
+    ),
+    include_all: bool = typer.Option(
+        False,
+        "--all",
+        help="Include secret variables marked remember=false in addition to remember=true.",
+    ),
+    keys_only: bool = typer.Option(
+        False,
+        "--keys-only",
+        help="List matching secret variable names only, without printing stored values.",
+    ),
+) -> None:
+    """Display secret values currently stored in a project's local .env file.
+
+    By default, only secret variables marked remember=true in .env.template are
+    shown. Pass --all to include all template-defined secret variables.
+
+    Use --keys-only to list only variable names without printing plaintext values.
+    """
+
+    logger = get_command_logger("show-secrets")
+    host_prefs = _require_init_or_exit()
+
+    cache_dir = settings.cache_api_dir
+    try:
+        projects = _load_cached_projects(cache_dir, check_remote_change=True)
+        selected = _select_project_from_query(project_name, projects)
+
+        install_dir = Path(host_prefs.install_dir)
+        compose_dir = _compose_dir_from_install_dir(install_dir)
+        project_dir = compose_dir / _slug_project_name(selected.project_name)
+        template_path = project_dir / selected.env
+        env_path = project_dir / ".env"
+
+        if not template_path.exists():
+            typer.echo(f"No env template found at {template_path}", err=True)
+            raise typer.Exit(code=1)
+
+        if not env_path.exists():
+            typer.echo(
+                f"No local env file found at {env_path}. Run 'homestack deploy {selected.project_name}' first.",
+                err=True,
+            )
+            raise typer.Exit(code=1)
+
+        parser = EnvTemplateParser(template_path)
+        parsed = parser.parse()
+        env_values = _read_env_file_values(env_path)
+
+        if parsed.warnings:
+            for warning in parsed.warnings:
+                logger.warning("Template warning: %s", warning.message)
+                typer.echo(f"[warn] {warning.message}", err=True)
+
+        candidate_secret_vars = []
+        for var in parsed.variables:
+            if var.value_type is None:
+                continue
+
+            kind_text = _value_kind_to_text(var.value_type.kind)
+            if kind_text not in _SECRET_VALUE_KINDS:
+                continue
+
+            if not include_all and not var.remember:
+                continue
+
+            candidate_secret_vars.append(var)
+
+        if not candidate_secret_vars:
+            filter_label = "remember=true" if not include_all else "any remember value"
+            typer.echo(
+                f"No template-defined secret variables found for {filter_label}."
+            )
+            return
+
+        matched_secret_vars = []
+        missing_secret_keys: list[str] = []
+
+        for var in candidate_secret_vars:
+            value = env_values.get(var.key)
+            if value is None:
+                missing_secret_keys.append(var.key)
+                continue
+
+            matched_secret_vars.append((var, value))
+
+        if not matched_secret_vars:
+            typer.echo(
+                "No matching secret values were found in the local .env file for the selected filter."
+            )
+            return
+
+        if keys_only:
+            typer.echo(f"Secret keys for {selected.project_name}:")
+            for var, _ in matched_secret_vars:
+                typer.echo(var.key)
+
+            if missing_secret_keys:
+                typer.echo(
+                    f"Skipped {len(missing_secret_keys)} secret key(s) not present in {env_path.name}."
+                )
+
+            logger.info(
+                "Displayed %d secret key(s) for project %s (include_all=%s)",
+                len(matched_secret_vars),
+                selected.project_name,
+                include_all,
+            )
+            return
+
+        secrets: list[GeneratedSecret] = []
+        for var, value in matched_secret_vars:
+            kind_text = _value_kind_to_text(var.value_type.kind)
+            secrets.append(
+                GeneratedSecret(
+                    key=var.key,
+                    kind=kind_text,
+                    plaintext=value,
+                    description=var.description,
+                )
+            )
+
+        console.print()
+        console.print(
+            "[bold yellow]⚠  DISPLAYING STORED SECRET VALUES FROM YOUR LOCAL .env FILE.[/bold yellow]"
+        )
+        console.print()
+        console.print(
+            ProjectTableBuilder.build_secrets_summary(
+                secrets,
+                title=f"Project Secrets: {selected.project_name}",
+            )
+        )
+        console.print()
+
+        if missing_secret_keys:
+            typer.echo(
+                f"Skipped {len(missing_secret_keys)} secret key(s) not present in {env_path.name}."
+            )
+
+        logger.info(
+            "Displayed %d secret value(s) for project %s (include_all=%s)",
+            len(secrets),
+            selected.project_name,
+            include_all,
+        )
+    except typer.Exit:
+        raise
+    except Exception as exc:
+        logger.exception("show-secrets failed for %s", project_name)
+        typer.echo(f"show-secrets failed: {exc}", err=True)
         raise typer.Exit(code=1)
 
 
@@ -1500,11 +1706,6 @@ def deploy(
             parsed,
             use_recommended=use_recommended,
             compute_context=ComputeContext(host_preferences=host_prefs),
-            interpolation_context=load_interpolation_context(
-                shared_env_dir=compose_dir / "00.env",
-                project_env_file=env_file,
-                strict=False,
-            ),
         )
     except KeyboardInterrupt:
         logger.info("Deploy aborted by user during interactive prompts")
