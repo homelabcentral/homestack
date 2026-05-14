@@ -314,8 +314,7 @@ class EnvTemplateParser:
                     line=line_number,
                     field="derive",
                     message=(
-                        "Both derive and compute are declared; derive takes "
-                        "precedence"
+                        "Both derive and compute are declared; derive takes precedence"
                     ),
                     raw_fragment=f"derive={derive}",
                 )

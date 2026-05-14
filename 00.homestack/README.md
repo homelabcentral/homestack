@@ -47,7 +47,6 @@ Deploy self-hosted Docker Compose stacks with ease — works similarly to Homebr
     - [`list`](#list)
     - [`search`](#search)
     - [`info`](#info)
-    - [`show-secrets`](#show-secrets)
     - [`pull`](#pull)
     - [`deploy`](#deploy)
     - [`start`](#start)
@@ -65,10 +64,6 @@ Deploy self-hosted Docker Compose stacks with ease — works similarly to Homebr
     - [File Downloader](#file-downloader)
     - [`.env.template` Format and Parser](#envtemplate-format-and-parser)
       - [Inline key=value fields](#inline-keyvalue-fields)
-      - [`compute=` safety model](#compute-safety-model)
-      - [`derive=` value interpolation](#derive-value-interpolation)
-    - [Text Interpolation \& Variable Resolution](#text-interpolation--variable-resolution)
-    - [User-Facing Console Output (Rich Formatter)](#user-facing-console-output-rich-formatter)
     - [Questionary Form Builder](#questionary-form-builder)
     - [Deploy Flow (Step by Step)](#deploy-flow-step-by-step)
     - [Path Derivation](#path-derivation)
@@ -412,34 +407,6 @@ Displays detailed metadata for a single project: description, supported architec
 ```bash
 homestack info karakeep
 ```
-
----
-
-### `show-secrets`
-
-```bash
-homestack show-secrets <project> [--all] [--keys-only]
-```
-
-Displays secret values currently stored in the local `<project>/.env` file.
-
-- By default, only secret variables with `remember=true` in the project's `.env.template` are shown.
-- With `--all`, secrets marked `remember=false` are included as well.
-- With `--keys-only`, only matching secret variable names are printed (no plaintext values).
-
-```bash
-# show only remember=true secrets
-homestack show-secrets karakeep
-
-# show all template-defined secret values
-homestack show-secrets karakeep --all
-
-# show secret variable names only
-homestack show-secrets karakeep --keys-only
-```
-
-> [!WARNING]
-> This command prints plaintext values from your local `.env` file to the terminal.
 
 ---
 
@@ -824,7 +791,6 @@ All per-variable inline metadata keys are optional.
 | `remember` | `false` | No | For generated secrets, include plaintext in the end-of-run summary so the user can save it. | `remember=true` |
 | `description` | `None` | No | Human-readable variable description used in docs and summaries. | `description=Public web port` |
 | `compute` | `None` | No | Compute default value from a safe built-in resolver. Allowed resolvers: `username`, `uid`, `gid`, `docker_gid`, `private_ip`, `public_ip`, `tailscale_ip`. | `compute=uid` |
-| `derive` | `None` | No | Derive value from other variables in shared env files or current .env file using `${VAR}` syntax. Follows precedence: 00.env < current .env < in-session answers. For mutable variables, shows derived value as recommended default. | `derive=${SOURCE_HOST}-${SOURCE_PORT}` |
 
 Composite example:
 
@@ -845,9 +811,6 @@ IP_PUBLIC= # type=ip | compute=public_ip
 IP_TAILSCALE= # type=ip | compute=tailscale_ip
 DOCKER_SOCKET=/var/run/docker.sock # immutable=true
 JWT_SECRET= # type=password(32,64) | remember=true
-DB_HOST= # derive=${DATABASE_HOST}
-DB_PORT= # derive=${DATABASE_PORT:-5432}
-SERVICE_URL= # derive=http://${HOSTNAME}-${SERVICE_NAME}:${SERVICE_PORT}
 ```
 
 #### `compute=` safety model
@@ -860,156 +823,7 @@ SERVICE_URL= # derive=http://${HOSTNAME}-${SERVICE_NAME}:${SERVICE_PORT}
 - The CLI never uses `subprocess`, `os.system`, `eval`, `exec`, or dynamic imports for `compute`.
 - Invalid or unsupported `compute` values stop generation with an explicit error.
 
-#### `derive=` value interpolation
-
-`derive=` allows variables to reference values from other variables using `${VAR}` and `${VAR:-default}` syntax. This enables building composite values from shared configuration, shared env files, and previously-collected template answers.
-
-**Derivation context and precedence:**
-
-Values are resolved in precedence order:
-1. **Shared env files** (`00.env/*.env`) — baseline values shared across all projects
-2. **Current project `.env` file** — project-specific overrides (if already exists)
-3. **In-session answers** — values collected from the current template generation run (highest precedence)
-
-**How derive interacts with immutable and mutable variables:**
-
-- **Immutable variables** (`immutable=true`): The derived value is auto-applied without prompting. Example:
-  ```ini
-  SHARED_HOSTNAME=localhost # computed or provided in host.env
-  ADMIN_URL=http://${SHARED_HOSTNAME}:9000 # immutable=true | derive=...
-  ```
-  If `SHARED_HOSTNAME` is found, `ADMIN_URL` is automatically set to `http://localhost:9000` without asking.
-
-- **Mutable variables** (`immutable=false` or not set): The derived value is shown as the recommended default in an interactive prompt, allowing the user to override it:
-  ```ini
-  DB_HOST=postgres.example.com # in host.env
-  DB_CONNECTION= # mutable | derive=postgresql://user:pass@${DB_HOST}:5432/app
-  ```
-  During deployment, the user is prompted: "Enter database connection" with a recommended default of `postgresql://user:pass@postgres.example.com:5432/app`. They can accept it or type a different value.
-
-**Examples:**
-
-```ini
-# Simple variable reference
-SOURCE_HOST=192.168.1.10 # from shared host.env
-BACKUP_HOST= # derive=${SOURCE_HOST}
-
-# With default fallback (if variable is missing, use the default)
-REPLICA_PORT= # derive=${BACKUP_PORT:-5432}
-
-# Composite URLs
-DOMAIN=example.com # from network.env
-SERVICE_NAME=app
-SERVICE_PORT=8080
-PUBLIC_URL= # derive=https://${SERVICE_NAME}.${DOMAIN}:${SERVICE_PORT}
-
-# Multi-variable derivation with defaults
-MAIL_SERVER=smtp.internal # from email.env or 00.env/email.env.template
-MAIL_PORT=587 # default
-MAIL_FROM_URL= # derive=smtp://${MAIL_SERVER}:${MAIL_PORT:-587}
-```
-
-**Validation on derived values:**
-
-Derived values are validated the same way as typed input:
-- If the variable has `type=int`, the derived value must be parseable as an integer.
-- If the variable has `choices=`, the derived value must be one of the allowed choices.
-- If the variable is marked `type=secret` or similar secret type, derivation is rejected (secrets must be generated fresh or provided interactively).
-
-**Safety notes:**
-
-- Only `${VAR}` and `${VAR:-default}` syntax is supported. Expressions like `${VAR?error}` or `${VAR##pattern}` are not evaluated (shell expansions are not supported).
-- Derive expressions do not execute shell commands, Python code, or external processes.
-- Circular or multi-step derives (e.g., A depends on B, B depends on C) are detected and fail with a clear error.
-
 ---
-
-### Text Interpolation & Variable Resolution
-
-The `utils/text_interpolation.py` module handles variable interpolation across `.env.template` parsing, form generation, and deployment workflows.
-
-**Interpolation syntax:**
-
-- `${VAR}` — requires `VAR` to exist; fails if missing (in strict mode)
-- `${VAR:-default}` — uses `default` if `VAR` is missing or empty
-- `${VAR?error message}` — requires `VAR`; shows custom error message if missing
-
-**Context layers:**
-
-`load_interpolation_context()` builds a three-layer resolution context:
-1. Load all files from `00.env/*.env` (shared baseline)
-2. Load the target project's `.env` file (if it already exists)
-3. Merge with in-session answers (e.g., values collected during template prompting)
-
-Each layer overrides the previous one, allowing late-stage customization.
-
-**Usage in derive and compute:**
-
-Both `derive=` and template variable resolution use the same interpolation engine:
-- During template generation, the context includes shared env + current .env + in-session answers
-- During deployment, the full resolved context is available for variable substitution
-
-Example flow:
-```
-00.env/host.env:        HOSTNAME=myhost
-00.env/network.env:     VLAN_ID=10
-current .env:           HOSTNAME=custom-host    (overrides 00.env/host.env)
-in-session answers:     VLAN_ID=20              (overrides 00.env/network.env)
-
-Interpolation context:
-  HOSTNAME=custom-host  (from current .env)
-  VLAN_ID=20            (from in-session)
-  
-Variable resolution:
-  derive=${HOSTNAME}-${VLAN_ID}  →  custom-host-20
-```
-
----
-
-### User-Facing Console Output (Rich Formatter)
-
-The `utils/rich_formatter.py` module provides beautifully formatted console messages via a global `formatter` singleton. This ensures consistent, visually rich output across all CLI commands.
-
-**10 Message Types:**
-
-- 💡 **info** — informational messages (cyan, bold)
-- ✗ **error** — error messages (red, bold)
-- ⚠ **warning** — warnings (yellow, bold)
-- 🐛 **debug** — debug output (magenta, dim)
-- ✓ **success** — success confirmations (green, bold)
-- 💬 **hint** — user hints and suggestions (blue, italic)
-- ▶ **step** — multi-step process indicators (white, bold)
-- ⚙ **command** — commands being executed (bright cyan, bold)
-- 🎯 **result** — result/outcome messages (bright green, bold)
-- ★ **title** — section headers (bright white, bold, underline)
-
-**Usage in CLI:**
-
-```python
-from utils.rich_formatter import formatter
-
-# Simple messages
-formatter.success("Deployment completed")
-formatter.error("Connection timeout", details="Retry in 5 seconds")
-formatter.step("Step 1: Validating configuration")
-
-# Structured output
-formatter.table([
-    {"Service": "web-app", "Status": "Running"},
-    {"Service": "database", "Status": "Running"},
-])
-
-formatter.success_summary({
-    "Dashboard": "http://localhost:8080",
-    "API": "http://localhost:8000",
-})
-```
-
-All rich formatter output respects terminal capabilities and gracefully degrades on non-TTY outputs.
-
----
-
-
 
 ### Questionary Form Builder
 

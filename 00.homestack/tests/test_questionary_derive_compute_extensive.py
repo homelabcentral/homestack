@@ -85,7 +85,11 @@ class TestDeriveExtensive:
         "expression,context,expected",
         [
             ("${APP}", {"APP": "vault"}, "vault"),
-            ("https://${APP}.${DOMAIN}", {"APP": "vault", "DOMAIN": "lan"}, "https://vault.lan"),
+            (
+                "https://${APP}.${DOMAIN}",
+                {"APP": "vault", "DOMAIN": "lan"},
+                "https://vault.lan",
+            ),
             ("${MISSING:-fallback}", {}, "fallback"),
             ("cost-$$5", {}, "cost-$5"),
         ],
@@ -244,7 +248,9 @@ class TestComputeExtensive:
             )
 
     def test_compute_result_validation_int_with_monkeypatch(self):
-        var = _var("USER_ID", value_type=_vtype("int"), extra_metadata={"compute": "uid"})
+        var = _var(
+            "USER_ID", value_type=_vtype("int"), extra_metadata={"compute": "uid"}
+        )
         with patch("cli.questionary.resolve_computed_value", return_value="not-an-int"):
             with pytest.raises(ValueError, match="must be a valid integer"):
                 build_form_from_template(
@@ -368,7 +374,9 @@ class TestDeriveComputeMixed:
             derive="${APP_NAME}.lan",
             extra_metadata={"compute": "username"},
         )
-        with pytest.raises(ValueError, match="derive and compute cannot be used together"):
+        with pytest.raises(
+            ValueError, match="derive and compute cannot be used together"
+        ):
             build_form_from_template(
                 _parsed(var),
                 use_recommended=True,

@@ -5,11 +5,9 @@ Tests all message types, formatting, colors, emoji, helper methods,
 and singleton behavior.
 """
 
-from io import StringIO
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
-from rich.console import Console
 from rich.panel import Panel
 from rich.text import Text
 from utils.rich_formatter import RichFormatter, formatter
@@ -86,7 +84,9 @@ class TestRichFormatterWithDetails:
     def test_success_with_details(self):
         """Test success message with details."""
         rf = RichFormatter()
-        rf.success("Deployment complete", details="Services available at localhost:3000")
+        rf.success(
+            "Deployment complete", details="Services available at localhost:3000"
+        )
 
 
 class TestRichFormatterOptions:
@@ -113,7 +113,18 @@ class TestMessageConfiguration:
 
     def test_all_message_types_in_config(self):
         """Verify all expected message types have configuration."""
-        expected_types = {"info", "error", "warning", "debug", "success", "hint", "step", "command", "result", "title"}
+        expected_types = {
+            "info",
+            "error",
+            "warning",
+            "debug",
+            "success",
+            "hint",
+            "step",
+            "command",
+            "result",
+            "title",
+        }
         assert set(RichFormatter._MESSAGE_CONFIG.keys()) == expected_types
 
     def test_config_structure(self):
@@ -122,7 +133,9 @@ class TestMessageConfiguration:
             assert "emoji" in config, f"{msg_type} missing emoji"
             assert "color" in config, f"{msg_type} missing color"
             assert "format" in config, f"{msg_type} missing format"
-            assert isinstance(config["format"], list), f"{msg_type} format should be list"
+            assert isinstance(config["format"], list), (
+                f"{msg_type} format should be list"
+            )
 
     def test_config_values(self):
         """Verify message configuration values are non-empty."""
@@ -237,7 +250,7 @@ class TestHelperMethods:
     def test_code_block_with_line_numbers(self):
         """Test code block with line numbers."""
         rf = RichFormatter()
-        code = 'line1\nline2\nline3'
+        code = "line1\nline2\nline3"
         rf.code_block(code, language="python", line_numbers=True)
 
     def test_list_items_basic(self):
@@ -317,13 +330,19 @@ class TestSpecializedFormatters:
     def test_success_summary_dict(self):
         """Test success summary with dict."""
         rf = RichFormatter()
-        items = {"Service A": "http://localhost:3000", "Service B": "http://localhost:4000"}
+        items = {
+            "Service A": "http://localhost:3000",
+            "Service B": "http://localhost:4000",
+        }
         rf.success_summary(items)
 
     def test_success_summary_dict_custom_title(self):
         """Test success summary with custom title."""
         rf = RichFormatter()
-        items = {"Database": "postgres://localhost:5432", "Cache": "redis://localhost:6379"}
+        items = {
+            "Database": "postgres://localhost:5432",
+            "Cache": "redis://localhost:6379",
+        }
         rf.success_summary(items, title="🚀 Setup Complete")
 
     def test_success_summary_list(self):
@@ -479,7 +498,18 @@ class TestAllMessageTypesComprehensive:
 
     @pytest.mark.parametrize(
         "method_name",
-        ["info", "error", "warning", "debug", "success", "hint", "step", "command", "result", "title"],
+        [
+            "info",
+            "error",
+            "warning",
+            "debug",
+            "success",
+            "hint",
+            "step",
+            "command",
+            "result",
+            "title",
+        ],
     )
     def test_all_message_types_basic(self, method_name):
         """Test all message types with basic usage."""
@@ -489,7 +519,18 @@ class TestAllMessageTypesComprehensive:
 
     @pytest.mark.parametrize(
         "method_name",
-        ["info", "error", "warning", "debug", "success", "hint", "step", "command", "result", "title"],
+        [
+            "info",
+            "error",
+            "warning",
+            "debug",
+            "success",
+            "hint",
+            "step",
+            "command",
+            "result",
+            "title",
+        ],
     )
     def test_all_message_types_with_details(self, method_name):
         """Test all message types with details."""
@@ -499,7 +540,18 @@ class TestAllMessageTypesComprehensive:
 
     @pytest.mark.parametrize(
         "method_name",
-        ["info", "error", "warning", "debug", "success", "hint", "step", "command", "result", "title"],
+        [
+            "info",
+            "error",
+            "warning",
+            "debug",
+            "success",
+            "hint",
+            "step",
+            "command",
+            "result",
+            "title",
+        ],
     )
     def test_all_message_types_without_prefix(self, method_name):
         """Test all message types without emoji prefix."""
@@ -509,7 +561,18 @@ class TestAllMessageTypesComprehensive:
 
     @pytest.mark.parametrize(
         "method_name",
-        ["info", "error", "warning", "debug", "success", "hint", "step", "command", "result", "title"],
+        [
+            "info",
+            "error",
+            "warning",
+            "debug",
+            "success",
+            "hint",
+            "step",
+            "command",
+            "result",
+            "title",
+        ],
     )
     def test_all_message_types_with_title(self, method_name):
         """Test all message types with title parameter."""

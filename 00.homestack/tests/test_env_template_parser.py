@@ -104,7 +104,9 @@ class TestEnvTemplateParser:
             for w in parsed.warnings
         )
 
-    def test_derive_is_preserved_in_extra_metadata_for_compatibility(self, tmp_path: Path):
+    def test_derive_is_preserved_in_extra_metadata_for_compatibility(
+        self, tmp_path: Path
+    ):
         template_path = _write_template(
             tmp_path,
             """APP_URL= # type=string | derive=${APP_NAME}.${DOMAIN}
@@ -114,7 +116,9 @@ class TestEnvTemplateParser:
 
         assert len(parsed.variables) == 1
         assert parsed.variables[0].derive == "${APP_NAME}.${DOMAIN}"
-        assert parsed.variables[0].extra_metadata.get("derive") == "${APP_NAME}.${DOMAIN}"
+        assert (
+            parsed.variables[0].extra_metadata.get("derive") == "${APP_NAME}.${DOMAIN}"
+        )
 
     def test_malformed_compute_adds_warning(self, tmp_path: Path):
         template_path = _write_template(

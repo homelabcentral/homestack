@@ -82,7 +82,9 @@ def test_show_secrets_defaults_to_remember_true_only(tmp_path: Path) -> None:
     _write_project_files(install_dir, project)
 
     with (
-        patch("cli.cli._require_init_or_exit", return_value=_host_prefs(str(install_dir))),
+        patch(
+            "cli.cli._require_init_or_exit", return_value=_host_prefs(str(install_dir))
+        ),
         patch("cli.cli._load_cached_projects", return_value=[project]),
     ):
         result = runner.invoke(app, ["show-secrets", "demo project"])
@@ -100,7 +102,9 @@ def test_show_secrets_all_includes_remember_false(tmp_path: Path) -> None:
     _write_project_files(install_dir, project)
 
     with (
-        patch("cli.cli._require_init_or_exit", return_value=_host_prefs(str(install_dir))),
+        patch(
+            "cli.cli._require_init_or_exit", return_value=_host_prefs(str(install_dir))
+        ),
         patch("cli.cli._load_cached_projects", return_value=[project]),
     ):
         result = runner.invoke(app, ["show-secrets", "demo project", "--all"])
@@ -117,7 +121,9 @@ def test_show_secrets_keys_only_hides_values(tmp_path: Path) -> None:
     _write_project_files(install_dir, project)
 
     with (
-        patch("cli.cli._require_init_or_exit", return_value=_host_prefs(str(install_dir))),
+        patch(
+            "cli.cli._require_init_or_exit", return_value=_host_prefs(str(install_dir))
+        ),
         patch("cli.cli._load_cached_projects", return_value=[project]),
     ):
         result = runner.invoke(app, ["show-secrets", "demo project", "--keys-only"])
@@ -128,13 +134,17 @@ def test_show_secrets_keys_only_hides_values(tmp_path: Path) -> None:
     assert "ADMIN_HASH" not in result.output
 
 
-def test_show_secrets_keys_only_with_all_includes_remember_false(tmp_path: Path) -> None:
+def test_show_secrets_keys_only_with_all_includes_remember_false(
+    tmp_path: Path,
+) -> None:
     install_dir = tmp_path / "homestack"
     project = _project_item()
     _write_project_files(install_dir, project)
 
     with (
-        patch("cli.cli._require_init_or_exit", return_value=_host_prefs(str(install_dir))),
+        patch(
+            "cli.cli._require_init_or_exit", return_value=_host_prefs(str(install_dir))
+        ),
         patch("cli.cli._load_cached_projects", return_value=[project]),
     ):
         result = runner.invoke(
@@ -159,7 +169,9 @@ def test_show_secrets_fails_when_local_env_missing(tmp_path: Path) -> None:
     )
 
     with (
-        patch("cli.cli._require_init_or_exit", return_value=_host_prefs(str(install_dir))),
+        patch(
+            "cli.cli._require_init_or_exit", return_value=_host_prefs(str(install_dir))
+        ),
         patch("cli.cli._load_cached_projects", return_value=[project]),
     ):
         result = runner.invoke(app, ["show-secrets", "demo project"])

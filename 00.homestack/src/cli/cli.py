@@ -1273,7 +1273,9 @@ def list_projects() -> None:
             logger.warning(warning)
             typer.echo(f"⚠ {warning}")
 
-        table = ProjectTableBuilder.build(rendered_projects, title="Deployable Projects")
+        table = ProjectTableBuilder.build(
+            rendered_projects, title="Deployable Projects"
+        )
         console.print(table)
         logger.info("Listed %d project(s)", len(rendered_projects))
     except Exception as exc:

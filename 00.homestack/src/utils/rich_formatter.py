@@ -7,7 +7,7 @@ formatting (bold, italic, underline), and distinct colors.
 
 Usage:
     from utils.rich_formatter import formatter
-    
+
     formatter.info("Starting deployment")
     formatter.success("Deployment complete")
     formatter.error("Connection failed", details="Check your network")
@@ -18,7 +18,7 @@ Usage:
     formatter.result("Services ready at http://localhost:3000")
     formatter.debug("Debug: variable x = 42")
     formatter.title("🎯 Deployment Summary")
-    
+
     # Complex formatting
     formatter.panel("Setup Complete", "Your services are ready")
     formatter.table({"Host": "localhost", "Port": "3000"})
@@ -50,7 +50,11 @@ class RichFormatter:
         "step": {"emoji": "▶", "color": "white", "format": ["bold"]},
         "command": {"emoji": "⚙", "color": "bright_cyan", "format": ["bold"]},
         "result": {"emoji": "🎯", "color": "bright_green", "format": ["bold"]},
-        "title": {"emoji": "★", "color": "bright_white", "format": ["bold", "underline"]},
+        "title": {
+            "emoji": "★",
+            "color": "bright_white",
+            "format": ["bold", "underline"],
+        },
     }
 
     def __init__(self) -> None:
@@ -102,7 +106,9 @@ class RichFormatter:
             # Use panel for messages with details (better visual hierarchy)
             panel = Panel(
                 message_text,
-                title=f"{emoji} {message_type.upper()}" if prefix else message_type.upper(),
+                title=f"{emoji} {message_type.upper()}"
+                if prefix
+                else message_type.upper(),
                 expand=False,
                 style=f"{color} dim",
             )
@@ -378,7 +384,9 @@ class RichFormatter:
         self._console.print(f"[green bold]{title}[/green bold]")
         if isinstance(items, dict):
             for label, value in items.items():
-                self._console.print(f"  [green]✓[/green] [white]{label}:[/white] {value}")
+                self._console.print(
+                    f"  [green]✓[/green] [white]{label}:[/white] {value}"
+                )
         else:
             for item in items:
                 self._console.print(f"  [green]✓[/green] {item}")

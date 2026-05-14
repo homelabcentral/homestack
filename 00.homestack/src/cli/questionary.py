@@ -497,9 +497,7 @@ def _resolve_derived_value(
         raise ValueError(f"{var.key}: derive expression is empty")
 
     if _has_compute_resolver(var):
-        raise ValueError(
-            f"{var.key}: derive and compute cannot be used together"
-        )
+        raise ValueError(f"{var.key}: derive and compute cannot be used together")
 
     kind = EnvValueKind(var.value_type.kind) if var.value_type else None
     if kind in _SECRET_KINDS:
