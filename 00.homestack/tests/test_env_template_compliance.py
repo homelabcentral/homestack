@@ -14,7 +14,6 @@ from pathlib import Path
 import pytest
 from parsers import EnvTemplateParser
 
-
 # Inline metadata is optional. When type is omitted, runtime defaults to string.
 REQUIRED_INLINE_KEYS: tuple[str, ...] = ()
 
