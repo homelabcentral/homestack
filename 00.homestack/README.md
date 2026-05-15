@@ -775,16 +775,17 @@ The `EnvTemplateParser` (`parsers/env_template_parser.py`) reads these annotatio
 Bounds are supported for `string`, `int`, `float`, `password`, `passphrase`, `base64`, and `base64urlsafe` using `type=kind(min,max)` syntax (for example `type=string(3,16)`).
 
 Variables marked `immutable=true` are pre-filled and not shown as interactive prompts (for example `DOCKER_SOCKET=/var/run/docker.sock`).
+For mutable variables (`immutable=false`, or when immutable is omitted), provide a `prompt=` message so interactive mode has explicit user-facing text.
 
 #### Inline key=value fields
 
-All per-variable inline metadata keys are optional.
+All per-variable inline metadata keys are optional except `prompt` for mutable variables (`immutable=false` or omitted).
 
 | Key | Default | Required | Description | Example |
 | --- | --- | --- | --- | --- |
 | `recommended` | `None` | No | Suggested value used by `--use-recommends` or as the default prompt value when appropriate. For `type=boolean`, values are normalized to `true`/`false`. | `recommended=8080` |
 | `type` | `None` | No | Value kind and optional bounds used for validation, prompt behavior, and secure generation. | `type=password(12,64)` |
-| `prompt` | `None` | No | Prompt text shown to the user in interactive mode. | `prompt=Enter service port` |
+| `prompt` | `None` | Yes when `immutable=false` (or omitted) | Prompt text shown to the user in interactive mode. | `prompt=Enter service port` |
 | `instruction` | `None` | No | Helper text shown below the prompt. | `instruction=Use a value between 1024 and 65535` |
 | `choices` | `None` (or `[]` if explicitly set) | No | Allowed choices for select-style input. Supports per-choice `description` and `default=true`. | `choices=[80 (description=HTTP, default=true), 443 (description=HTTPS)]` |
 | `immutable` | `false` | No | Skip prompting for this variable and keep the resolved value as-is. | `immutable=true` |

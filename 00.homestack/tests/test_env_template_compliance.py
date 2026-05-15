@@ -88,6 +88,17 @@ def _iter_template_variable_lines(template_path: Path):
         yield line_number, line
 
 
+def _parse_bool_like_parser(value: str | None) -> bool | None:
+    if value is None:
+        return None
+    normalized = value.strip().lower()
+    if normalized in {"1", "true", "yes", "y"}:
+        return True
+    if normalized in {"0", "false", "no", "n"}:
+        return False
+    return None
+
+
 def _validate_inline_contract(template_path: Path) -> list[ComplianceViolation]:
     violations: list[ComplianceViolation] = []
 
@@ -118,6 +129,7 @@ def _validate_inline_contract(template_path: Path) -> list[ComplianceViolation]:
 
         fragments = _inline_fragments(rhs)
         parsed_keys: list[str] = []
+        parsed_metadata: dict[str, str] = {}
 
         for fragment in fragments:
             if "=" not in fragment:
@@ -136,7 +148,7 @@ def _validate_inline_contract(template_path: Path) -> list[ComplianceViolation]:
                 )
                 continue
 
-            raw_key, _raw_value = fragment.split("=", 1)
+            raw_key, raw_value = fragment.split("=", 1)
             key_name = raw_key.strip().lower()
             if not key_name:
                 violations.append(
@@ -149,6 +161,7 @@ def _validate_inline_contract(template_path: Path) -> list[ComplianceViolation]:
                 )
                 continue
             parsed_keys.append(key_name)
+            parsed_metadata[key_name] = raw_value.strip()
 
         counts = Counter(parsed_keys)
         for duplicated_key, count in sorted(counts.items()):
@@ -175,9 +188,17 @@ def _validate_inline_contract(template_path: Path) -> list[ComplianceViolation]:
             for required_key in REQUIRED_INLINE_KEYS
             if required_key not in parsed_set
         ]
+
+        parsed_immutable = _parse_bool_like_parser(parsed_metadata.get("immutable"))
+        effective_immutable = (
+            parsed_immutable if parsed_immutable is not None else False
+        )
+        if not effective_immutable and "prompt" not in parsed_set:
+            missing_required.append("prompt")
+
         if missing_required:
             readable = ", ".join(missing_required)
-            fix_parts = [f"{name}=..." for name in missing_required]
+            fix_parts = [f"{name}=..." for name in sorted(set(missing_required))]
             violations.append(
                 ComplianceViolation(
                     line=line_number,
@@ -188,6 +209,8 @@ def _validate_inline_contract(template_path: Path) -> list[ComplianceViolation]:
                     fix=(
                         "Add required metadata fragments to this variable line: "
                         + " | ".join(fix_parts)
+                        + ". Prompt is required when immutable=false (or omitted). "
+                        "If this variable should not prompt, set immutable=true."
                     ),
                 )
             )
@@ -322,7 +345,9 @@ def _write_template(tmp_path: Path, body: str) -> Path:
 
 
 def test_strict_contract_allows_lines_without_required_inline_keys(tmp_path: Path):
-    template = _write_template(tmp_path, "APP_NAME= # recommended=demo\n")
+    template = _write_template(
+        tmp_path, "APP_NAME= # recommended=demo | immutable=true\n"
+    )
 
     violations = _validate_inline_contract(template)
     assert not any(v.code == "MISSING_REQUIRED_INLINE_KEYS" for v in violations)
@@ -356,10 +381,34 @@ def test_strict_contract_flags_malformed_inline_fragments(tmp_path: Path):
 
 
 def test_strict_contract_allows_optional_inline_keys_to_be_omitted(tmp_path: Path):
-    template = _write_template(tmp_path, "APP_MODE= # type=string\n")
+    template = _write_template(tmp_path, "APP_MODE= # type=string | immutable=true\n")
 
     violations = _validate_inline_contract(template)
     assert violations == []
+
+
+def test_strict_contract_requires_prompt_for_mutable_variable(tmp_path: Path):
+    template = _write_template(tmp_path, "APP_MODE= # type=string | immutable=false\n")
+
+    violations = _validate_inline_contract(template)
+    assert any(
+        v.code == "MISSING_REQUIRED_INLINE_KEYS" and "prompt" in v.message
+        for v in violations
+    )
+
+    report = _format_violations(template, violations)
+    assert "prompt=..." in report
+    assert "immutable=true" in report
+
+
+def test_strict_contract_requires_prompt_when_immutable_is_omitted(tmp_path: Path):
+    template = _write_template(tmp_path, "APP_MODE= # type=string\n")
+
+    violations = _validate_inline_contract(template)
+    assert any(
+        v.code == "MISSING_REQUIRED_INLINE_KEYS" and "prompt" in v.message
+        for v in violations
+    )
 
 
 def test_incompatible_recommended_and_choices_get_actionable_message(tmp_path: Path):
