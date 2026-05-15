@@ -39,7 +39,16 @@
       "arm64"
     ],
     "ready_to_deploy": true,
-    "config_files": null,
+    "config_files": [
+      {
+        "path": "ports.yml",
+        "constant": false
+      },
+      {
+        "path": "dashboard.yml",
+        "constant": false
+      }
+    ],
     "pre_install_steps": null,
     "post_install_steps": null,
     "post_setup_steps": null
@@ -94,6 +103,10 @@
       },
       {
         "path": "data/config.yml",
+        "constant": false
+      },
+      {
+        "path": "ports.yml",
         "constant": false
       }
     ],

@@ -1,0 +1,11 @@
+services:
+  # This will make the pihole dashboard available on port 8000 across all network interfaces.
+  localhost:
+    ports:
+      - ${PORT_PH_PIHOLE:-8000}:${PORT_PH_PIHOLE:-8000}/tcp
+  # This will make the pihole dashboard available on port 8000 only on the Tailscale IP address, which is more secure if you have other services running on the same server that use port 80.
+  tailscale:
+    ports:
+      - ${IP_TAILSCALE}:${PORT_PH_PIHOLE:-8000}:${PORT_PH_PIHOLE:-8000}/tcp #Allows use of different port to access pihole web interface when other docker containers use port 80
+  # This will import nothing, that mean pihole will only be accessible via traefik
+  none: {}

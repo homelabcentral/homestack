@@ -18,7 +18,7 @@ services:
           memory: ${RAM_MIN_NS_NEBULA_SYNC:-6M}
     environment:
       - PRIMARY=${PRIMARY_PIHOLE_URL}|${PRIMARY_PIHOLE_PASSWORD}
-      - REPLICAS=${REPLICA_1_URL}|${REPLICA_1_PASSWORD},${REPLICA_2_URL}|${REPLICA_2_PASSWORD}
+      - REPLICAS=${REPLICA_1_URL}|${REPLICA_1_PASSWORD},${REPLICA_2_URL}|${REPLICA_2_PASSWORD} # Add more replicas as needed, just follow the format of URL|PASSWORD and separate with commas
       - FULL_SYNC=true
       - RUN_GRAVITY=true
       - CRON=0 * * * *

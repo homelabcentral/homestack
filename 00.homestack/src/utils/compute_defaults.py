@@ -261,6 +261,84 @@ def _resolve_timezone(_context: ComputeContext) -> str:
     return _fetch_system_timezone()
 
 
+def _format_memory_value(ram_mb: int) -> str:
+    """Format memory in MB to a docker-compose compatible string with unit suffix.
+
+    Uses the largest whole unit, rounding to nearest integer to avoid decimals.
+    Examples: 512 MB -> "512M", 1024 MB -> "1G", 16000 MB -> "16G"
+    """
+    units = [("T", 1024 * 1024), ("G", 1024), ("M", 1)]
+
+    for unit_name, divisor in units:
+        if ram_mb >= divisor:
+            # Round to nearest integer for cleaner output
+            rounded = round(ram_mb / divisor)
+            if rounded > 0:
+                return f"{rounded}{unit_name}"
+
+    # Fallback for very small values
+    return f"{ram_mb}M"
+
+
+def _parse_percent_suffix(resolver_name: str) -> int | None:
+    """Parse percent value from resolver name like 'host_ram_80' -> 80.
+
+    Returns None if the name doesn't match the pattern.
+    Raises ComputeResolverError if percent is invalid.
+    """
+    for prefix in ("host_ram_", "host_cpu_"):
+        if resolver_name.startswith(prefix):
+            suffix = resolver_name[len(prefix) :]
+            try:
+                percent = int(suffix)
+            except ValueError:
+                raise ComputeResolverError(
+                    f"Resolver '{resolver_name}' has non-numeric suffix: '{suffix}'"
+                )
+
+            if not (0 <= percent <= 100):
+                raise ComputeResolverError(
+                    f"Resolver '{resolver_name}' has invalid percent: {percent} (must be 0-100)"
+                )
+            return percent
+    return None
+
+
+def _resolve_host_ram(context: ComputeContext) -> str:
+    """Resolve the total RAM available on the host machine."""
+    prefs = _require_host_prefs(context, "host_ram")
+    if prefs.ram_mb is None:
+        raise ComputeResolverError(
+            "Resolver 'host_ram' could not determine host RAM on this platform"
+        )
+    return _format_memory_value(prefs.ram_mb)
+
+
+def _resolve_host_cpu(context: ComputeContext) -> str:
+    """Resolve the total number of CPU threads available on the host machine."""
+    prefs = _require_host_prefs(context, "host_cpu")
+    return str(prefs.cpu_count)
+
+
+def _resolve_host_ram_percent(percent: int, context: ComputeContext) -> str:
+    """Resolve a percentage of host RAM formatted as a memory value."""
+    prefs = _require_host_prefs(context, f"host_ram_{percent}")
+    if prefs.ram_mb is None:
+        raise ComputeResolverError(
+            "Resolver 'host_ram' could not determine host RAM on this platform"
+        )
+    percent_mb = int(prefs.ram_mb * percent / 100)
+    return _format_memory_value(percent_mb)
+
+
+def _resolve_host_cpu_percent(percent: int, context: ComputeContext) -> str:
+    """Resolve a percentage of host CPU threads as a float value."""
+    prefs = _require_host_prefs(context, f"host_cpu_{percent}")
+    percent_cpu = prefs.cpu_count * percent / 100
+    # Round to 2 decimals for consistency
+    return f"{percent_cpu:.2f}"
+
+
 _RESOLVERS = MappingProxyType(
     {
         "username": _resolve_username,
@@ -271,6 +349,8 @@ _RESOLVERS = MappingProxyType(
         "public_ip": _resolve_public_ip,
         "tailscale_ip": _resolve_tailscale_ip,
         "timezone": _resolve_timezone,
+        "host_ram": _resolve_host_ram,
+        "host_cpu": _resolve_host_cpu,
     }
 )
 
@@ -284,7 +364,7 @@ def resolve_computed_value(resolver_name: str, context: ComputeContext) -> str:
     """Resolve one computed value using a strict allow-list.
 
     The ``resolver_name`` must be a simple identifier and match one of the
-    registered names in this module.
+    registered names in this module. Supports dynamic names like host_ram_80.
     """
     normalized_name = resolver_name.strip().lower()
     if not normalized_name:
@@ -295,14 +375,24 @@ def resolve_computed_value(resolver_name: str, context: ComputeContext) -> str:
             f"Invalid compute resolver '{resolver_name}': only [a-z0-9_] identifiers are allowed"
         )
 
-    resolver = _RESOLVERS.get(normalized_name)
-    if resolver is None:
-        allowed = ", ".join(allowed_resolvers())
-        raise ComputeResolverError(
-            f"Unknown compute resolver '{normalized_name}'. Allowed resolvers: {allowed}"
-        )
+    # Check for dynamic percent-based resolvers first
+    percent = _parse_percent_suffix(normalized_name)
+    if percent is not None:
+        if normalized_name.startswith("host_ram_"):
+            value = _resolve_host_ram_percent(percent, context)
+        else:  # host_cpu_
+            value = _resolve_host_cpu_percent(percent, context)
+    else:
+        # Fall back to static resolver registry
+        resolver = _RESOLVERS.get(normalized_name)
+        if resolver is None:
+            allowed = ", ".join(allowed_resolvers())
+            raise ComputeResolverError(
+                f"Unknown compute resolver '{normalized_name}'. Allowed resolvers: {allowed}"
+            )
 
-    value = resolver(context)
+        value = resolver(context)
+
     if not isinstance(value, str):
         raise ComputeResolverError(
             f"Resolver '{normalized_name}' returned a non-string value"

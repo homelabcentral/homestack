@@ -64,6 +64,7 @@ Deploy self-hosted Docker Compose stacks with ease — works similarly to Homebr
     - [File Downloader](#file-downloader)
     - [`.env.template` Format and Parser](#envtemplate-format-and-parser)
       - [Inline key=value fields](#inline-keyvalue-fields)
+      - [`compute=` safety model](#compute-safety-model)
     - [Questionary Form Builder](#questionary-form-builder)
     - [Deploy Flow (Step by Step)](#deploy-flow-step-by-step)
     - [Path Derivation](#path-derivation)
@@ -775,22 +776,23 @@ The `EnvTemplateParser` (`parsers/env_template_parser.py`) reads these annotatio
 Bounds are supported for `string`, `int`, `float`, `password`, `passphrase`, `base64`, and `base64urlsafe` using `type=kind(min,max)` syntax (for example `type=string(3,16)`).
 
 Variables marked `immutable=true` are pre-filled and not shown as interactive prompts (for example `DOCKER_SOCKET=/var/run/docker.sock`).
+For mutable variables (`immutable=false`, or when immutable is omitted), provide a `prompt=` message so interactive mode has explicit user-facing text.
 
 #### Inline key=value fields
 
-All per-variable inline metadata keys are optional.
+All per-variable inline metadata keys are optional except `prompt` for mutable variables (`immutable=false` or omitted).
 
 | Key | Default | Required | Description | Example |
 | --- | --- | --- | --- | --- |
 | `recommended` | `None` | No | Suggested value used by `--use-recommends` or as the default prompt value when appropriate. For `type=boolean`, values are normalized to `true`/`false`. | `recommended=8080` |
 | `type` | `None` | No | Value kind and optional bounds used for validation, prompt behavior, and secure generation. | `type=password(12,64)` |
-| `prompt` | `None` | No | Prompt text shown to the user in interactive mode. | `prompt=Enter service port` |
+| `prompt` | `None` | Yes when `immutable=false` (or omitted) | Prompt text shown to the user in interactive mode. | `prompt=Enter service port` |
 | `instruction` | `None` | No | Helper text shown below the prompt. | `instruction=Use a value between 1024 and 65535` |
 | `choices` | `None` (or `[]` if explicitly set) | No | Allowed choices for select-style input. Supports per-choice `description` and `default=true`. | `choices=[80 (description=HTTP, default=true), 443 (description=HTTPS)]` |
 | `immutable` | `false` | No | Skip prompting for this variable and keep the resolved value as-is. | `immutable=true` |
 | `remember` | `false` | No | For generated secrets, include plaintext in the end-of-run summary so the user can save it. | `remember=true` |
 | `description` | `None` | No | Human-readable variable description used in docs and summaries. | `description=Public web port` |
-| `compute` | `None` | No | Compute default value from a safe built-in resolver. Allowed resolvers: `username`, `uid`, `gid`, `docker_gid`, `private_ip`, `public_ip`, `tailscale_ip`. | `compute=uid` |
+| `compute` | `None` | No | Compute default value from a safe built-in resolver. Base resolvers: `username`, `uid`, `gid`, `docker_gid`, `private_ip`, `public_ip`, `tailscale_ip`, `host_ram`, `host_cpu`. Percentage variants: `host_ram_<n>`, `host_cpu_<n>` where `<n>` is 0–100. | `compute=uid` or `compute=host_ram_80` |
 
 Composite example:
 
@@ -809,6 +811,10 @@ UID= # type=int | compute=uid
 IP_PRIVATE= # type=ip | compute=private_ip
 IP_PUBLIC= # type=ip | compute=public_ip
 IP_TAILSCALE= # type=ip | compute=tailscale_ip
+RAM_AVAILABLE= # type=string | compute=host_ram | immutable=true
+RAM_80PCT= # type=string | compute=host_ram_80 | immutable=true
+CPU_THREADS= # type=int | compute=host_cpu | immutable=true
+CPU_50PCT= # type=string | compute=host_cpu_50 | immutable=true
 DOCKER_SOCKET=/var/run/docker.sock # immutable=true
 JWT_SECRET= # type=password(32,64) | remember=true
 ```
@@ -817,7 +823,13 @@ JWT_SECRET= # type=password(32,64) | remember=true
 
 `compute=` is intentionally strict and fail-closed:
 
-- Only exact resolver names are accepted: `username`, `uid`, `gid`, `docker_gid`, `private_ip`, `public_ip`, `tailscale_ip`.
+- Only exact resolver names are accepted: `username`, `uid`, `gid`, `docker_gid`, `private_ip`, `public_ip`, `tailscale_ip`, `host_ram`, `host_cpu`.
+- **Host resource resolvers** enable safe defaults based on system capacity:
+  - `host_ram`: Returns total available RAM on the host (e.g., `"16G"`, `"512M"`).
+  - `host_cpu`: Returns total CPU thread count (e.g., `"8"`).
+  - `host_ram_<n>`: Calculates `<n>` percent of total RAM (e.g., `host_ram_80` → 80% of RAM formatted as `"12G"`).
+  - `host_cpu_<n>`: Calculates `<n>` percent of total CPU threads (e.g., `host_cpu_50` → 50% as decimal string, e.g., `"4.00"`).
+  - Percentage suffix `<n>` must be an integer in the range **0–100**. Values outside this range are rejected with actionable error messages.
 - `public_ip` uses a small allow-list of trusted HTTPS endpoints from Python code; it does not shell out.
 - Shell commands and function expressions are rejected (for example `compute=id -u` or `compute=uid()`).
 - The CLI never uses `subprocess`, `os.system`, `eval`, `exec`, or dynamic imports for `compute`.

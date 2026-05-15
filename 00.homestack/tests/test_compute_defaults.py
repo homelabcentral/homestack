@@ -21,6 +21,8 @@ def _host_prefs(
     uid: int | None = 1000,
     gid: int | None = 1000,
     docker_gid: int | None = 998,
+    cpu_count: int = 8,
+    ram_mb: int | None = 32768,
 ) -> HostPreferences:
     return HostPreferences(
         username=username,
@@ -28,8 +30,8 @@ def _host_prefs(
         gid=gid,
         docker_gid=docker_gid,
         architecture="x86_64",
-        cpu_count=8,
-        ram_mb=32768,
+        cpu_count=cpu_count,
+        ram_mb=ram_mb,
         install_dir="/tmp/homestack",
         install_dir_total_gb=128.0,
     )
@@ -45,6 +47,8 @@ def test_allowed_resolvers_is_expected_allow_list():
         "public_ip",
         "tailscale_ip",
         "timezone",
+        "host_ram",
+        "host_cpu",
     )
 
 
@@ -324,3 +328,195 @@ def test_timezone_does_not_use_subprocess_commands():
     assert resolved == "Europe/London"
     mock_subprocess_run.assert_not_called()
     mock_subprocess_popen.assert_not_called()
+
+
+class TestHostRamResolvers:
+    """Tests for host_ram and host_ram_<percent> resolvers."""
+
+    def test_host_ram_total_formats_gigabytes(self):
+        """Test that total RAM is formatted as largest whole unit."""
+        context = ComputeContext(host_preferences=_host_prefs(ram_mb=32768))
+        resolved = resolve_computed_value("host_ram", context)
+        assert resolved == "32G"
+
+    def test_host_ram_total_formats_megabytes(self):
+        """Test that smaller RAM values are formatted as MB."""
+        context = ComputeContext(host_preferences=_host_prefs(ram_mb=512))
+        resolved = resolve_computed_value("host_ram", context)
+        assert resolved == "512M"
+
+    def test_host_ram_total_formats_awkward_values(self):
+        """Test that odd values use the largest whole unit."""
+        context = ComputeContext(host_preferences=_host_prefs(ram_mb=16000))
+        resolved = resolve_computed_value("host_ram", context)
+        # 16000 / 1024 = 15.625, rounds to 16
+        assert resolved == "16G"
+
+    def test_host_ram_total_unavailable_on_platform(self):
+        """Test that missing RAM data raises appropriate error."""
+        prefs = _host_prefs(ram_mb=None)
+        context = ComputeContext(host_preferences=prefs)
+        with pytest.raises(ComputeResolverError, match="could not determine host RAM"):
+            resolve_computed_value("host_ram", context)
+
+    def test_host_ram_50pct_of_32g(self):
+        """Test 50% RAM calculation."""
+        context = ComputeContext(host_preferences=_host_prefs(ram_mb=32768))
+        resolved = resolve_computed_value("host_ram_50", context)
+        assert resolved == "16G"
+
+    def test_host_ram_25pct_of_16g(self):
+        """Test 25% RAM calculation."""
+        context = ComputeContext(host_preferences=_host_prefs(ram_mb=16000))
+        resolved = resolve_computed_value("host_ram_25", context)
+        # 25% of 16000 = 4000 MB; 4000 / 1024 = 3.906, rounds to 4
+        assert resolved == "4G"
+
+    def test_host_ram_80pct_percentage(self):
+        """Test 80% RAM calculation."""
+        context = ComputeContext(host_preferences=_host_prefs(ram_mb=16000))
+        resolved = resolve_computed_value("host_ram_80", context)
+        # 80% of 16000 = 12800 MB; 12800 / 1024 = 12.5, rounds to 12 (banker's rounding) or 13 (round-half-up)
+        assert resolved in ("12G", "13G")
+
+    def test_host_ram_0pct_minimum(self):
+        """Test 0% boundary condition."""
+        context = ComputeContext(host_preferences=_host_prefs(ram_mb=32768))
+        resolved = resolve_computed_value("host_ram_0", context)
+        assert resolved == "0M"
+
+    def test_host_ram_100pct_maximum(self):
+        """Test 100% boundary condition."""
+        context = ComputeContext(host_preferences=_host_prefs(ram_mb=32768))
+        resolved = resolve_computed_value("host_ram_100", context)
+        assert resolved == "32G"
+
+    def test_host_ram_percent_rejects_over_100(self):
+        """Test that percentages > 100 are rejected."""
+        context = ComputeContext(host_preferences=_host_prefs())
+        with pytest.raises(ComputeResolverError, match="invalid percent"):
+            resolve_computed_value("host_ram_150", context)
+
+    def test_host_ram_percent_rejects_multiple_over_100_values(self):
+        """Test that various over-100 percentages are all rejected."""
+        context = ComputeContext(host_preferences=_host_prefs())
+        for over_100_value in [101, 110, 200, 999]:
+            with pytest.raises(ComputeResolverError, match="invalid percent"):
+                resolve_computed_value(f"host_ram_{over_100_value}", context)
+
+    def test_host_ram_percent_rejects_non_numeric(self):
+        """Test that non-numeric suffixes are rejected."""
+        context = ComputeContext(host_preferences=_host_prefs())
+        with pytest.raises(ComputeResolverError, match="non-numeric suffix"):
+            resolve_computed_value("host_ram_abc", context)
+
+    def test_host_ram_percent_validation_with_invalid_name_pattern(self):
+        """Test that identifier pattern validation rejects invalid characters."""
+        context = ComputeContext(host_preferences=_host_prefs())
+        # These should fail at the identifier pattern validation stage
+        with pytest.raises(
+            ComputeResolverError, match="only \\[a-z0-9_\\] identifiers"
+        ):
+            resolve_computed_value("host_ram_@50", context)
+
+    def test_host_ram_boundary_values(self):
+        """Test boundary cases at 0 and 100 percent."""
+        context = ComputeContext(host_preferences=_host_prefs(ram_mb=32768))
+        # 0% should resolve successfully
+        resolved_0 = resolve_computed_value("host_ram_0", context)
+        assert resolved_0 == "0M"
+        # 100% should resolve successfully
+        resolved_100 = resolve_computed_value("host_ram_100", context)
+        assert resolved_100 == "32G"
+
+
+class TestHostCpuResolvers:
+    """Tests for host_cpu and host_cpu_<percent> resolvers."""
+
+    def test_host_cpu_total_returns_thread_count(self):
+        """Test that total CPU returns thread count as string."""
+        context = ComputeContext(host_preferences=_host_prefs(cpu_count=8))
+        resolved = resolve_computed_value("host_cpu", context)
+        assert resolved == "8"
+
+    def test_host_cpu_total_various_counts(self):
+        """Test CPU resolution for different thread counts."""
+        for count in [1, 4, 16, 32]:
+            context = ComputeContext(host_preferences=_host_prefs(cpu_count=count))
+            resolved = resolve_computed_value("host_cpu", context)
+            assert resolved == str(count)
+
+    def test_host_cpu_50pct_of_8_threads(self):
+        """Test 50% CPU calculation."""
+        context = ComputeContext(host_preferences=_host_prefs(cpu_count=8))
+        resolved = resolve_computed_value("host_cpu_50", context)
+        assert resolved == "4.00"
+
+    def test_host_cpu_25pct_of_8_threads(self):
+        """Test 25% CPU calculation."""
+        context = ComputeContext(host_preferences=_host_prefs(cpu_count=8))
+        resolved = resolve_computed_value("host_cpu_25", context)
+        assert resolved == "2.00"
+
+    def test_host_cpu_80pct_of_8_threads(self):
+        """Test 80% CPU calculation."""
+        context = ComputeContext(host_preferences=_host_prefs(cpu_count=8))
+        resolved = resolve_computed_value("host_cpu_80", context)
+        assert resolved == "6.40"
+
+    def test_host_cpu_percent_rounds_to_2_decimals(self):
+        """Test that CPU percentages are rounded to 2 decimal places."""
+        context = ComputeContext(host_preferences=_host_prefs(cpu_count=7))
+        resolved = resolve_computed_value("host_cpu_33", context)
+        # 33% of 7 = 2.31
+        assert resolved == "2.31"
+
+    def test_host_cpu_0pct_minimum(self):
+        """Test 0% boundary condition."""
+        context = ComputeContext(host_preferences=_host_prefs(cpu_count=8))
+        resolved = resolve_computed_value("host_cpu_0", context)
+        assert resolved == "0.00"
+
+    def test_host_cpu_100pct_maximum(self):
+        """Test 100% boundary condition."""
+        context = ComputeContext(host_preferences=_host_prefs(cpu_count=8))
+        resolved = resolve_computed_value("host_cpu_100", context)
+        assert resolved == "8.00"
+
+    def test_host_cpu_percent_rejects_over_100(self):
+        """Test that percentages > 100 are rejected."""
+        context = ComputeContext(host_preferences=_host_prefs())
+        with pytest.raises(ComputeResolverError, match="invalid percent"):
+            resolve_computed_value("host_cpu_150", context)
+
+    def test_host_cpu_percent_rejects_multiple_over_100_values(self):
+        """Test that various over-100 percentages are all rejected."""
+        context = ComputeContext(host_preferences=_host_prefs())
+        for over_100_value in [101, 110, 200, 999]:
+            with pytest.raises(ComputeResolverError, match="invalid percent"):
+                resolve_computed_value(f"host_cpu_{over_100_value}", context)
+
+    def test_host_cpu_percent_rejects_non_numeric(self):
+        """Test that non-numeric suffixes are rejected."""
+        context = ComputeContext(host_preferences=_host_prefs())
+        with pytest.raises(ComputeResolverError, match="non-numeric suffix"):
+            resolve_computed_value("host_cpu_abc", context)
+
+    def test_host_cpu_percent_validation_with_invalid_name_pattern(self):
+        """Test that identifier pattern validation rejects invalid characters."""
+        context = ComputeContext(host_preferences=_host_prefs())
+        # These should fail at the identifier pattern validation stage
+        with pytest.raises(
+            ComputeResolverError, match="only \\[a-z0-9_\\] identifiers"
+        ):
+            resolve_computed_value("host_cpu_@50", context)
+
+    def test_host_cpu_boundary_values(self):
+        """Test boundary cases at 0 and 100 percent."""
+        context = ComputeContext(host_preferences=_host_prefs(cpu_count=8))
+        # 0% should resolve successfully
+        resolved_0 = resolve_computed_value("host_cpu_0", context)
+        assert resolved_0 == "0.00"
+        # 100% should resolve successfully
+        resolved_100 = resolve_computed_value("host_cpu_100", context)
+        assert resolved_100 == "8.00"

@@ -16,6 +16,12 @@ services:
         reservations:
           cpus: ${CPU_MIN_PH_PIHOLE:-0.05}
           memory: ${RAM_MIN_PH_PIHOLE:-6M}
+    extends:
+      file: ports.yml
+      service: ${PH_PIHOLE_PORTS:-localhost} # set to one of [localhost, tailscale] depending on how you want to expose the ports
+    extends:
+      file: dashboard.yml
+      service: ${PH_PIHOLE_DASHBOARD:-localhost} # set to one of [localhost, tailscale, none] depending on how you want to expose the dashboard
     env_file:
       - .env
       - ../00.env/host.env
@@ -36,14 +42,14 @@ services:
     volumes:
       - etc_pihole-unbound:/etc/pihole:rw
       - etc_pihole_dnsmasq-unbound:/etc/dnsmasq.d:rw
-    ports:
-      # - 8443:443/tcp
-      - ${IP_TAILSCALE}:53:53/tcp
-      - ${IP_TAILSCALE}:53:53/udp
-      # - ${PORT_PH_PIHOLE:-8000}:${PORT_PH_PIHOLE:-8000}/tcp
-      # - ${IP_TAILSCALE}:${PORT_PH_PIHOLE:-8000}:${PORT_PH_PIHOLE:-8000}/tcp #Allows use of different port to access pihole web interface when other docker containers use port 80
-      # - 5335:5335/tcp # Uncomment to enable unbound access on local server
-      # - 22/tcp # Uncomment to enable SSH
+    # ports:
+    #   # - 8443:443/tcp
+    #   - ${IP_TAILSCALE}:53:53/tcp
+    #   - ${IP_TAILSCALE}:53:53/udp
+    #   # - ${PORT_PH_PIHOLE:-8000}:${PORT_PH_PIHOLE:-8000}/tcp
+    #   # - ${IP_TAILSCALE}:${PORT_PH_PIHOLE:-8000}:${PORT_PH_PIHOLE:-8000}/tcp #Allows use of different port to access pihole web interface when other docker containers use port 80
+    #   # - 5335:5335/tcp # Uncomment to enable unbound access on local server
+    #   # - 22/tcp # Uncomment to enable SSH
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.${APP_NAME_PH_PIHOLE:-pihole}.entrypoints=http"

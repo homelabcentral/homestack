@@ -274,10 +274,13 @@ See `scripts/rich_formatter_integration_examples.py` for detailed migration patt
 
 ## Demo
 
-Run the demo script to see all message types and formatting options:
+Run the demo scripts to see message types, formatting options, and practical
+user-facing message flows:
 
 ```bash
 python scripts/demo_rich_formatter.py
+python scripts/demo_user_messages.py
+python scripts/demo_user_messages_compact.py
 ```
 
 ## Testing
