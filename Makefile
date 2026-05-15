@@ -1,4 +1,4 @@
-.PHONY: gen-env test test-cov test-verbose test-parser parser gen-all help install-parser uv-sync test-api test-cli test-all build-package run-init run-update run-list run-search run-info run-pull run-deploy run-upgrade build lint lint-fix format run-deploy-recommends run-init-force run-help run-completion run-install-completion
+.PHONY: gen-env test test-cov test-verbose test-parser parser gen-all help install-parser uv-sync test-api test-cli test-all build-package run-init run-update run-list run-search run-info run-pull run-deploy run-upgrade build lint lint-fix format run-deploy-recommends run-init-force run-help run-completion run-install-completion run-rich-demos
 
 PYTHON_VERSION := 3.11
 
@@ -158,3 +158,9 @@ run-completion:
 ## Run homestack --install-completion
 run-install-completion:
 	@cd 00.homestack && .venv/bin/homestack --install-completion
+
+## Run rich formatter demo scripts
+run-rich-demos:
+	@cd 00.homestack && .venv/bin/python3 scripts/demo_rich_formatter.py
+	@cd 00.homestack && .venv/bin/python3 scripts/demo_user_messages.py
+	@cd 00.homestack && .venv/bin/python3 scripts/demo_user_messages_compact.py
