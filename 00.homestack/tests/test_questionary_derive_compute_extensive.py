@@ -326,6 +326,266 @@ class TestComputeExtensive:
 
         assert result.values["USER_NAME"] == "alice"
 
+    def test_compute_host_ram_total_immutable_no_prompt(self):
+        """Test host_ram computes total without prompting."""
+        var = _var(
+            "HC_HOST_RAM",
+            immutable=True,
+            value_type=_vtype("string"),
+            extra_metadata={"compute": "host_ram"},
+        )
+
+        with patch("cli.questionary.questionary") as mock_q:
+            result = build_form_from_template(
+                _parsed(var),
+                use_recommended=False,
+                compute_context=_compute_context(),
+            )
+
+        assert result.values["HC_HOST_RAM"] == "16G"
+        mock_q.text.assert_not_called()
+
+    def test_compute_host_cpu_total_immutable_no_prompt(self):
+        """Test host_cpu computes total without prompting."""
+        var = _var(
+            "HC_HOST_CPU",
+            immutable=True,
+            value_type=_vtype("string"),
+            extra_metadata={"compute": "host_cpu"},
+        )
+
+        with patch("cli.questionary.questionary") as mock_q:
+            result = build_form_from_template(
+                _parsed(var),
+                use_recommended=False,
+                compute_context=_compute_context(),
+            )
+
+        assert result.values["HC_HOST_CPU"] == "8"
+        mock_q.text.assert_not_called()
+
+    def test_compute_host_ram_80pct_immutable_no_prompt(self):
+        """Test host_ram_80 computes percentage without prompting."""
+        var = _var(
+            "RAM_MAX",
+            immutable=True,
+            value_type=_vtype("string"),
+            extra_metadata={"compute": "host_ram_80"},
+        )
+
+        with patch("cli.questionary.questionary") as mock_q:
+            result = build_form_from_template(
+                _parsed(var),
+                use_recommended=False,
+                compute_context=_compute_context(),
+            )
+
+        # 80% of 16000 MB = 12800 MB
+        assert result.values["RAM_MAX"] in ["12G", "12800M"]
+        mock_q.text.assert_not_called()
+
+    def test_compute_host_cpu_50pct_immutable_no_prompt(self):
+        """Test host_cpu_50 computes percentage without prompting."""
+        var = _var(
+            "CPU_RESERVE",
+            immutable=True,
+            value_type=_vtype("string"),
+            extra_metadata={"compute": "host_cpu_50"},
+        )
+
+        with patch("cli.questionary.questionary") as mock_q:
+            result = build_form_from_template(
+                _parsed(var),
+                use_recommended=False,
+                compute_context=_compute_context(),
+            )
+
+        # 50% of 8 threads = 4.00
+        assert result.values["CPU_RESERVE"] == "4.00"
+        mock_q.text.assert_not_called()
+
+    def test_compute_host_ram_total_overrides_recommended(self):
+        """Test that host_ram overrides recommended value."""
+        var = _var(
+            "HC_HOST_RAM",
+            recommended="2G",
+            value_type=_vtype("string"),
+            extra_metadata={"compute": "host_ram"},
+        )
+
+        result = build_form_from_template(
+            _parsed(var),
+            use_recommended=True,
+            compute_context=_compute_context(),
+        )
+
+        assert result.values["HC_HOST_RAM"] == "16G"
+
+    def test_compute_host_cpu_percent_overrides_recommended(self):
+        """Test that host_cpu_80 overrides recommended value."""
+        var = _var(
+            "CPU_MAX",
+            recommended="2.0",
+            value_type=_vtype("string"),
+            extra_metadata={"compute": "host_cpu_80"},
+        )
+
+        result = build_form_from_template(
+            _parsed(var),
+            use_recommended=True,
+            compute_context=_compute_context(),
+        )
+
+        # 80% of 8 threads = 6.40
+        assert result.values["CPU_MAX"] == "6.40"
+
+    def test_compute_host_ram_invalid_percent_rejected(self):
+        """Test that invalid percentages are rejected."""
+        var = _var(
+            "RAM",
+            value_type=_vtype("string"),
+            extra_metadata={"compute": "host_ram_150"},
+        )
+
+        with pytest.raises(ValueError, match="invalid percent"):
+            build_form_from_template(
+                _parsed(var),
+                use_recommended=True,
+                compute_context=_compute_context(),
+            )
+
+    def test_compute_host_ram_multiple_invalid_percentages_rejected(self):
+        """Test that multiple over-100 percentage values are all rejected."""
+        for invalid_percent in [101, 150, 200, 999]:
+            var = _var(
+                "RAM",
+                value_type=_vtype("string"),
+                extra_metadata={"compute": f"host_ram_{invalid_percent}"},
+            )
+
+            with pytest.raises(ValueError, match="invalid percent"):
+                build_form_from_template(
+                    _parsed(var),
+                    use_recommended=True,
+                    compute_context=_compute_context(),
+                )
+
+    def test_compute_host_cpu_multiple_invalid_percentages_rejected(self):
+        """Test that multiple over-100 CPU percentage values are all rejected."""
+        for invalid_percent in [101, 110, 200, 500]:
+            var = _var(
+                "CPU",
+                value_type=_vtype("string"),
+                extra_metadata={"compute": f"host_cpu_{invalid_percent}"},
+            )
+
+            with pytest.raises(ValueError, match="invalid percent"):
+                build_form_from_template(
+                    _parsed(var),
+                    use_recommended=True,
+                    compute_context=_compute_context(),
+                )
+
+    def test_compute_host_ram_non_numeric_suffix_rejected(self):
+        """Test that non-numeric suffixes for host_ram are rejected."""
+        var = _var(
+            "RAM",
+            value_type=_vtype("string"),
+            extra_metadata={"compute": "host_ram_invalid"},
+        )
+
+        with pytest.raises(ValueError, match="non-numeric suffix"):
+            build_form_from_template(
+                _parsed(var),
+                use_recommended=True,
+                compute_context=_compute_context(),
+            )
+
+    def test_compute_host_cpu_non_numeric_suffix_rejected(self):
+        """Test that non-numeric suffixes for host_cpu are rejected."""
+        var = _var(
+            "CPU",
+            value_type=_vtype("string"),
+            extra_metadata={"compute": "host_cpu_xyz"},
+        )
+
+        with pytest.raises(ValueError, match="non-numeric suffix"):
+            build_form_from_template(
+                _parsed(var),
+                use_recommended=True,
+                compute_context=_compute_context(),
+            )
+
+    def test_compute_host_ram_boundary_0_percent(self):
+        """Test that 0% is valid and resolves to 0M."""
+        var = _var(
+            "RAM_ZERO",
+            immutable=True,
+            value_type=_vtype("string"),
+            extra_metadata={"compute": "host_ram_0"},
+        )
+
+        result = build_form_from_template(
+            _parsed(var),
+            use_recommended=True,
+            compute_context=_compute_context(),
+        )
+
+        assert result.values["RAM_ZERO"] == "0M"
+
+    def test_compute_host_ram_boundary_100_percent(self):
+        """Test that 100% resolves to total host RAM."""
+        var = _var(
+            "RAM_FULL",
+            immutable=True,
+            value_type=_vtype("string"),
+            extra_metadata={"compute": "host_ram_100"},
+        )
+
+        result = build_form_from_template(
+            _parsed(var),
+            use_recommended=True,
+            compute_context=_compute_context(),
+        )
+
+        # 100% of 16000 MB = 16000 MB = 16G
+        assert result.values["RAM_FULL"] == "16G"
+
+    def test_compute_host_cpu_boundary_0_percent(self):
+        """Test that 0% is valid and resolves to 0.00."""
+        var = _var(
+            "CPU_ZERO",
+            immutable=True,
+            value_type=_vtype("string"),
+            extra_metadata={"compute": "host_cpu_0"},
+        )
+
+        result = build_form_from_template(
+            _parsed(var),
+            use_recommended=True,
+            compute_context=_compute_context(),
+        )
+
+        assert result.values["CPU_ZERO"] == "0.00"
+
+    def test_compute_host_cpu_boundary_100_percent(self):
+        """Test that 100% resolves to total host CPU."""
+        var = _var(
+            "CPU_FULL",
+            immutable=True,
+            value_type=_vtype("string"),
+            extra_metadata={"compute": "host_cpu_100"},
+        )
+
+        result = build_form_from_template(
+            _parsed(var),
+            use_recommended=True,
+            compute_context=_compute_context(),
+        )
+
+        # 100% of 8 threads = 8.00
+        assert result.values["CPU_FULL"] == "8.00"
+
 
 class TestDeriveComputeMixed:
     def test_mixed_compute_then_derive(self):
