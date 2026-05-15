@@ -1,0 +1,10 @@
+services:
+  localhost:
+    ports:
+      - 53:53/tcp
+      - 53:53/udp
+  
+  tailscale:
+    ports:
+      - ${IP_TAILSCALE}:53:53/tcp
+      - ${IP_TAILSCALE}:53:53/udp

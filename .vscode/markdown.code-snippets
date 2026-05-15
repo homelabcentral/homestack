@@ -31,13 +31,13 @@
             "config_files:",
             "  - config_file:",
             "      path: ${17:dir/file1.yml}",
-            "      constant: ${18:|true,false|}",
+            "      immutable: ${18:|true,false|}",
             "      uid: ${19:UID}",
             "      gid: ${20:GID}",
             "      permissions: ${21:644}",
             "  - config_file:",
             "      path: ${22:dir/file2.yml}",
-            "      constant: ${23:|true,false|}",
+            "      immutable: ${23:|true,false|}",
             "      keys:",
             "        ${24:key1: value1}",
             "        ${25:key2: value2}",
@@ -61,7 +61,7 @@
             "  - ${36:arm64}",
             "ready_to_deploy: ${37:|true,false|}",
             "---"
-        ],
+        ]
   },
 
   "Step Markdown Block": {
@@ -74,6 +74,21 @@
             "    description: ${2:Description of the step}",
             "    todo: ${3:Todo for the step}",
             "    required: ${4:|true,false|}"
+        ]
+ },
+
+ "Config File Block": {
+        "scope": "yaml",
+        "prefix": "config-file",
+        "description": "Insert a config file block for project documentation",
+        "body": [
+            "config_files:",
+            "  - config_file:",
+            "      path: ${1:ports.yml}",
+            "      immutable: ${2:|true,false|}",
+            "  - config_file:",
+            "      path: ${3:dashboard.yml}",
+            "      immutable: ${4:|true,false|}"
         ]
  },
 

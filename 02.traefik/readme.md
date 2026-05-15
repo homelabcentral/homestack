@@ -33,6 +33,9 @@ config_files:
       path: data/config.yml
       constant: false
       permissions: 644
+  - config_file:
+      path: ports.yml
+      immutable: true
 pre_install_steps:
   - step:
       number: 1

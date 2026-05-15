@@ -16,6 +16,9 @@ services:
         reservations:
           cpus: ${CPU_MIN_TR_TRAEFIK:-0.05}
           memory: ${RAM_MIN_TR_TRAEFIK:-6M}
+    extends:
+      file: ports.yml
+      service: ${TR_TRAEFIK_PORTS:-localhost} # set to one of [localhost, tailscale] depending on how you want to expose the ports
     env_file:
       - .env
       - ../00.env/host.env
@@ -23,9 +26,9 @@ services:
     # security_opt:
     #   - no-new-privileges:true
     #   - apparmor:docker-default
-    ports:
-      - ${IP_TAILSCALE}:${HTTP_PORT:-80}:80
-      - ${IP_TAILSCALE}:${HTTPS_PORT:-443}:443
+    # ports:
+    #   - ${IP_TAILSCALE}:${HTTP_PORT:-80}:80
+    #   - ${IP_TAILSCALE}:${HTTPS_PORT:-443}:443
     environment:
       - CF_API_EMAIL=${CF_API_EMAIL}
       - CF_DNS_API_TOKEN=${CF_DNS_API_TOKEN}
