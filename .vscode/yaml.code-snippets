@@ -1,6 +1,6 @@
 {
-  "Omni Tools Compose Service": {
-      "scope": "yaml,dockercompose",
+  "Add a service": {
+    "scope": "yaml,dockercompose",
     "prefix": "add-service",
     "description": "Docker compose service template",
     "body": [
@@ -46,6 +46,38 @@
       "    name: \\${DOCKER_NETWORK:-traefiknet}",
       "    external: true",
       "$0"
+    ]
+  },
+
+  "Services Ports Block": {
+    "scope": "yaml,dockercompose",
+    "prefix": "services-ports",
+    "description": "Insert services ports configuration with traefik, localhost, and tailscale",
+    "body": [
+      "services:",
+      "  # This makes the homepage available only through traefik",
+      "  traefik: {}",
+      "",
+      "  # This makes the homepage available on all network interfaces of the host, including the host IP and through traefik (if enabled)",
+      "  localhost:",
+      "    ports:",
+      "      - \\${PORT_${1:SS_SERVICE}_EXTERNAL:-${2:3006}}:\\${PORT_${1:SS_SERVICE}_INTERNAL:-${3:80}}",
+      "",
+      "  # This makes the homepage available only on the Tailscale IP address of the host, allowing access over Tailscale VPN and through traefik (if enabled)",
+      "  tailscale:",
+      "    ports:",
+      "      - \\${IP_TAILSCALE}:\\${PORT_${1:SS_SERVICE}_EXTERNAL:-${2:3006}}:\\${PORT_${1:SS_SERVICE}_INTERNAL:-${3:80}}"
+    ]
+  },
+
+  "Service Extends Block": {
+    "scope": "yaml,dockercompose",
+    "prefix": "service-extends",
+    "description": "Insert extends configuration for ports.yml",
+    "body": [
+      "extends:",
+      "      file: ports.yml # Change the ports config if you want to expose this container on different interfaces or ports. By default it is set to only be exposed through traefik, but you can change it to be exposed on localhost (all interfaces) or tailscale IP only. If you change it to localhost or tailscale, it will also be exposed through traefik if you have it.",
+      "      service: \\${${1:SS_SERVICE}_PORT_CONFIG:-traefik} # traefik = only through traefik, localhost = bind to all interfaces on the host & traefik (if you have it), tailscale = bind to tailscale IP only & traefik (if you have it)"
     ]
   }
 }

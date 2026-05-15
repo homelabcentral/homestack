@@ -1,0 +1,13 @@
+services:
+  # This makes the homepage available only through traefik
+  traefik: {}
+
+  # This makes the homepage available on all network interfaces of the host, including the host IP and through traefik (if enabled)
+  localhost:
+    ports:
+      - ${PORT_HT_HATSH_EXTERNAL:-3009}:${PORT_HT_HATSH_INTERNAL:-80}
+
+  # This makes the homepage available only on the Tailscale IP address of the host, allowing access over Tailscale VPN and through traefik (if enabled)
+  tailscale:
+    ports:
+      - ${IP_TAILSCALE}:${PORT_HT_HATSH_EXTERNAL:-3009}:${PORT_HT_HATSH_INTERNAL:-80}
