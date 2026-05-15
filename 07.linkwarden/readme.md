@@ -20,6 +20,10 @@ last_updated: 2026-04-23
 required_env_files:
   - host.env
   - network.env
+config_files:
+  - config_file:
+      path: ports.yml
+      immutable: true
 pre_install_steps:
   - step:
       number: 1

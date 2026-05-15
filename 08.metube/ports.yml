@@ -1,0 +1,13 @@
+services:
+  # This makes MeiliSearch available only through traefik
+  traefik: {}
+
+  # This makes MeiliSearch available on all network interfaces of the host, including the host IP and through traefik (if enabled)
+  localhost:
+    ports:
+      - ${PORT_LW_LINKWARDEN_EXTERNAL:-3004}:${PORT_LW_LINKWARDEN_INTERNAL:-8081}
+  
+  # This makes MeiliSearch available only on the Tailscale IP address of the host, allowing access over Tailscale VPN and through traefik (if enabled)
+  tailscale:
+    ports:
+      - ${IP_TAILSCALE}:${PORT_LW_LINKWARDEN_EXTERNAL:-3004}:${PORT_LW_LINKWARDEN_INTERNAL:-8081}

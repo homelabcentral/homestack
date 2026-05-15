@@ -8,4 +8,4 @@ services:
     ports:
       - ${IP_TAILSCALE}:${PORT_PH_PIHOLE:-8000}:${PORT_PH_PIHOLE:-8000}/tcp #Allows use of different port to access pihole web interface when other docker containers use port 80
   # This will import nothing, that mean pihole will only be accessible via traefik
-  none: {}
+  traefik: {}

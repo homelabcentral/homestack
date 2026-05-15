@@ -1,0 +1,13 @@
+services:
+  # This makes gatus available only through traefik
+  traefik: {}
+
+  # This makes gatus available on all network interfaces of the host, including the host IP and through traefik (if enabled)
+  localhost:
+    ports:
+      - ${PORT_KK_KARAKEEP_EXTERNAL:-3001}:${PORT_KK_KARAKEEP_INTERNAL:-3000}
+
+  # This makes gatus available only on the Tailscale IP address of the host, allowing access over Tailscale VPN and through traefik (if enabled)
+  tailscale:
+    ports:
+      - ${IP_TAILSCALE}:${PORT_KK_KARAKEEP_EXTERNAL:-3001}:${PORT_KK_KARAKEEP_INTERNAL:-3000}

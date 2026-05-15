@@ -92,6 +92,20 @@
         ]
  },
 
+ "Config Ports Block": {
+        "scope": "yaml",
+        "prefix": "config-ports",
+        "description": "Insert a ports config file block for project documentation",
+        "body": [
+            "config_files:",
+            "  - config_file:",
+            "      path: ports.yml",
+            "      immutable: true"
+        ]
+ },
+
+ 
+
   "Traefik Labels Block": {
         "scope": "yaml",
         "prefix": "traefik-labels",

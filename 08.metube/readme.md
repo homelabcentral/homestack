@@ -22,6 +22,10 @@ last_updated: 2026-04-28
 required_env_files:
   - host.env
   - network.env
+config_files:
+  - config_file:
+      path: ports.yml
+      immutable: true
 supported_architecture:
   - x86_64
   - arm64

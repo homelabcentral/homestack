@@ -1,0 +1,14 @@
+services:
+
+  # This makes Linkwarden available only through traefik
+  traefik: {}
+
+  # This makes Linkwarden available on all network interfaces of the host, including the host IP and through traefik (if enabled)
+  localhost:
+    ports:
+      - ${PORT_LW_LINKWARDEN_EXTERNAL:-3003}:${PORT_LW_LINKWARDEN_INTERNAL:-3000}
+
+  # This makes Linkwarden available only through tailscale, allowing access over Tailscale VPN and through traefik (if enabled)
+  tailscale:
+    ports:
+      - ${IP_TAILSCALE}:${PORT_LW_LINKWARDEN_EXTERNAL:-3003}:${PORT_LW_LINKWARDEN_INTERNAL:-3000}

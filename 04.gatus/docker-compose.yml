@@ -15,15 +15,16 @@ services:
         reservations:
           cpus: ${CPU_MIN_GA_GATUS:-0.05}
           memory: ${RAM_MIN_GA_GATUS:-6M}
+    extends:
+      file: ports.yml # Change the ports config if you want to expose this container on different interfaces or ports. By default it is set to only be exposed through traefik, but you can change it to be exposed on localhost (all interfaces) or tailscale IP only. If you change it to localhost or tailscale, it will also be exposed through traefik if you have it.
+      service: ${GA_GATUS_PORT_CONFIG:-traefik} # traefik = only through traefik, localhost = bind to all interfaces on the host, tailscale = bind to tailscale IP only
+    env_file:
+      - .env
+      - ../00.env/host.env
+      - ../00.env/network.env
     volumes:
       - ${DIR_COMPOSE}/${DIR_GA_GATUS}/config:/config
       - ${DIR_DATA}/${DIR_GA_GATUS}:/data
-    # Uncomment this if not running traefik or other reverse proxy and want to access gatus directly via http://<IP_PUBLIC>:3000 or http://<IP_TAILSCALE>:3000
-    # You do not need to change the external port, it is designed to work nicely with other containers.
-    # ports:
-      # - ${IP_TAILSCALE}:${PORT_GA_GATUS_EXTERNAL:-3000}:${PORT_GA_GATUS_INTERNAL:-8080}
-      # OR if you don't want to bind to a specific IP, you can use:
-      # ${PORT_GA_GATUS_EXTERNAL:-3000}:${PORT_GA_GATUS_INTERNAL:-8080}
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.${APP_NAME_GA_GATUS:-gatus}.entrypoints=http"

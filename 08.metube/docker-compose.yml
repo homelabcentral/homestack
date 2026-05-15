@@ -16,6 +16,9 @@ services:
         reservations:
           cpus: ${CPU_MIN_MT_METUBE:-0.05}
           memory: ${RAM_MIN_MT_METUBE:-16M}
+    extends:
+      file: ports.yml # Change the ports config if you want to expose this container on different interfaces or ports. By default it is set to only be exposed through traefik, but you can change it to be exposed on localhost (all interfaces) or tailscale IP only. If you change it to localhost or tailscale, it will also be exposed through traefik if you have it.
+      service: ${MT_METUBE_PORT_CONFIG:-traefik} # traefik = only through traefik, localhost = bind to all interfaces on the host & traefik (if you have it), tailscale = bind to tailscale IP only & traefik (if you have it)
     env_file:
       - .env
       - ../00.env/host.env

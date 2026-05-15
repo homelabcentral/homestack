@@ -16,6 +16,10 @@ services:
         reservations:
           cpus: ${CPU_MIN_KK_KARAKEEP:-0.05}
           memory: ${RAM_MIN_KK_KARAKEEP:-6M}
+    extends:
+      file: ports.yml # Change the ports config if you want to expose this container on different interfaces or ports. By default it is set to only be exposed through traefik, but you can change it to be exposed on localhost (all interfaces) or tailscale IP only. If you change it to localhost or tailscale, it will also be exposed through traefik if you have it.
+      service: ${KK_KARAKEEP_PORT_CONFIG:-traefik} # traefik = only through traefik, localhost = bind to all interfaces on the host & traefik (if you have it), tailscale = bind to tailscale IP only & traefik (if you have it)
+    env_file:
     environment:
       # MEILI_ADDR: http://karakeep-meilisearch:7700
       # BROWSER_WEB_URL: http://karakeep-chrome:9222
@@ -36,7 +40,6 @@ services:
       - ../00.env/network.env
     volumes:
       - ${DIR_DATA}/${DIR_KK_KARAKEEP:-karakeep}:/data
-    # Uncomment this if not running traefik or other reverse proxy and want to access gatus directly via http://<IP_PUBLIC>:3000 or http://<IP_TAILSCALE>:3000
     # You do not need to change the external port, it is designed to work nicely with other containers.
     # ports:
     #   - ${IP_TAILSCALE}:${PORT_KK_KARAKEEP_EXTERNAL:-3001}:${PORT_KK_KARAKEEP_INTERNAL:-3000}
@@ -54,6 +57,7 @@ services:
       - "traefik.http.routers.${APP_NAME_KK_KARAKEEP:-karakeep}-secure.service=${APP_NAME_KK_KARAKEEP:-karakeep}"
       - "traefik.http.services.${APP_NAME_KK_KARAKEEP:-karakeep}.loadbalancer.server.port=${PORT_KK_KARAKEEP_INTERNAL:-3000}"
       - "traefik.docker.network=traefiknet"
+
   karakeep-chrome:
     image: ${DOCKER_IMAGE_KK_CHROME:-gcr.io/zenika-hub/alpine-chrome:124}
     container_name: ${CONTAINER_NAME_KK_CHROME:-karakeep-chrome}
@@ -68,6 +72,7 @@ services:
     network_mode: service:karakeep-web
     env_file:
       - .env
+
   karakeep-meilisearch:
     image: ${DOCKER_IMAGE_KK_MEILISEARCH:-getmeili/meilisearch:v1.41.0}
     container_name: ${CONTAINER_NAME_KK_MEILISEARCH:-karakeep-meilisearch}

@@ -17,6 +17,9 @@ services:
         reservations:
           cpus: ${CPU_MIN_LW_LINKWARDEN:-0.05}
           memory: ${RAM_MIN_LW_LINKWARDEN:-16M}
+    extends:
+      file: ports.yml # Change the ports config if you want to expose this container on different interfaces or ports. By default it is set to only be exposed through traefik, but you can change it to be exposed on localhost (all interfaces) or tailscale IP only. If you change it to localhost or tailscale, it will also be exposed through traefik if you have it.
+      service: ${LW_LINKWARDEN_PORT_CONFIG:-traefik} # traefik = only through traefik, localhost = bind to all interfaces on the host & traefik (if you have it), tailscale = bind to tailscale IP only & traefik (if you have it)
     environment:
       - DATABASE_URL=postgresql://${POSTGRES_USERNAME:-admin}:${POSTGRES_PASSWORD:-super-secret-password}@${HOST_NAME_LW_LINKWARDEN:-linkwarden}:5432/${POSTGRES_DB:-linkwarden}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-super-secret-password}
@@ -24,9 +27,9 @@ services:
       - .env
       - ../00.env/host.env
       - ../00.env/network.env
-    # build: . # uncomment to build from source
-    # Uncomment this if not running traefik or other reverse proxy and want to access gatus directly via http://<IP_PUBLIC>:3000 or http://<IP_TAILSCALE>:3000
+    # build: . # uncomment to build from source, DO NOT USE THIS IF YOU DONT KNOW WHAT YOU ARE DOING.
     # You do not need to change the external port, it is designed to work nicely with other containers.
+    # The below comments are just for debugging, if you want to expose ports differently use the ports.yml file to change the exposed ports and interfaces above.
     # ports:
     #   - ${IP_TAILSCALE}:${PORT_LW_LINKWARDEN_EXTERNAL:-3003}:${PORT_LW_LINKWARDEN_INTERNAL:-3000}
     # OR if you don't want to bind to a specific IP, you can use:

@@ -16,6 +16,9 @@ services:
         reservations:
           cpus: ${CPU_MIN_SP_STIRLINGPDF:-0.05}
           memory: ${RAM_MIN_SP_STIRLINGPDF:-16M}
+    extends:
+      file: ports.yml # Change the ports config if you want to expose this container on different interfaces or ports. By default it is set to only be exposed through traefik, but you can change it to be exposed on localhost (all interfaces) or tailscale IP only. If you change it to localhost or tailscale, it will also be exposed through traefik if you have it.
+      service: ${SP_STIRLINGPDF_PORT_CONFIG:-traefik} # traefik = only through traefik, localhost = bind to all interfaces on the host & traefik (if you have it), tailscale = bind to tailscale IP only & traefik (if you have it)
     environment:
       - SECURITY_ENABLELOGIN=false    # Set true to enable user authentication
       - LANGS=en_US
@@ -26,12 +29,12 @@ services:
       - ../00.env/host.env
       - ../00.env/network.env
     volumes:
-      - ${DIR_DATA}/${DIR_NAME_STIRLINGPDF:-stirlingpdf}/tessdata:/usr/share/tessdata  # OCR language files
+      - ${DIR_DATA}/${DIR_NAME_STIRLINGPDF:-stirlingpdf}/tessdata:/usr/share/tessdata   # OCR language files
       - ${DIR_DATA}/${DIR_NAME_STIRLINGPDF:-stirlingpdf}/configs:/configs               # Settings & database
       - ${DIR_DATA}/${DIR_NAME_STIRLINGPDF:-stirlingpdf}/logs:/logs                     # Application logs
       - ${DIR_DATA}/${DIR_NAME_STIRLINGPDF:-stirlingpdf}/pipeline:/pipeline 
-    # Uncomment this if not running traefik or other reverse proxy and want to access gatus directly via http://<IP_PUBLIC>:3000 or http://<IP_TAILSCALE>:3000
     # You do not need to change the external port, it is designed to work nicely with other containers.
+    # The below comments are just for debugging, if you want to expose ports differently use the ports.yml file to change the exposed ports and interfaces above.
     # ports:
     #   - ${IP_TAILSCALE}:${PORT_SP_STIRLINGPDF_EXTERNAL:-3002}:${PORT_SP_STIRLINGPDF_INTERNAL:-8080}
     # OR if you don't want to bind to a specific IP, you can use:

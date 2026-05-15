@@ -25,7 +25,10 @@ required_env_files:
 config_files:
   - config_file:
       path: config/config.yml
-      constant: true
+      immutable: false
+  - config_file:
+      path: ports.yml
+      immutable: true
 pre_install_steps:
   - step:
       number: 1
