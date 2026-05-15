@@ -210,10 +210,14 @@ def _warn_fix_hint(field: str, message: str) -> str:
         return "Use a simple compute resolver identifier such as uid or docker_gid."
     if field == "derive":
         if "empty" in message.lower():
-            return "Set derive to a non-empty interpolation expression, or remove derive."
+            return (
+                "Set derive to a non-empty interpolation expression, or remove derive."
+            )
         return "Do not combine derive and compute on the same variable."
     if field == "variable":
-        return "Ensure recommended and type are compatible and metadata values are valid."
+        return (
+            "Ensure recommended and type are compatible and metadata values are valid."
+        )
     return "Correct the inline metadata value to satisfy parser requirements."
 
 
@@ -243,7 +247,9 @@ def _recommended_choice_violations(template_path: Path) -> list[ComplianceViolat
     return violations
 
 
-def _format_violations(template_path: Path, violations: list[ComplianceViolation]) -> str:
+def _format_violations(
+    template_path: Path, violations: list[ComplianceViolation]
+) -> str:
     root = _repo_root()
     try:
         display_path = template_path.relative_to(root).as_posix()
