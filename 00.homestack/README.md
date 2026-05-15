@@ -64,6 +64,7 @@ Deploy self-hosted Docker Compose stacks with ease — works similarly to Homebr
     - [File Downloader](#file-downloader)
     - [`.env.template` Format and Parser](#envtemplate-format-and-parser)
       - [Inline key=value fields](#inline-keyvalue-fields)
+      - [`compute=` safety model](#compute-safety-model)
     - [Questionary Form Builder](#questionary-form-builder)
     - [Deploy Flow (Step by Step)](#deploy-flow-step-by-step)
     - [Path Derivation](#path-derivation)
