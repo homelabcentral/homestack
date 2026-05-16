@@ -1046,54 +1046,24 @@
   },
   {
     "project_index": 17,
-    "project_name": "Arr stack with Gluetun VPN",
+    "project_name": "Gluetun VPN",
     "dir_name": "17.gluetun",
     "compose": "docker-compose.yml",
     "env": ".env.template",
     "readme": "readme.md",
-    "description": "A full arr stack - sonarr, radarr, readarr, lidarr, bazarr, prowlarr, requestrr, flaresolverr with downloader qbittorrent and deluge along with firefox, metube and speedtest.",
-    "project_description": "A full arr stack - sonarr, radarr, readarr, lidarr, bazarr, prowlarr, requestrr, flaresolverr with downloader qbittorrent and deluge along with firefox, metube and speedtest.",
+    "description": "VPN client in a thin Docker container for multiple VPN providers, written in Go, and using OpenVPN or Wireguard, DNS over TLS, with a few proxy servers built-in.",
+    "project_description": "VPN client in a thin Docker container for multiple VPN providers, written in Go, and using OpenVPN or Wireguard, DNS over TLS, with a few proxy servers built-in.",
     "author": "Homelab Central",
-    "project_source": "Multiple Sources",
-    "project_website": "Multiple Websites",
-    "project_docs": "Multiple Docs",
+    "project_source": "https://github.com/qdm12/gluetun",
+    "project_website": "https://github.com/qdm12/gluetun",
+    "project_docs": "https://github.com/qdm12/gluetun-wiki",
     "project_status": "Active",
     "stable_images": [
-      "qmcgaw/gluetun",
-      "lscr.io/linuxserver/qbittorrent:latest",
-      "lscr.io/linuxserver/firefox:latest",
-      "henrywhitaker3/speedtest-tracker",
-      "lscr.io/linuxserver/prowlarr:develop",
-      "lscr.io/linuxserver/bazarr:latest",
-      "lscr.io/linuxserver/readarr:develop",
-      "lscr.io/linuxserver/lidarr:latest",
-      "lscr.io/linuxserver/radarr:latest",
-      "lscr.io/linuxserver/sonarr:latest",
-      "lscr.io/linuxserver/overseerr:latest",
-      "alexta69/metube:latest",
-      "ghcr.io/flaresolverr/flaresolverr:latest",
-      "thomst08/requestrr",
-      "lscr.io/linuxserver/deluge:latest",
-      "ghcr.io/hollanbm/renamarr:latest"
+      "qmcgaw/gluetun:latest"
     ],
     "stable_versions": null,
     "latest_images": [
-      "qmcgaw/gluetun",
-      "lscr.io/linuxserver/qbittorrent:latest",
-      "lscr.io/linuxserver/firefox:latest",
-      "henrywhitaker3/speedtest-tracker",
-      "lscr.io/linuxserver/prowlarr:develop",
-      "lscr.io/linuxserver/bazarr:latest",
-      "lscr.io/linuxserver/readarr:develop",
-      "lscr.io/linuxserver/lidarr:latest",
-      "lscr.io/linuxserver/radarr:latest",
-      "lscr.io/linuxserver/sonarr:latest",
-      "lscr.io/linuxserver/overseerr:latest",
-      "alexta69/metube:latest",
-      "ghcr.io/flaresolverr/flaresolverr:latest",
-      "thomst08/requestrr",
-      "lscr.io/linuxserver/deluge:latest",
-      "ghcr.io/hollanbm/renamarr:latest"
+      "qmcgaw/gluetun:latest"
     ],
     "latest_versions": null,
     "warning": "none",
@@ -1109,7 +1079,12 @@
       "arm64"
     ],
     "ready_to_deploy": true,
-    "config_files": null,
+    "config_files": [
+      {
+        "path": "ports.yml",
+        "constant": false
+      }
+    ],
     "pre_install_steps": null,
     "post_install_steps": null,
     "post_setup_steps": null

@@ -1,45 +1,15 @@
 ---
 author: Homelab Central
-project_name: Arr stack with Gluetun VPN
-project_description: A full arr stack - sonarr, radarr, readarr, lidarr, bazarr, prowlarr, requestrr, flaresolverr with downloader qbittorrent and deluge along with firefox, metube and speedtest.
-project_source: Multiple Sources
-project_website: Multiple Websites
-project_docs: Multiple Docs
+project_name: Gluetun VPN
+project_description: VPN client in a thin Docker container for multiple VPN providers, written in Go, and using OpenVPN or Wireguard, DNS over TLS, with a few proxy servers built-in.
+project_source: https://github.com/qdm12/gluetun
+project_website: https://github.com/qdm12/gluetun
+project_docs: https://github.com/qdm12/gluetun-wiki
 project_status: Active
 stable_images:
-  - qmcgaw/gluetun
-  - lscr.io/linuxserver/qbittorrent:latest
-  - lscr.io/linuxserver/firefox:latest
-  - henrywhitaker3/speedtest-tracker
-  - lscr.io/linuxserver/prowlarr:develop
-  - lscr.io/linuxserver/bazarr:latest
-  - lscr.io/linuxserver/readarr:develop
-  - lscr.io/linuxserver/lidarr:latest
-  - lscr.io/linuxserver/radarr:latest
-  - lscr.io/linuxserver/sonarr:latest
-  - lscr.io/linuxserver/overseerr:latest
-  - alexta69/metube:latest
-  - ghcr.io/flaresolverr/flaresolverr:latest
-  - thomst08/requestrr
-  - lscr.io/linuxserver/deluge:latest
-  - ghcr.io/hollanbm/renamarr:latest
+  - qmcgaw/gluetun:latest
 latest_images:
-  - qmcgaw/gluetun
-  - lscr.io/linuxserver/qbittorrent:latest
-  - lscr.io/linuxserver/firefox:latest
-  - henrywhitaker3/speedtest-tracker
-  - lscr.io/linuxserver/prowlarr:develop
-  - lscr.io/linuxserver/bazarr:latest
-  - lscr.io/linuxserver/readarr:develop
-  - lscr.io/linuxserver/lidarr:latest
-  - lscr.io/linuxserver/radarr:latest
-  - lscr.io/linuxserver/sonarr:latest
-  - lscr.io/linuxserver/overseerr:latest
-  - alexta69/metube:latest
-  - ghcr.io/flaresolverr/flaresolverr:latest
-  - thomst08/requestrr
-  - lscr.io/linuxserver/deluge:latest
-  - ghcr.io/hollanbm/renamarr:latest
+  - qmcgaw/gluetun:latest
 warning: none
 date: 2026-05-01
 last_updated: 2026-05-01
@@ -47,6 +17,10 @@ required_env_files:
   - host.env
   - network.env
   - vpn.env
+config_files:
+  - config_file:
+      path: ports.yml
+      immutable: true
 supported_architecture:
   - x86_64
   - arm64

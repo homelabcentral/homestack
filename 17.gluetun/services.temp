@@ -1,0 +1,387 @@
+  # qbittorent:
+  #   image: ${DOCKER_IMAGE_AR_QBITTORRENT:-lscr.io/linuxserver/qbittorrent:latest}
+  #   container_name: ${CONTAINER_NAME_AR_QBITTORRENT:-qbittorrent}
+  #   restart: ${RESTART_GT_GLUETUN:-unless-stopped}
+  #   network_mode: service:gluetun
+  #   # deploy:
+  #   #   resources:
+  #   #     limits:
+  #   #       cpus: ${CPU_MAX_QBITTORRENT}
+  #   #       memory: ${MEM_MAX_QBITTORRENT}
+  #   #     reservations:
+  #   #       cpus: ${CPU_MIN_QBITTORRENT}
+  #   #       memory: ${MEM_MIN_QBITTORRENT}
+  #   env_file:
+  #     - .env
+  #     - ../00.env/network.env
+  #     - ../00.env/host.env
+  #   depends_on:
+  #     - gluetun
+  #   environment:
+  #     - PUID=${UID}
+  #     - PGID=${GID}
+  #     - TZ=${TZ}
+  #     - WEBUI_PORT=8080
+  #     - TORRENTING_PORT=6881
+  #     # - DOCKER_MODS=ghcr.io/vuetorrent/vuetorrent-lsio-mod:latest
+  #   volumes:
+  #     - ${DIR_HOMESTACK}/data/${DIR_ARR:-arr-vpn}/qbittorrent:/config
+  #     - ${DIR_DOWNLOADS}/${DIR_ARR:-arr-vpn}/qbittorrent:/downloads
+  # firefox:
+  #   image: ${DOCKER_IMAGE_AR_FIREFOX:-lscr.io/linuxserver/firefox:latest}
+  #   container_name: ${CONTAINER_NAME_AR_FIREFOX:-firefox}
+  #   network_mode: service:gluetun
+  #   restart: ${RESTART_GT_GLUETUN:-unless-stopped}
+  #   # deploy:
+  #   #   resources:
+  #   #     limits:
+  #   #       cpus: ${CPU_MAX_FIREFOX}
+  #   #       memory: ${MEM_MAX_FIREFOX}
+  #   #     reservations:
+  #   #       cpus: ${CPU_MIN_FIREFOX}
+  #   #       memory: ${MEM_MIN_FIREFOX}
+  #   env_file:
+  #     - .env
+  #     - ../00.env/network.env
+  #     - ../00.env/host.env
+  #   depends_on:
+  #     - gluetun
+  #   security_opt:
+  #     - seccomp:unconfined
+  #   environment:
+  #     - PUID=${UID}
+  #     - PGID=${GID}
+  #     - TZ=${TZ}
+  #   volumes:
+  #     - ${DIR_HOMESTACK}/data/${DIR_ARR:-arr-vpn}/firefox:/config
+  #     - ${DIR_DOWNLOADS}/${DIR_ARR:-arr-vpn}/firefox:/config/Downloads
+  #   shm_size: 2gb
+  # speedtest:
+  #   image: ${DOCKER_IMAGE_AR_SPEEDTEST:-henrywhitaker3/speedtest-tracker}
+  #   container_name: ${CONTAINER_NAME_AR_SPEEDTEST:-speedtest}
+  #   network_mode: service:gluetun
+  #   restart: ${RESTART_GT_GLUETUN:-unless-stopped}
+  #   # deploy:
+  #   #   resources:
+  #   #     limits:
+  #   #       cpus: ${CPU_MAX_SPEEDTEST}
+  #   #       memory: ${MEM_MAX_SPEEDTEST}
+  #   #     reservations:
+  #   #       cpus: ${CPU_MIN_SPEEDTEST}
+  #   #       memory: ${MEM_MIN_SPEEDTEST}
+  #   env_file:
+  #     - .env
+  #     - ../00.env/network.env
+  #     - ../00.env/host.env
+  #   depends_on:
+  #     - gluetun
+  #   volumes:
+  #     - ${DIR_HOMESTACK}/data/${DIR_ARR:-arr-vpn}/speedtest:/config
+  #   environment:
+  #     - TZ=${TZ}
+  #     - PGID=${GID}
+  #     - PUID=${UID}
+  #     - OOKLA_EULA_GDPR=true
+  #     - INFLUXDB_RETENTION=5d
+  #   logging:
+  #     driver: json-file
+  #     options:
+  #       max-file: "10"
+  #       max-size: 200k
+  # prowlarr:
+  #   image: ${DOCKER_IMAGE_AR_PROWLARR:-lscr.io/linuxserver/prowlarr:develop}
+  #   container_name: ${CONTAINER_NAME_AR_PROWLARR:-prowlarr}
+  #   network_mode: service:gluetun
+  #   restart: ${RESTART_GT_GLUETUN:-unless-stopped}
+  #   # deploy:
+  #   #   resources:
+  #   #     limits:
+  #   #       cpus: ${CPU_MAX_PROWLARR}
+  #   #       memory: ${MEM_MAX_PROWLARR}
+  #   #     reservations:
+  #   #       cpus: ${CPU_MIN_PROWLARR}
+  #   #       memory: ${MEM_MIN_PROWLARR}
+  #   env_file:
+  #     - .env
+  #     - ../00.env/network.env
+  #     - ../00.env/host.env
+  #   depends_on:
+  #     - gluetun
+  #   environment:
+  #     - PUID=${UID}
+  #     - PGID=${GID}
+  #     - TZ=${TZ}
+  #   volumes:
+  #     - ${DIR_HOMESTACK}/data/${DIR_ARR:-arr-vpn}/prowlarr:/config
+  # bazarr:
+  #   image: ${DOCKER_IMAGE_AR_BAZARR:-lscr.io/linuxserver/bazarr:latest}
+  #   container_name: ${CONTAINER_NAME_AR_BAZARR:-bazarr}
+  #   network_mode: service:gluetun
+  #   restart: ${RESTART_GT_GLUETUN:-unless-stopped}
+  #   # deploy:
+  #   #   resources:
+  #   #     limits:
+  #   #       cpus: ${CPU_MAX_BAZARR}
+  #   #       memory: ${MEM_MAX_BAZARR}
+  #   #     reservations:
+  #   #       cpus: ${CPU_MIN_BAZARR}
+  #   #       memory: ${MEM_MIN_BAZARR}
+  #   env_file:
+  #     - .env
+  #     - ../00.env/network.env
+  #     - ../00.env/host.env
+  #   depends_on:
+  #     - gluetun
+  #   environment:
+  #     - PUID=${UID}
+  #     - PGID=${GID}
+  #     - TZ=${TZ}
+  #   volumes:
+  #     - ${DIR_HOMESTACK}/data/${DIR_ARR:-arr-vpn}/bazarr:/config
+  #     - ${DIR_MEDIA}/Movies:/movies
+  #     - ${DIR_MEDIA}/TV:/tv
+  # # readarr has been deprecated
+  # readarr:
+  #   image: ${DOCKER_IMAGE_AR_READARR:-lscr.io/linuxserver/readarr:develop}
+  #   container_name: ${CONTAINER_NAME_AR_READARR:-readarr}
+  #   network_mode: service:gluetun
+  #   restart: ${RESTART_GT_GLUETUN:-unless-stopped}
+  #   # deploy:
+  #   #   resources:
+  #   #     limits:
+  #   #       cpus: ${CPU_MAX_READARR}
+  #   #       memory: ${MEM_MAX_READARR}
+  #   #     reservations:
+  #   #       cpus: ${CPU_MIN_READARR}
+  #   #       memory: ${MEM_MIN_READARR}
+  #   env_file:
+  #     - .env
+  #     - ../00.env/network.env
+  #     - ../00.env/host.env
+  #   depends_on:
+  #     - gluetun
+  #   environment:
+  #     - PUID=${UID}
+  #     - PGID=${GID}
+  #     - TZ=${TZ}
+  #   volumes:
+  #     - ${DIR_HOMESTACK}/data/${DIR_ARR:-arr-vpn}/readarr:/config
+  #     - ${DIR_HOMESTACK}/data/${DIR_ARR:-arr-vpn}/readarr/books:/books
+  #     - ${DIR_DOWNLOADS}/${DIR_ARR:-arr-vpn}/qbittorrent:/downloads
+  # lidarr:
+  #   image: ${DOCKER_IMAGE_AR_LIDARR:-lscr.io/linuxserver/lidarr:latest}
+  #   container_name: ${CONTAINER_NAME_AR_LIDARR:-lidarr}
+  #   network_mode: service:gluetun
+  #   restart: ${RESTART_GT_GLUETUN:-unless-stopped}
+  #   # deploy:
+  #   #   resources:
+  #   #     limits:
+  #   #       cpus: ${CPU_MAX_LIDARR}
+  #   #       memory: ${MEM_MAX_LIDARR}
+  #   #     reservations:
+  #   #       cpus: ${CPU_MIN_LIDARR}
+  #   #       memory: ${MEM_MIN_LIDARR}
+  #   env_file:
+  #     - .env
+  #     - ../00.env/network.env
+  #     - ../00.env/host.env
+  #   depends_on:
+  #     - gluetun
+  #   environment:
+  #     - PUID=${UID}
+  #     - PGID=${GID}
+  #     - TZ=${TZ}
+  #   volumes:
+  #     - ${DIR_HOMESTACK}/data/${DIR_ARR:-arr-vpn}/lidarr/config:/config
+  #     - ${DIR_MEDIA}/Music:/music
+  #     - ${DIR_DOWNLOADS}/torrents/qbittorrent:/downloads
+  # radarr:
+  #   image: ${DOCKER_IMAGE_AR_RADARR:-lscr.io/linuxserver/radarr:latest}
+  #   container_name: ${CONTAINER_NAME_AR_RADARR:-radarr}
+  #   network_mode: service:gluetun
+  #   restart: ${RESTART_GT_GLUETUN:-unless-stopped}
+  #   # deploy:
+  #   #   resources:
+  #   #     limits:
+  #   #       cpus: ${CPU_MAX_RADARR}
+  #   #       memory: ${MEM_MAX_RADARR}
+  #   #     reservations:
+  #   #       cpus: ${CPU_MIN_RADARR}
+  #   #       memory: ${MEM_MIN_RADARR}
+  #   env_file:
+  #     - .env
+  #     - ../00.env/network.env
+  #     - ../00.env/host.env
+  #   depends_on:
+  #     - gluetun
+  #   environment:
+  #     - PUID=${UID}
+  #     - PGID=${GID}
+  #     - TZ=${TZ}
+  #   volumes:
+  #     - ${DIR_HOMESTACK}/data/${DIR_ARR:-arr-vpn}/radarr:/config
+  #     - ${DIR_MEDIA}/Movies:/movies
+  #     - ${DIR_DOWNLOADS}/${DIR_ARR:-arr-vpn}/qbittorrent:/downloads
+  #     - ${DIR_DOWNLOADS}/${DIR_ARR:-arr-vpn}/firefox:/firefox
+  # sonarr:
+  #   image: ${DOCKER_IMAGE_AR_SONARR:-lscr.io/linuxserver/sonarr:latest}
+  #   container_name: ${CONTAINER_NAME_AR_SONARR:-sonarr}
+  #   network_mode: service:gluetun
+  #   restart: ${RESTART_GT_GLUETUN:-unless-stopped}
+  #   # deploy:
+  #   #   resources:
+  #   #     limits:
+  #   #       cpus: ${CPU_MAX_SONARR}
+  #   #       memory: ${MEM_MAX_SONARR}
+  #   #     reservations:
+  #   #       cpus: ${CPU_MIN_SONARR}
+  #   #       memory: ${MEM_MIN_SONARR}
+  #   env_file:
+  #     - .env
+  #     - ../00.env/host.env
+  #     - ../00.env/network.env
+  #   depends_on:
+  #     - gluetun
+  #   environment:
+  #     - PUID=${UID}
+  #     - PGID=${GID}
+  #     - TZ=${TZ}
+  #   volumes:
+  #     - ${DIR_HOMESTACK}/data/${DIR_ARR:-arr-vpn}/sonarr:/config
+  #     - ${DIR_MEDIA}/TV:/tv
+  #     - ${DIR_DOWNLOADS}/${DIR_ARR:-arr-vpn}/qbittorrent:/downloads
+  #     - ${DIR_DOWNLOADS}/${DIR_ARR:-arr-vpn}/firefox:/firefox
+  # overseerr:
+  #   image: ${DOCKER_IMAGE_AR_OVERSEERR:-lscr.io/linuxserver/overseerr:latest}
+  #   container_name: ${CONTAINER_NAME_AR_OVERSEERR:-overseerr}
+  #   network_mode: service:gluetun
+  #   restart: ${RESTART_GT_GLUETUN:-unless-stopped}
+  #   # deploy:
+  #   #   resources:
+  #   #     limits:
+  #   #       cpus: ${CPU_MAX_OVERSEERR}
+  #   #       memory: ${MEM_MAX_OVERSEERR}
+  #   #     reservations:
+  #   #       cpus: ${CPU_MIN_OVERSEERR}
+  #   #       memory: ${MEM_MIN_OVERSEERR}
+  #   env_file:
+  #     - .env
+  #     - ../00.env/network.env
+  #     - ../00.env/host.env
+  #   depends_on:
+  #     - gluetun
+  #   environment:
+  #     - PUID=${UID}
+  #     - PGID=${GID}
+  #     - TZ=${TZ}
+  #   volumes:
+  #     - ${DIR_HOMESTACK}/data/${DIR_ARR:-arr-vpn}/overseerr:/config
+  # vids:
+  #   image: ${DOCKER_IMAGE_AR_METUBE:-alexta69/metube:latest}
+  #   container_name: ${CONTAINER_NAME_AR_METUBE:-vids}
+  #   user: ${UID}:${GID}
+  #   network_mode: service:gluetun
+  #   restart: ${RESTART_GT_GLUETUN:-unless-stopped}
+  #   # deploy:
+  #   #   resources:
+  #   #     limits:
+  #   #       cpus: ${CPU_MAX_METUBE}
+  #   #       memory: ${MEM_MAX_METUBE}
+  #   #     reservations:
+  #   #       cpus: ${CPU_MIN_METUBE}
+  #   #       memory: ${MEM_MIN_METUBE}
+  #   env_file:
+  #     - .env 
+  #     - ../00.env/network.env 
+  #     - ../00.env/host.env
+  #   depends_on:
+  #     - gluetun
+  #   volumes:
+  #     - ${DIR_DOWNLOADS}/${DIR_ARR:-arr-vpn}/metube:/downloads
+  #   environment:
+  #     - TZ=${TZ}
+  # flaresolverr:
+  #   image: ${DOCKER_IMAGE_AR_FLARESOLVERR:-ghcr.io/flaresolverr/flaresolverr:latest}
+  #   container_name: ${CONTAINER_NAME_AR_FLARESOLVERR:-flaresolverr}
+  #   network_mode: service:gluetun
+  #   restart: ${RESTART_GT_GLUETUN:-unless-stopped}
+  #   # deploy:
+  #   #   resources:
+  #   #     limits:
+  #   #       cpus: ${CPU_MAX_FLARESOLVERR}
+  #   #       memory: ${MEM_MAX_FLARESOLVERR}
+  #   #     reservations:
+  #   #       cpus: ${CPU_MIN_FLARESOLVERR}
+  #   #       memory: ${MEM_MIN_FLARESOLVERR}
+  #   env_file:
+  #     - .env
+  #     - ../00.env/network.env
+  #     - ../00.env/host.env
+  #   depends_on:
+  #     - gluetun
+  #   environment:
+  #     - PUID=${UID}
+  #     - PGID=${GID}
+  #     - TZ=${TZ}
+  #     - LOG_LEVEL=info
+  #     - TEST_URL=${FLARESOLVERR_TEST_URL:-https://google.com}
+  #   # ports:
+  #   #     - '8191:8191'
+  # requestrr:
+  #   image: ${DOCKER_IMAGE_AR_REQUESTRR:-thomst08/requestrr}
+  #   container_name: ${CONTAINER_NAME_AR_REQUESTRR:-requestrr}
+  #   network_mode: service:gluetun
+  #   restart: ${RESTART_GT_GLUETUN:-unless-stopped}
+  #   env_file:
+  #     - .env
+  #     - ../00.env/network.env
+  #     - ../00.env/host.env
+  #   environment:
+  #     - PGID=${GID}
+  #     - PUID=${UID}
+  #     - REQUESTRR_BASEURL=https://requestrr.${SUB_DOMAIN}.${DOMAIN}
+  #     - TZ=${TZ}
+  #   depends_on:
+  #     - gluetun
+  #   volumes:
+  #     - ${DIR_HOMESTACK}/data/${DIR_ARR:-arr-vpn}/requestrr:/root/config
+  # deluge:
+  #   image: ${DOCKER_IMAGE_AR_DELUGE:-lscr.io/linuxserver/deluge:latest}
+  #   container_name: ${CONTAINER_NAME_AR_DELUGE:-deluge}
+  #   network_mode: service:gluetun
+  #   restart: ${RESTART_GT_GLUETUN:-unless-stopped}
+  #   env_file:
+  #     - .env
+  #     - ../00.env/network.env
+  #     - ../00.env/host.env
+  #   depends_on:
+  #     - gluetun
+  #   environment:
+  #     - PUID=${UID}
+  #     - PGID=${GID}
+  #     - TZ=${TZ}
+  #     - DELUGE_LOGLEVEL=info # Available options: error, warning, info, debug
+  #   volumes:
+  #     - ${DIR_HOMESTACK}/data/${DIR_ARR:-arr-vpn}/deluge:/config # Make sure your local config directory exists
+  #     - ${DIR_DOWNLOADS}/${DIR_ARR:-arr-vpn}/deluge:/downloads
+  #   # DO NOT UNCOMMENT THIS, This is already included int the gluetun container,
+  #   # If you want these ports on your host machine, uncomment them in the gluetun container container not here.
+  #   # ports:
+  #   #   - 8112:8112 # web ui
+  #   #   - 6881:6881
+  #   #   - 6881:6881/udp
+  #   #   - 58846:58846
+  # renamarr:
+  #   image: ${DOCKER_IMAGE_AR_RENAMARR:-ghcr.io/hollanbm/renamarr:latest} # Disable certification validation for local addresses in radarr, sonarr > settings > general, under API key
+  #   container_name: ${CONTAINER_NAME_AR_RENAMARR:-renamarr}
+  #   network_mode: service:gluetun
+  #   restart: ${RESTART_GT_GLUETUN:-unless-stopped}
+  #   user: ${UID}:${GID}
+  #   env_file:
+  #     - .env
+  #     - ../00.env/network.env
+  #     - ../00.env/host.env
+  #   depends_on:
+  #     - gluetun
+  #   volumes:
+  #     - ${DIR_HOMESTACK}/data/${DIR_ARR:-arr-vpn}/renamarr:/config
