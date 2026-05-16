@@ -1,5 +1,14 @@
+x-plex-hw: &plex_hw
+  extends:
+    file: hw.yml
+    service: ${PS_PLEX_HW_CONFIG:-cpu}
+
 services:
+  traefik:
+    <<: *plex_hw
+
   all:
+    <<: *plex_hw
     ports:
       - ${PORT_PS_PLEX_EXTERNAL:-32400}:${PORT_PS_PLEX_INTERNAL:-32400}/tcp
       - 1900:1900/udp
@@ -12,6 +21,7 @@ services:
       - 32469:32469
   
   localhost:
+    <<: *plex_hw
     ports:
       - 127.0.0.1:${PORT_PS_PLEX_EXTERNAL:-32400}:${PORT_PS_PLEX_INTERNAL:-32400}/tcp
       - 127.0.0.1:1900:1900/udp
@@ -24,6 +34,7 @@ services:
       - 127.0.0.1:32469:32469
   
   tailscale:
+    <<: *plex_hw
     ports:
       - ${IP_TAILSCALE}:${PORT_PS_PLEX_EXTERNAL:-32400}:${PORT_PS_PLEX_INTERNAL:-32400}/tcp
       - ${IP_TAILSCALE}:1900:1900/udp

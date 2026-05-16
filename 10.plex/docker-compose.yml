@@ -31,13 +31,10 @@ services:
       - ALLOWED_NETWORKS=${ALLOWED_NETWORKS}
       - TZ=${TZ}
     volumes:
-      - ${DIR_DATA}/${DIR_PS_PLEX}:/config
+      - ${DIR_HOMESTACK}/data/${DIR_PS_PLEX}:/config
       - ${DIR_MEDIA}/TV:/media/tv
       - ${DIR_MEDIA}/Movies:/media/movies
       - ${DIR_MEDIA}/Music:/media/music
-    extends:
-      file: hw.yml # Change the hw config to select which hardware transcoding to use
-      service: ${PS_PLEX_HW_CONFIG:-cpu} # cpu = cpu transcoding, nvidia = transcoding using nvidia GPU, amd = transcoding using amd GPU, intel = transcoding using intel GPU
     extends:
       file: ports.yml # Change the ports config if you want to expose this container on different interfaces or ports. By default it is set to only be exposed through traefik, but you can change it to be exposed on localhost (all interfaces) or tailscale IP only. If you change it to localhost or tailscale, it will also be exposed through traefik if enabled.
       service: ${PS_PLEX_PORT_CONFIG:-all} # traefik = only through traefik, all = bind to all interfaces on the host & traefik (if enabled), localhost = bind to only localhost, only host machine can access the port and no other devices on the same network and traefik (if enabled)

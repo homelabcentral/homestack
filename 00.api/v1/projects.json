@@ -615,7 +615,16 @@
       "arm64"
     ],
     "ready_to_deploy": true,
-    "config_files": null,
+    "config_files": [
+      {
+        "path": "ports.yml",
+        "constant": false
+      },
+      {
+        "path": "hw.yml",
+        "constant": false
+      }
+    ],
     "pre_install_steps": null,
     "post_install_steps": null,
     "post_setup_steps": [
@@ -979,7 +988,12 @@
       "arm64"
     ],
     "ready_to_deploy": true,
-    "config_files": null,
+    "config_files": [
+      {
+        "path": "ports.yml",
+        "constant": false
+      }
+    ],
     "pre_install_steps": null,
     "post_install_steps": null,
     "post_setup_steps": null
@@ -1024,7 +1038,12 @@
       "arm64"
     ],
     "ready_to_deploy": true,
-    "config_files": null,
+    "config_files": [
+      {
+        "path": "ports.yml",
+        "constant": false
+      }
+    ],
     "pre_install_steps": null,
     "post_install_steps": null,
     "post_setup_steps": null
@@ -1137,7 +1156,12 @@
       "arm64"
     ],
     "ready_to_deploy": true,
-    "config_files": null,
+    "config_files": [
+      {
+        "path": "ports.yml",
+        "constant": false
+      }
+    ],
     "pre_install_steps": null,
     "post_install_steps": null,
     "post_setup_steps": null
@@ -1180,13 +1204,18 @@
       "arm64"
     ],
     "ready_to_deploy": true,
-    "config_files": null,
+    "config_files": [
+      {
+        "path": "ports.yml",
+        "constant": false
+      }
+    ],
     "pre_install_steps": null,
     "post_install_steps": [
       {
         "number": 1,
         "description": "Connect a monitored system",
-        "todo": "After Beszel Hub is running, open the Beszel UI, choose Add system, copy the token and public key, then deploy `homestack deploy beszel-agent` on the target host and provide those values during setup."
+        "todo": "After Beszel Hub is running, open the Beszel UI, choose Add system, copy the token and public key, then deploy `homestack deploy beszel-agent` on the target host and provide those values during setup"
       }
     ],
     "post_setup_steps": null
@@ -1284,7 +1313,12 @@
       "arm64"
     ],
     "ready_to_deploy": true,
-    "config_files": null,
+    "config_files": [
+      {
+        "path": "ports.yml",
+        "constant": false
+      }
+    ],
     "pre_install_steps": null,
     "post_install_steps": null,
     "post_setup_steps": null

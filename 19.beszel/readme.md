@@ -24,7 +24,11 @@ post_install_steps:
   - step:
       number: 1
       description: Connect a monitored system
-      todo: After Beszel Hub is running, open the Beszel UI, choose Add system, copy the token and public key, then deploy `homestack deploy beszel-agent` on the target host and provide those values during setup.
+      todo: After Beszel Hub is running, open the Beszel UI, choose Add system, copy the token and public key, then deploy `homestack deploy beszel-agent` on the target host and provide those values during setup
+config_files:
+  - config_file:
+      path: ports.yml
+      immutable: true
 supported_architecture:
   - x86_64
   - arm64
