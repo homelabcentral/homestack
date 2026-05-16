@@ -38,7 +38,7 @@ services:
       - ../00.env/host.env
       - ../00.env/network.env
     volumes:
-      - ${DIR_DATA}/${DIR_KK_KARAKEEP:-karakeep}:/data
+      - ${DIR_HOMESTACK}/data/${DIR_KK_KARAKEEP:-karakeep}:/data
     # You do not need to change the external port, it is designed to work nicely with other containers.
     # ports:
     #   - ${IP_TAILSCALE}:${PORT_KK_KARAKEEP_EXTERNAL:-3001}:${PORT_KK_KARAKEEP_INTERNAL:-3000}
@@ -47,11 +47,11 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.${APP_NAME_KK_KARAKEEP:-karakeep}.entrypoints=http"
-      - "traefik.http.routers.${APP_NAME_KK_KARAKEEP:-karakeep}.rule=Host(`${APP_NAME_KK_KARAKEEP:-karakeep}.${HOST_NAME}.${DOMAIN}`)"
+      - "traefik.http.routers.${APP_NAME_KK_KARAKEEP:-karakeep}.rule=Host(`${APP_NAME_KK_KARAKEEP:-karakeep}.${SUB_DOMAIN}.${DOMAIN}`)"
       - "traefik.http.middlewares.${APP_NAME_KK_KARAKEEP:-karakeep}-https-redirect.redirectscheme.scheme=https"
       - "traefik.http.routers.${APP_NAME_KK_KARAKEEP:-karakeep}.middlewares=${APP_NAME_KK_KARAKEEP:-karakeep}-https-redirect"
       - "traefik.http.routers.${APP_NAME_KK_KARAKEEP:-karakeep}-secure.entrypoints=https"
-      - "traefik.http.routers.${APP_NAME_KK_KARAKEEP:-karakeep}-secure.rule=Host(`${APP_NAME_KK_KARAKEEP:-karakeep}.${HOST_NAME}.${DOMAIN}`)"
+      - "traefik.http.routers.${APP_NAME_KK_KARAKEEP:-karakeep}-secure.rule=Host(`${APP_NAME_KK_KARAKEEP:-karakeep}.${SUB_DOMAIN}.${DOMAIN}`)"
       - "traefik.http.routers.${APP_NAME_KK_KARAKEEP:-karakeep}-secure.tls=true"
       - "traefik.http.routers.${APP_NAME_KK_KARAKEEP:-karakeep}-secure.service=${APP_NAME_KK_KARAKEEP:-karakeep}"
       - "traefik.http.services.${APP_NAME_KK_KARAKEEP:-karakeep}.loadbalancer.server.port=${PORT_KK_KARAKEEP_INTERNAL:-3000}"
@@ -82,7 +82,7 @@ services:
     environment:
       MEILI_NO_ANALYTICS: "true"
     volumes:
-      - ${DIR_DATA}/${DIR_KK_KARAKEEP:-karakeep}/meilisearch:/meili_data
+      - ${DIR_HOMESTACK}/data/${DIR_KK_KARAKEEP:-karakeep}/meilisearch:/meili_data
 
 networks:
   traefiknet:

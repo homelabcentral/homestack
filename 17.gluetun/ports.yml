@@ -1,0 +1,95 @@
+services:
+  # This makes the service available only through traefik
+  traefik:
+    ports:
+      - 4000:8000/tcp # gluetun web API
+      - 4001:8888/tcp # gluetun HTTP intranet
+      - 4002:8388/tcp # gluetun shadow socks5 intranet
+      - 4002:8388/udp # gluetun shadow socks5 intranet
+      - 4004:6881/tcp # qbittorrent peer TCP
+      - 4004:6881/udp # qbittorrent peer UDP
+      - 4018:6881/tcp # deluge peer TCP
+      - 4018:6881/udp # deluge peer UDP
+      - 4019:58846    # deluge
+
+  # This makes the service available on all network interfaces of the host, including the host IP and through traefik (if enabled)
+  all:
+    ports:
+      - 4000:8000/tcp # gluetun web API
+      - 4001:8888/tcp # gluetun HTTP intranet
+      - 4002:8388/tcp # gluetun shadow socks5 intranet
+      - 4002:8388/udp # gluetun shadow socks5 intranet
+      - 4003:8080     # qbittorrent web UI
+      - 4004:6881/tcp # qbittorrent peer TCP
+      - 4004:6881/udp # qbittorrent peer UDP
+      - 4005:5055     # seer web UI
+      - 4006:8989     # sonarr web UI
+      - 4007:7878     # radarr web UI
+      - 4008:8686     # lidarr web UI
+      - 4009:8787     # readarr web UI #  ghcr.io/faustvii/readarr:latest
+      - 4010:6767     # bazarr web UI
+      - 4011:9696     # prowlarr web UI
+      - 4012:80       # librespeed web UI
+      - 4013:3000     # firefox
+      - 4014:8081     # metube web UI
+      - 4015:8191     # flaresolverr
+      - 4016:4545     # requestrr
+      - 4017:8112     # deluge web UI
+      - 4018:6881/tcp # deluge peer TCP
+      - 4018:6881/udp # deluge peer UDP
+      - 4019:58846    # deluge
+
+# This makes the service available on all network interfaces of the host, including the host IP and through traefik (if enabled)
+  localhost:
+     ports:
+      - 127.0.0.1:4000:8000/tcp # gluetun web API
+      - 127.0.0.1:4001:8888/tcp # gluetun HTTP intranet
+      - 127.0.0.1:4002:8388/tcp # gluetun shadow socks5 intranet
+      - 127.0.0.1:4002:8388/udp # gluetun shadow socks5 intranet
+      - 127.0.0.1:4003:8080     # qbittorrent web UI
+      - 127.0.0.1:4004:6881/tcp # qbittorrent peer TCP
+      - 127.0.0.1:4004:6881/udp # qbittorrent peer UDP
+      - 127.0.0.1:4005:5055     # seer web UI
+      - 127.0.0.1:4006:8989     # sonarr web UI
+      - 127.0.0.1:4007:7878     # radarr web UI
+      - 127.0.0.1:4008:8686     # lidarr web UI
+      - 127.0.0.1:4009:8787     # readarr web UI #  ghcr.io/faustvii/readarr:latest
+      - 127.0.0.1:4010:6767     # bazarr web UI
+      - 127.0.0.1:4011:9696     # prowlarr web UI
+      - 127.0.0.1:4012:80       # librespeed web UI
+      - 127.0.0.1:4013:3000     # firefox
+      - 127.0.0.1:4014:8081     # metube web UI
+      - 127.0.0.1:4015:8191     # flaresolverr
+      - 127.0.0.1:4016:4545     # requestrr
+      - 127.0.0.1:4017:8112     # deluge web UI
+      - 127.0.0.1:4018:6881/tcp # deluge peer TCP
+      - 127.0.0.1:4018:6881/udp # deluge peer UDP
+      - 127.0.0.1:4019:58846    # deluge
+       
+
+  # This makes the service available only on the Tailscale IP address of the host, allowing access over Tailscale VPN and through traefik (if enabled)
+  tailscale:
+    ports:
+      - ${IP_TAILSCALE}:4000:8000/tcp # gluetun web API
+      - ${IP_TAILSCALE}:4001:8888/tcp # gluetun HTTP intranet
+      - ${IP_TAILSCALE}:4002:8388/tcp # gluetun shadow socks5 intranet
+      - ${IP_TAILSCALE}:4002:8388/udp # gluetun shadow socks5 intranet
+      - ${IP_TAILSCALE}:4003:8080     # qbittorrent web UI
+      - ${IP_TAILSCALE}:4004:6881/tcp # qbittorrent peer TCP
+      - ${IP_TAILSCALE}:4004:6881/udp # qbittorrent peer UDP
+      - ${IP_TAILSCALE}:4005:5055     # seer web UI
+      - ${IP_TAILSCALE}:4006:8989     # sonarr web UI
+      - ${IP_TAILSCALE}:4007:7878     # radarr web UI
+      - ${IP_TAILSCALE}:4008:8686     # lidarr web UI
+      - ${IP_TAILSCALE}:4009:8787     # readarr web UI #  ghcr.io/faustvii/readarr:latest
+      - ${IP_TAILSCALE}:4010:6767     # bazarr web UI
+      - ${IP_TAILSCALE}:4011:9696     # prowlarr web UI
+      - ${IP_TAILSCALE}:4012:80       # librespeed web UI
+      - ${IP_TAILSCALE}:4013:3000     # firefox
+      - ${IP_TAILSCALE}:4014:8081     # metube web UI
+      - ${IP_TAILSCALE}:4015:8191     # flaresolverr
+      - ${IP_TAILSCALE}:4016:4545     # requestrr
+      - ${IP_TAILSCALE}:4017:8112     # deluge web UI
+      - ${IP_TAILSCALE}:4018:6881/tcp # deluge peer TCP
+      - ${IP_TAILSCALE}:4018:6881/udp # deluge peer UDP
+      - ${IP_TAILSCALE}:4019:58846    # deluge

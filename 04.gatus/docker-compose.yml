@@ -24,15 +24,15 @@ services:
       - ../00.env/network.env
     volumes:
       - ${DIR_COMPOSE}/${DIR_GA_GATUS}/config:/config
-      - ${DIR_DATA}/${DIR_GA_GATUS}:/data
+      - ${DIR_HOMESTACK}/data/${DIR_GA_GATUS}:/data
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.${APP_NAME_GA_GATUS:-gatus}.entrypoints=http"
-      - "traefik.http.routers.${APP_NAME_GA_GATUS:-gatus}.rule=Host(`${APP_NAME_GA_GATUS:-gatus}.${HOST_NAME}.${DOMAIN}`)"
+      - "traefik.http.routers.${APP_NAME_GA_GATUS:-gatus}.rule=Host(`${APP_NAME_GA_GATUS:-gatus}.${SUB_DOMAIN}.${DOMAIN}`)"
       - "traefik.http.middlewares.${APP_NAME_GA_GATUS:-gatus}-https-redirect.redirectscheme.scheme=https"
       - "traefik.http.routers.${APP_NAME_GA_GATUS:-gatus}.middlewares=${APP_NAME_GA_GATUS:-gatus}-https-redirect"
       - "traefik.http.routers.${APP_NAME_GA_GATUS:-gatus}-secure.entrypoints=https"
-      - "traefik.http.routers.${APP_NAME_GA_GATUS:-gatus}-secure.rule=Host(`${APP_NAME_GA_GATUS:-gatus}.${HOST_NAME}.${DOMAIN}`)"
+      - "traefik.http.routers.${APP_NAME_GA_GATUS:-gatus}-secure.rule=Host(`${APP_NAME_GA_GATUS:-gatus}.${SUB_DOMAIN}.${DOMAIN}`)"
       - "traefik.http.routers.${APP_NAME_GA_GATUS:-gatus}-secure.tls=true"
       - "traefik.http.routers.${APP_NAME_GA_GATUS:-gatus}-secure.service=${APP_NAME_GA_GATUS:-gatus}"
       - "traefik.http.services.${APP_NAME_GA_GATUS:-gatus}.loadbalancer.server.port=${PORT_GA_GATUS_INTERNAL:-8080}"

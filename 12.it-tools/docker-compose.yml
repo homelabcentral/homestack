@@ -34,11 +34,11 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.${APP_NAME_IT_TOOLS:-it-tools}.entrypoints=http"
-      - "traefik.http.routers.${APP_NAME_IT_TOOLS:-it-tools}.rule=Host(`${APP_NAME_IT_TOOLS:-it-tools}.${HOST_NAME}.${DOMAIN}`)"
+      - "traefik.http.routers.${APP_NAME_IT_TOOLS:-it-tools}.rule=Host(`${APP_NAME_IT_TOOLS:-it-tools}.${SUB_DOMAIN}.${DOMAIN}`)"
       - "traefik.http.middlewares.${APP_NAME_IT_TOOLS:-it-tools}-https-redirect.redirectscheme.scheme=https"
       - "traefik.http.routers.${APP_NAME_IT_TOOLS:-it-tools}.middlewares=${APP_NAME_IT_TOOLS:-it-tools}-https-redirect"
       - "traefik.http.routers.${APP_NAME_IT_TOOLS:-it-tools}-secure.entrypoints=https"
-      - "traefik.http.routers.${APP_NAME_IT_TOOLS:-it-tools}-secure.rule=Host(`${APP_NAME_IT_TOOLS:-it-tools}.${HOST_NAME}.${DOMAIN}`)"
+      - "traefik.http.routers.${APP_NAME_IT_TOOLS:-it-tools}-secure.rule=Host(`${APP_NAME_IT_TOOLS:-it-tools}.${SUB_DOMAIN}.${DOMAIN}`)"
       - "traefik.http.routers.${APP_NAME_IT_TOOLS:-it-tools}-secure.tls=true"
       - "traefik.http.routers.${APP_NAME_IT_TOOLS:-it-tools}-secure.service=${APP_NAME_IT_TOOLS:-it-tools}"
       - "traefik.http.services.${APP_NAME_IT_TOOLS:-it-tools}.loadbalancer.server.port=${PORT_IT_TOOLS_INTERNAL:-8080}"

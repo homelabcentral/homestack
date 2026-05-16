@@ -50,11 +50,11 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.${APP_NAME_PH_PIHOLE:-pihole}.entrypoints=http"
-      - "traefik.http.routers.${APP_NAME_PH_PIHOLE:-pihole}.rule=Host(`${APP_NAME_PH_PIHOLE:-pihole}.${HOST_NAME}.${DOMAIN}`)"
+      - "traefik.http.routers.${APP_NAME_PH_PIHOLE:-pihole}.rule=Host(`${APP_NAME_PH_PIHOLE:-pihole}.${SUB_DOMAIN}.${DOMAIN}`)"
       - "traefik.http.middlewares.${APP_NAME_PH_PIHOLE:-pihole}-https-redirect.redirectscheme.scheme=https"
       - "traefik.http.routers.${APP_NAME_PH_PIHOLE:-pihole}.middlewares=${APP_NAME_PH_PIHOLE:-pihole}-https-redirect"
       - "traefik.http.routers.${APP_NAME_PH_PIHOLE:-pihole}-secure.entrypoints=https"
-      - "traefik.http.routers.${APP_NAME_PH_PIHOLE:-pihole}-secure.rule=Host(`${APP_NAME_PH_PIHOLE:-pihole}.${HOST_NAME}.${DOMAIN}`)"
+      - "traefik.http.routers.${APP_NAME_PH_PIHOLE:-pihole}-secure.rule=Host(`${APP_NAME_PH_PIHOLE:-pihole}.${SUB_DOMAIN}.${DOMAIN}`)"
       - "traefik.http.routers.${APP_NAME_PH_PIHOLE:-pihole}-secure.tls=true"
       - "traefik.http.routers.${APP_NAME_PH_PIHOLE:-pihole}-secure.service=${APP_NAME_PH_PIHOLE:-pihole}"
       - "traefik.http.services.${APP_NAME_PH_PIHOLE:-pihole}.loadbalancer.server.port=${PORT_PH_PIHOLE:-80}"

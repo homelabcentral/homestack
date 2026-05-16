@@ -44,18 +44,18 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.traefik.entrypoints=http"
-      - "traefik.http.routers.traefik.rule=Host(`${APP_NAME_TR_TRAEFIK}.${HOST_NAME}.${DOMAIN}`)"
+      - "traefik.http.routers.traefik.rule=Host(`${APP_NAME_TR_TRAEFIK}.${SUB_DOMAIN}.${DOMAIN}`)"
       - "traefik.http.middlewares.traefik-auth.basicauth.users=${TRAEFIK_DASHBOARD_CREDENTIALS}" # install apache2-utils and then echo $(htpasswd -nb "<USER>" "<PASSWORD>") | sed -e s/\\$/\\$\\$/g and then use this to prompt the password: echo $(htpasswd -nB USER) | sed -e s/\\$/\\$\\$/g
       - "traefik.http.middlewares.traefik-https-redirect.redirectscheme.scheme=https"
       - "traefik.http.middlewares.sslheader.headers.customrequestheaders.X-Forwarded-Proto=https"
       - "traefik.http.routers.traefik.middlewares=traefik-https-redirect"
       - "traefik.http.routers.traefik-secure.entrypoints=https"
-      - "traefik.http.routers.traefik-secure.rule=Host(`${APP_NAME_TR_TRAEFIK}.${HOST_NAME}.${DOMAIN}`)"
+      - "traefik.http.routers.traefik-secure.rule=Host(`${APP_NAME_TR_TRAEFIK}.${SUB_DOMAIN}.${DOMAIN}`)"
       - "traefik.http.routers.traefik-secure.middlewares=traefik-auth"
       - "traefik.http.routers.traefik-secure.tls=true"
       - "traefik.http.routers.traefik-secure.tls.certresolver=cloudflare"
-      - "traefik.http.routers.traefik-secure.tls.domains[0].main=${HOST_NAME}.${DOMAIN}"
-      - "traefik.http.routers.traefik-secure.tls.domains[0].sans=*.${HOST_NAME}.${DOMAIN}"
+      - "traefik.http.routers.traefik-secure.tls.domains[0].main=${SUB_DOMAIN}.${DOMAIN}"
+      - "traefik.http.routers.traefik-secure.tls.domains[0].sans=*.${SUB_DOMAIN}.${DOMAIN}"
       - "traefik.http.routers.traefik-secure.service=api@internal"
 
 networks:

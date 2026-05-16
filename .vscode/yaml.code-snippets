@@ -13,7 +13,7 @@
       "    restart: \\${RESTART_${1}:-unless-stopped}",
       "    networks:",
       "      traefiknet:",
-      "        ipv4_address: \\${IP_${1}:-172.16.0.14}",
+      "        ipv4_address: \\${IP_${1}}",
       "    deploy:",
       "      resources:",
       "        limits:",
@@ -31,11 +31,11 @@
       "    labels:",
       "      - \"traefik.enable=true\"",
       "      - \"traefik.http.routers.\\${APP_NAME_${1}:-${2}}.entrypoints=http\"",
-      "      - \"traefik.http.routers.\\${APP_NAME_${1}:-${2}}.rule=Host(`\\${APP_NAME_${1}:-${2}}.\\${HOST_NAME}.\\${DOMAIN}`)\"",
+      "      - \"traefik.http.routers.\\${APP_NAME_${1}:-${2}}.rule=Host(`\\${APP_NAME_${1}:-${2}}.\\${SUB_DOMAIN}.\\${DOMAIN}`)\"",
       "      - \"traefik.http.middlewares.\\${APP_NAME_${1}:-${2}}-https-redirect.redirectscheme.scheme=https\"",
       "      - \"traefik.http.routers.\\${APP_NAME_${1}:-${2}}.middlewares=\\${APP_NAME_${1}:-${2}}-https-redirect\"",
       "      - \"traefik.http.routers.\\${APP_NAME_${1}:-${2}}-secure.entrypoints=https\"",
-      "      - \"traefik.http.routers.\\${APP_NAME_${1}:-${2}}-secure.rule=Host(`\\${APP_NAME_${1}:-${2}}.\\${HOST_NAME}.\\${DOMAIN}`)\"",
+      "      - \"traefik.http.routers.\\${APP_NAME_${1}:-${2}}-secure.rule=Host(`\\${APP_NAME_${1}:-${2}}.\\${SUB_DOMAIN}.\\${DOMAIN}`)\"",
       "      - \"traefik.http.routers.\\${APP_NAME_${1}:-${2}}-secure.tls=true\"",
       "      - \"traefik.http.routers.\\${APP_NAME_${1}:-${2}}-secure.service=\\${APP_NAME_${1}:-${2}}\"",
       "      - \"traefik.http.services.\\${APP_NAME_${1}:-${2}}.loadbalancer.server.port=\\${PORT_${1}_INTERNAL}\"",
@@ -81,8 +81,8 @@
     "description": "Insert extends configuration for ports.yml",
     "body": [
       "extends:",
-      "      file: ports.yml # Change the ports config if you want to expose this container on different interfaces or ports. By default it is set to only be exposed through traefik, but you can change it to be exposed on localhost (all interfaces) or tailscale IP only. If you change it to localhost or tailscale, it will also be exposed through traefik if enabled.",
-      "      service: \\${${1:SS_SERVICE}_PORT_CONFIG:-traefik} # traefik = only through traefik, all = bind to all interfaces on the host & traefik (if enabled), localhost = bind to only localhost, only host machine can access the port and no other devices on the same network and traefik (if enabled), tailscale = bind to tailscale IP only & traefik (if enabled)"
+      "  file: ports.yml # Change the ports config if you want to expose this container on different interfaces or ports. By default it is set to only be exposed through traefik, but you can change it to be exposed on localhost (all interfaces) or tailscale IP only. If you change it to localhost or tailscale, it will also be exposed through traefik if enabled.",
+      "  service: \\${${1:SS_SERVICE}_PORT_CONFIG:-traefik} # traefik = only through traefik, all = bind to all interfaces on the host & traefik (if enabled), localhost = bind to only localhost, only host machine can access the port and no other devices on the same network and traefik (if enabled), tailscale = bind to tailscale IP only & traefik (if enabled)"
     ]
   }
 }

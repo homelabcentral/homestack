@@ -29,6 +29,6 @@ services:
     # ports:
     #   - ${IP_TAILSCALE}:${PORT_BA_BESZEL_AGENT_EXTERNAL}:${PORT_BA_BESZEL_AGENT_INTERNAL}
     volumes:
-      - ${DIR_DATA}/${DIR_BESZEL_AGENT:-beszel_agent}/data:/var/lib/beszel-agent
-      - ${DIR_DATA}/${DIR_BESZEL:-beszel}/socket:/beszel_socket
+      - ${DIR_HOMESTACK}/data/${DIR_BESZEL_AGENT:-beszel_agent}/data:/var/lib/beszel-agent
+      - ${DIR_HOMESTACK}/data/${DIR_BESZEL:-beszel}/socket:/beszel_socket
       - /var/run/docker.sock:/var/run/docker.sock:ro

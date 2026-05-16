@@ -28,8 +28,8 @@ services:
     environment:
       #- ROCKET_PORT=80
       #- ROCKET_WORKERS=10
-      - WEB_VAULT_URL=https://${APP_NAME_VW_VAULTWARDEN:-vault}.${HOST_NAME}.${DOMAIN}
-      - DOMAIN=https://${APP_NAME_VW_VAULTWARDEN:-vault}.${HOST_NAME}.${DOMAIN}
+      - WEB_VAULT_URL=https://${APP_NAME_VW_VAULTWARDEN:-vault}.${SUB_DOMAIN}.${DOMAIN}
+      - DOMAIN=https://${APP_NAME_VW_VAULTWARDEN:-vault}.${SUB_DOMAIN}.${DOMAIN}
       - SIGNUPS_ALLOWED=${SIGNUPS_ALLOWED}
       - INVITATIONS_ALLOWED=${INVITATIONS_ALLOWED}
       - PASSWORD_ITERATIONS=800000
@@ -52,15 +52,15 @@ services:
     # OR if you don't want to bind to a specific IP, you can use:
     # ${PORT_VW_VAULTWARDEN_EXTERNAL:-3010}:${PORT_VW_VAULTWARDEN_INTERNAL:-80}
     volumes:
-      - ${DIR_DATA}/${DIR_VW_VAULTWARDEN:-vaultwarden}:/data
+      - ${DIR_HOMESTACK}/data/${DIR_VW_VAULTWARDEN:-vaultwarden}:/data
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.${APP_NAME_VW_VAULTWARDEN:-vault}.entrypoints=http"
-      - "traefik.http.routers.${APP_NAME_VW_VAULTWARDEN:-vault}.rule=Host(`${APP_NAME_VW_VAULTWARDEN:-vault}.${HOST_NAME}.${DOMAIN}`)"
+      - "traefik.http.routers.${APP_NAME_VW_VAULTWARDEN:-vault}.rule=Host(`${APP_NAME_VW_VAULTWARDEN:-vault}.${SUB_DOMAIN}.${DOMAIN}`)"
       - "traefik.http.middlewares.${APP_NAME_VW_VAULTWARDEN:-vault}-https-redirect.redirectscheme.scheme=https"
       - "traefik.http.routers.${APP_NAME_VW_VAULTWARDEN:-vault}.middlewares=${APP_NAME_VW_VAULTWARDEN:-vault}-https-redirect"
       - "traefik.http.routers.${APP_NAME_VW_VAULTWARDEN:-vault}-secure.entrypoints=https"
-      - "traefik.http.routers.${APP_NAME_VW_VAULTWARDEN:-vault}-secure.rule=Host(`${APP_NAME_VW_VAULTWARDEN:-vault}.${HOST_NAME}.${DOMAIN}`)"
+      - "traefik.http.routers.${APP_NAME_VW_VAULTWARDEN:-vault}-secure.rule=Host(`${APP_NAME_VW_VAULTWARDEN:-vault}.${SUB_DOMAIN}.${DOMAIN}`)"
       - "traefik.http.routers.${APP_NAME_VW_VAULTWARDEN:-vault}-secure.tls=true"
       - "traefik.http.routers.${APP_NAME_VW_VAULTWARDEN:-vault}-secure.service=${APP_NAME_VW_VAULTWARDEN:-vault}"
       - "traefik.http.services.${APP_NAME_VW_VAULTWARDEN:-vault}.loadbalancer.server.port=${PORT_VW_VAULTWARDEN_INTERNAL:-80}"

@@ -30,15 +30,15 @@ services:
     # OR if you don't want to bind to a specific IP, you can use:
     # ${PORT_MT_METUBE_EXTERNAL:-3004}:${PORT_MT_METUBE_INTERNAL:-8081}
     volumes:
-      - ${DIR_DATA}/${DIR_MT_METUBE:-metube}:/downloads
+      - ${DIR_HOMESTACK}/data/${DIR_MT_METUBE:-metube}:/downloads
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.${APP_NAME_MT_METUBE:-metube}.entrypoints=http"
-      - "traefik.http.routers.${APP_NAME_MT_METUBE:-metube}.rule=Host(`${APP_NAME_MT_METUBE:-metube}.${HOST_NAME}.${DOMAIN}`)"
+      - "traefik.http.routers.${APP_NAME_MT_METUBE:-metube}.rule=Host(`${APP_NAME_MT_METUBE:-metube}.${SUB_DOMAIN}.${DOMAIN}`)"
       - "traefik.http.middlewares.${APP_NAME_MT_METUBE:-metube}-https-redirect.redirectscheme.scheme=https"
       - "traefik.http.routers.${APP_NAME_MT_METUBE:-metube}.middlewares=${APP_NAME_MT_METUBE:-metube}-https-redirect"
       - "traefik.http.routers.${APP_NAME_MT_METUBE:-metube}-secure.entrypoints=https"
-      - "traefik.http.routers.${APP_NAME_MT_METUBE:-metube}-secure.rule=Host(`${APP_NAME_MT_METUBE:-metube}.${HOST_NAME}.${DOMAIN}`)"
+      - "traefik.http.routers.${APP_NAME_MT_METUBE:-metube}-secure.rule=Host(`${APP_NAME_MT_METUBE:-metube}.${SUB_DOMAIN}.${DOMAIN}`)"
       - "traefik.http.routers.${APP_NAME_MT_METUBE:-metube}-secure.tls=true"
       - "traefik.http.routers.${APP_NAME_MT_METUBE:-metube}-secure.service=${APP_NAME_MT_METUBE:-metube}"
       - "traefik.http.services.${APP_NAME_MT_METUBE:-metube}.loadbalancer.server.port=${PORT_MT_METUBE_INTERNAL:-3000}"

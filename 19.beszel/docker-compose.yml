@@ -18,7 +18,7 @@ services:
           memory: ${RAM_MIN_BZ_BESZEL:-6M}
     environment:
     # external or internal URL of the app, if you are using traefik, then the below should be the external URL, otherwise the internal one
-      - APP_URL=https://${APP_NAME_BZ_BESZEL:-beszel}.${HOST_NAME}.${DOMAIN}
+      - APP_URL=https://${APP_NAME_BZ_BESZEL:-beszel}.${SUB_DOMAIN}.${DOMAIN}
       # internal URL, comment the above one and uncomment the below
       - APP_URL=http://localhost:${PORT_BZ_BESZEL_INTERNAL:-8090}
     env_file:
@@ -29,19 +29,19 @@ services:
           file: ports.yml # Change the ports config if you want to expose this container on different interfaces or ports. By default it is set to only be exposed through traefik, but you can change it to be exposed on localhost (all interfaces) or tailscale IP only. If you change it to localhost or tailscale, it will also be exposed through traefik if enabled.
           service: ${BZ_BESZEL_PORT_CONFIG:-traefik} # traefik = only through traefik, all = bind to all interfaces on the host & traefik (if enabled), localhost = bind to only localhost, only host machine can access the port and no other devices on the same network and traefik (if enabled), tailscale = bind to tailscale IP only & traefik (if enabled)
     volumes:
-      - ${DIR_DATA}/${DIR_BESZEL:-beszel}/data:/beszel_data
-      - ${DIR_DATA}/${DIR_BESZEL:-beszel}/socket:/beszel_socket
+      - ${DIR_HOMESTACK}/data/${DIR_BESZEL:-beszel}/data:/beszel_data
+      - ${DIR_HOMESTACK}/data/${DIR_BESZEL:-beszel}/socket:/beszel_socket
     # The below comments are just for debugging, if you want to expose ports differently use the ports.yml file to change the exposed ports and interfaces above.
     # ports:
     #   - ${IP_TAILSCALE}:${PORT_BZ_BESZEL_EXTERNAL:-3013}:${PORT_BZ_BESZEL_INTERNAL:-8090}
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.${APP_NAME_BZ_BESZEL:-beszel}.entrypoints=http"
-      - "traefik.http.routers.${APP_NAME_BZ_BESZEL:-beszel}.rule=Host(`${APP_NAME_BZ_BESZEL:-beszel}.${HOST_NAME}.${DOMAIN}`)"
+      - "traefik.http.routers.${APP_NAME_BZ_BESZEL:-beszel}.rule=Host(`${APP_NAME_BZ_BESZEL:-beszel}.${SUB_DOMAIN}.${DOMAIN}`)"
       - "traefik.http.middlewares.${APP_NAME_BZ_BESZEL:-beszel}-https-redirect.redirectscheme.scheme=https"
       - "traefik.http.routers.${APP_NAME_BZ_BESZEL:-beszel}.middlewares=${APP_NAME_BZ_BESZEL:-beszel}-https-redirect"
       - "traefik.http.routers.${APP_NAME_BZ_BESZEL:-beszel}-secure.entrypoints=https"
-      - "traefik.http.routers.${APP_NAME_BZ_BESZEL:-beszel}-secure.rule=Host(`${APP_NAME_BZ_BESZEL:-beszel}.${HOST_NAME}.${DOMAIN}`)"
+      - "traefik.http.routers.${APP_NAME_BZ_BESZEL:-beszel}-secure.rule=Host(`${APP_NAME_BZ_BESZEL:-beszel}.${SUB_DOMAIN}.${DOMAIN}`)"
       - "traefik.http.routers.${APP_NAME_BZ_BESZEL:-beszel}-secure.tls=true"
       - "traefik.http.routers.${APP_NAME_BZ_BESZEL:-beszel}-secure.service=${APP_NAME_BZ_BESZEL:-beszel}"
       - "traefik.http.services.${APP_NAME_BZ_BESZEL:-beszel}.loadbalancer.server.port=${PORT_BZ_BESZEL_INTERNAL}"
@@ -54,13 +54,13 @@ services:
   #   restart: ${RESTART_BZ_BESZEL_AGENT:-unless-stopped}
   #   network_mode: host
   #   volumes:
-  #     - ${DIR_DATA}/${DIR_BESZEL_AGENT:-beszel_agent}/data:/var/lib/beszel-agent
-  #     - ${DIR_DATA}/${DIR_BESZEL:-beszel}/socket:/beszel_socket
+  #     - ${DIR_HOMESTACK}/data/${DIR_BESZEL_AGENT:-beszel_agent}/data:/var/lib/beszel-agent
+  #     - ${DIR_HOMESTACK}/data/${DIR_BESZEL:-beszel}/socket:/beszel_socket
   #     - /var/run/docker.sock:/var/run/docker.sock:ro
   #   environment:
   #     - LISTEN=/beszel_socket/beszel.sock
   #     # if you are using traefik, then the below should be the external URL, otherwise the internal one
-  #     - HUB_URL=https://${APP_NAME_BZ_BESZEL:-beszel}.${HOST_NAME}.${DOMAIN}
+  #     - HUB_URL=https://${APP_NAME_BZ_BESZEL:-beszel}.${SUB_DOMAIN}.${DOMAIN}
   #     # internal URL, comment the above one and uncomment the below
   #     # - HUB_URL=http://localhost:8090
   #     - TOKEN=${BESZEL_AGENT_TOKEN}

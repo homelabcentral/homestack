@@ -37,7 +37,7 @@ services:
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=compute,video,utility
     volumes:
-      - ${DIR_DATA}/${DIR_PS_PLEX}:/config
+      - ${DIR_HOMESTACK}/data/${DIR_PS_PLEX}:/config
       - ${DIR_MEDIA}/TV:/media/tv
       - ${DIR_MEDIA}/Movies:/media/movies
       - ${DIR_MEDIA}/Music:/media/music
@@ -54,11 +54,11 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.${APP_NAME_PS_PLEX:-plex}.entrypoints=http"
-      - "traefik.http.routers.${APP_NAME_PS_PLEX:-plex}.rule=Host(`${APP_NAME_PS_PLEX:-plex}.${HOST_NAME}.${DOMAIN}`)"
+      - "traefik.http.routers.${APP_NAME_PS_PLEX:-plex}.rule=Host(`${APP_NAME_PS_PLEX:-plex}.${SUB_DOMAIN}.${DOMAIN}`)"
       - "traefik.http.middlewares.${APP_NAME_PS_PLEX:-plex}-https-redirect.redirectscheme.scheme=https"
       - "traefik.http.routers.${APP_NAME_PS_PLEX:-plex}.middlewares=${APP_NAME_PS_PLEX:-plex}-https-redirect"
       - "traefik.http.routers.${APP_NAME_PS_PLEX:-plex}-secure.entrypoints=https"
-      - "traefik.http.routers.${APP_NAME_PS_PLEX:-plex}-secure.rule=Host(`${APP_NAME_PS_PLEX:-plex}.${HOST_NAME}.${DOMAIN}`)"
+      - "traefik.http.routers.${APP_NAME_PS_PLEX:-plex}-secure.rule=Host(`${APP_NAME_PS_PLEX:-plex}.${SUB_DOMAIN}.${DOMAIN}`)"
       - "traefik.http.routers.${APP_NAME_PS_PLEX:-plex}-secure.tls=true"
       - "traefik.http.routers.${APP_NAME_PS_PLEX:-plex}-secure.service=${APP_NAME_PS_PLEX:-plex}"
       - "traefik.http.services.${APP_NAME_PS_PLEX:-plex}.loadbalancer.server.port=${PORT_PS_PLEX_INTERNAL:-32400}"

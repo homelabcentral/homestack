@@ -32,11 +32,11 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.${APP_NAME_HT_HATSH:-hat}.entrypoints=http"
-      - "traefik.http.routers.${APP_NAME_HT_HATSH:-hat}.rule=Host(`${APP_NAME_HT_HATSH:-hat}.${HOST_NAME}.${DOMAIN}`)"
+      - "traefik.http.routers.${APP_NAME_HT_HATSH:-hat}.rule=Host(`${APP_NAME_HT_HATSH:-hat}.${SUB_DOMAIN}.${DOMAIN}`)"
       - "traefik.http.middlewares.${APP_NAME_HT_HATSH:-hat}-https-redirect.redirectscheme.scheme=https"
       - "traefik.http.routers.${APP_NAME_HT_HATSH:-hat}.middlewares=${APP_NAME_HT_HATSH:-hat}-https-redirect"
       - "traefik.http.routers.${APP_NAME_HT_HATSH:-hat}-secure.entrypoints=https"
-      - "traefik.http.routers.${APP_NAME_HT_HATSH:-hat}-secure.rule=Host(`${APP_NAME_HT_HATSH:-hat}.${HOST_NAME}.${DOMAIN}`)"
+      - "traefik.http.routers.${APP_NAME_HT_HATSH:-hat}-secure.rule=Host(`${APP_NAME_HT_HATSH:-hat}.${SUB_DOMAIN}.${DOMAIN}`)"
       - "traefik.http.routers.${APP_NAME_HT_HATSH:-hat}-secure.tls=true"
       - "traefik.http.routers.${APP_NAME_HT_HATSH:-hat}-secure.service=${APP_NAME_HT_HATSH:-hat}"
       - "traefik.http.services.${APP_NAME_HT_HATSH:-hat}.loadbalancer.server.port=${PORT_HT_HATSH_INTERNAL:-80}"

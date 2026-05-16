@@ -35,19 +35,19 @@ services:
     # OR if you don't want to bind to a specific IP, you can use:
     # ${PORT_FB_FILEBROWSER_EXTERNAL:-3006}:${PORT_FB_FILEBROWSER_INTERNAL:-80}/tcp
     volumes:
-      - ${DIR_DATA}/${DIR_FB_FILEBROWSER}/config:/config
-      - ${DIR_DATA}/${DIR_FB_FILEBROWSER}/database:/database
-      - ${DIR_DATA}/${DIR_FB_FILEBROWSER}/src:/srv
+      - ${DIR_HOMESTACK}/data/${DIR_FB_FILEBROWSER}/config:/config
+      - ${DIR_HOMESTACK}/data/${DIR_FB_FILEBROWSER}/database:/database
+      - ${DIR_HOMESTACK}/data/${DIR_FB_FILEBROWSER}/src:/srv
       # Add any mounts here, for example:
       # - ${DIR_HOME}:/home
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.${APP_NAME_FB_FILEBROWSER:-filebrowser}.entrypoints=http"
-      - "traefik.http.routers.${APP_NAME_FB_FILEBROWSER:-filebrowser}.rule=Host(`${APP_NAME_FB_FILEBROWSER:-filebrowser}.${HOST_NAME}.${DOMAIN}`)"
+      - "traefik.http.routers.${APP_NAME_FB_FILEBROWSER:-filebrowser}.rule=Host(`${APP_NAME_FB_FILEBROWSER:-filebrowser}.${SUB_DOMAIN}.${DOMAIN}`)"
       - "traefik.http.middlewares.${APP_NAME_FB_FILEBROWSER:-filebrowser}-https-redirect.redirectscheme.scheme=https"
       - "traefik.http.routers.${APP_NAME_FB_FILEBROWSER:-filebrowser}.middlewares=${APP_NAME_FB_FILEBROWSER:-filebrowser}-https-redirect"
       - "traefik.http.routers.${APP_NAME_FB_FILEBROWSER:-filebrowser}-secure.entrypoints=https"
-      - "traefik.http.routers.${APP_NAME_FB_FILEBROWSER:-filebrowser}-secure.rule=Host(`${APP_NAME_FB_FILEBROWSER:-filebrowser}.${HOST_NAME}.${DOMAIN}`)"
+      - "traefik.http.routers.${APP_NAME_FB_FILEBROWSER:-filebrowser}-secure.rule=Host(`${APP_NAME_FB_FILEBROWSER:-filebrowser}.${SUB_DOMAIN}.${DOMAIN}`)"
       - "traefik.http.routers.${APP_NAME_FB_FILEBROWSER:-filebrowser}-secure.tls=true"
       - "traefik.http.routers.${APP_NAME_FB_FILEBROWSER:-filebrowser}-secure.service=${APP_NAME_FB_FILEBROWSER:-filebrowser}"
       - "traefik.http.services.${APP_NAME_FB_FILEBROWSER:-filebrowser}.loadbalancer.server.port=${PORT_FB_FILEBROWSER_INTERNAL:-80}"

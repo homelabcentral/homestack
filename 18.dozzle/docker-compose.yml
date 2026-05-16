@@ -25,7 +25,7 @@ services:
       - ../00.env/network.env
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ${DIR_DATA}/${DIR_DOZZLE:-dozzle}:/app/data
+      - ${DIR_HOMESTACK}/data/${DIR_DOZZLE:-dozzle}:/app/data
     # You do not need to change the external port, it is designed to work nicely with other containers.
     # The below comments are just for debugging, if you want to expose ports differently use the ports.yml file to change the exposed ports and interfaces above.
     # ports:
@@ -35,11 +35,11 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.${APP_NAME_DZ_DOZZLE:-dozzle}.entrypoints=http"
-      - "traefik.http.routers.${APP_NAME_DZ_DOZZLE:-dozzle}.rule=Host(`${APP_NAME_DZ_DOZZLE:-dozzle}.${HOST_NAME}.${DOMAIN}`)"
+      - "traefik.http.routers.${APP_NAME_DZ_DOZZLE:-dozzle}.rule=Host(`${APP_NAME_DZ_DOZZLE:-dozzle}.${SUB_DOMAIN}.${DOMAIN}`)"
       - "traefik.http.middlewares.${APP_NAME_DZ_DOZZLE:-dozzle}-https-redirect.redirectscheme.scheme=https"
       - "traefik.http.routers.${APP_NAME_DZ_DOZZLE:-dozzle}.middlewares=${APP_NAME_DZ_DOZZLE:-dozzle}-https-redirect"
       - "traefik.http.routers.${APP_NAME_DZ_DOZZLE:-dozzle}-secure.entrypoints=https"
-      - "traefik.http.routers.${APP_NAME_DZ_DOZZLE:-dozzle}-secure.rule=Host(`${APP_NAME_DZ_DOZZLE:-dozzle}.${HOST_NAME}.${DOMAIN}`)"
+      - "traefik.http.routers.${APP_NAME_DZ_DOZZLE:-dozzle}-secure.rule=Host(`${APP_NAME_DZ_DOZZLE:-dozzle}.${SUB_DOMAIN}.${DOMAIN}`)"
       - "traefik.http.routers.${APP_NAME_DZ_DOZZLE:-dozzle}-secure.tls=true"
       - "traefik.http.routers.${APP_NAME_DZ_DOZZLE:-dozzle}-secure.service=${APP_NAME_DZ_DOZZLE:-dozzle}"
       - "traefik.http.services.${APP_NAME_DZ_DOZZLE:-dozzle}.loadbalancer.server.port=${PORT_DZ_DOZZLE_INTERNAL:-8080}"

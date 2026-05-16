@@ -47,11 +47,11 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.${APP_NAME_IM_IMMICH:-immich}.entrypoints=http"
-      - "traefik.http.routers.${APP_NAME_IM_IMMICH:-immich}.rule=Host(`${APP_NAME_IM_IMMICH:-immich}.${HOST_NAME}.${DOMAIN}`)"
+      - "traefik.http.routers.${APP_NAME_IM_IMMICH:-immich}.rule=Host(`${APP_NAME_IM_IMMICH:-immich}.${SUB_DOMAIN}.${DOMAIN}`)"
       - "traefik.http.middlewares.${APP_NAME_IM_IMMICH:-immich}-https-redirect.redirectscheme.scheme=https"
       - "traefik.http.routers.${APP_NAME_IM_IMMICH:-immich}.middlewares=${APP_NAME_IM_IMMICH:-immich}-https-redirect"
       - "traefik.http.routers.${APP_NAME_IM_IMMICH:-immich}-secure.entrypoints=https"
-      - "traefik.http.routers.${APP_NAME_IM_IMMICH:-immich}-secure.rule=Host(`${APP_NAME_IM_IMMICH:-immich}.${HOST_NAME}.${DOMAIN}`)"
+      - "traefik.http.routers.${APP_NAME_IM_IMMICH:-immich}-secure.rule=Host(`${APP_NAME_IM_IMMICH:-immich}.${SUB_DOMAIN}.${DOMAIN}`)"
       - "traefik.http.routers.${APP_NAME_IM_IMMICH:-immich}-secure.tls=true"
       - "traefik.http.routers.${APP_NAME_IM_IMMICH:-immich}-secure.service=${APP_NAME_IM_IMMICH:-immich}"
       - "traefik.http.services.${APP_NAME_IM_IMMICH:-immich}.loadbalancer.server.port=${PORT_IM_IMMICH_INTERNAL:-2283}"
@@ -76,7 +76,7 @@ services:
       - ../00.env/host.env
       - ../00.env/network.env
     volumes:
-      - ${DIR_DATA}/${DIR_IM_IMMICH:-immich}/model-cache:/cache
+      - ${DIR_HOMESTACK}/data/${DIR_IM_IMMICH:-immich}/model-cache:/cache
     
   immich-redis:
     image: ${DOCKER_IMAGE_IM_REDIS:-docker.io/valkey/valkey:9@sha256:3b55fbaa0cd93cf0d9d961f405e4dfcc70efe325e2d84da207a0a8e6d8fde4f9}
@@ -108,7 +108,7 @@ services:
       # - DB_STORAGE_TYPE=HDD
     volumes:
       # Do not edit the next line. If you want to change the database storage location on your system, edit the value of DB_DATA_LOCATION in the .env file
-      - ${DIR_DATA}/${DIR_IM_IMMICH:-immich}/db:/var/lib/postgresql/data
+      - ${DIR_HOMESTACK}/data/${DIR_IM_IMMICH:-immich}/db:/var/lib/postgresql/data
     shm_size: 128mb
     healthcheck:
       disable: false

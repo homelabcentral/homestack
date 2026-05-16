@@ -29,10 +29,10 @@ services:
       - ../00.env/host.env
       - ../00.env/network.env
     volumes:
-      - ${DIR_DATA}/${DIR_NAME_STIRLINGPDF:-stirlingpdf}/tessdata:/usr/share/tessdata   # OCR language files
-      - ${DIR_DATA}/${DIR_NAME_STIRLINGPDF:-stirlingpdf}/configs:/configs               # Settings & database
-      - ${DIR_DATA}/${DIR_NAME_STIRLINGPDF:-stirlingpdf}/logs:/logs                     # Application logs
-      - ${DIR_DATA}/${DIR_NAME_STIRLINGPDF:-stirlingpdf}/pipeline:/pipeline 
+      - ${DIR_HOMESTACK}/data/${DIR_NAME_STIRLINGPDF:-stirlingpdf}/tessdata:/usr/share/tessdata   # OCR language files
+      - ${DIR_HOMESTACK}/data/${DIR_NAME_STIRLINGPDF:-stirlingpdf}/configs:/configs               # Settings & database
+      - ${DIR_HOMESTACK}/data/${DIR_NAME_STIRLINGPDF:-stirlingpdf}/logs:/logs                     # Application logs
+      - ${DIR_HOMESTACK}/data/${DIR_NAME_STIRLINGPDF:-stirlingpdf}/pipeline:/pipeline 
     # You do not need to change the external port, it is designed to work nicely with other containers.
     # The below comments are just for debugging, if you want to expose ports differently use the ports.yml file to change the exposed ports and interfaces above.
     # ports:
@@ -42,11 +42,11 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.${APP_NAME_SP_STIRLINGPDF:-pdf}.entrypoints=http"
-      - "traefik.http.routers.${APP_NAME_SP_STIRLINGPDF:-pdf}.rule=Host(`${APP_NAME_SP_STIRLINGPDF:-pdf}.${HOST_NAME}.${DOMAIN}`)"
+      - "traefik.http.routers.${APP_NAME_SP_STIRLINGPDF:-pdf}.rule=Host(`${APP_NAME_SP_STIRLINGPDF:-pdf}.${SUB_DOMAIN}.${DOMAIN}`)"
       - "traefik.http.middlewares.${APP_NAME_SP_STIRLINGPDF:-pdf}-https-redirect.redirectscheme.scheme=https"
       - "traefik.http.routers.${APP_NAME_SP_STIRLINGPDF:-pdf}.middlewares=${APP_NAME_SP_STIRLINGPDF:-pdf}-https-redirect"
       - "traefik.http.routers.${APP_NAME_SP_STIRLINGPDF:-pdf}-secure.entrypoints=https"
-      - "traefik.http.routers.${APP_NAME_SP_STIRLINGPDF:-pdf}-secure.rule=Host(`${APP_NAME_SP_STIRLINGPDF:-pdf}.${HOST_NAME}.${DOMAIN}`)"
+      - "traefik.http.routers.${APP_NAME_SP_STIRLINGPDF:-pdf}-secure.rule=Host(`${APP_NAME_SP_STIRLINGPDF:-pdf}.${SUB_DOMAIN}.${DOMAIN}`)"
       - "traefik.http.routers.${APP_NAME_SP_STIRLINGPDF:-pdf}-secure.tls=true"
       - "traefik.http.routers.${APP_NAME_SP_STIRLINGPDF:-pdf}-secure.service=${APP_NAME_SP_STIRLINGPDF:-pdf}"
       - "traefik.http.services.${APP_NAME_SP_STIRLINGPDF:-pdf}.loadbalancer.server.port=${PORT_SP_STIRLINGPDF_INTERNAL:-8080}"

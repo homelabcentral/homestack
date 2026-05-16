@@ -1047,7 +1047,7 @@
   {
     "project_index": 17,
     "project_name": "Arr stack with Gluetun VPN",
-    "dir_name": "17.arr-vpn",
+    "dir_name": "17.gluetun",
     "compose": "docker-compose.yml",
     "env": ".env.template",
     "readme": "readme.md",
