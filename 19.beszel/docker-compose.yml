@@ -25,11 +25,15 @@ services:
       - .env
       - ../00.env/host.env
       - ../00.env/network.env
+    extends:
+          file: ports.yml # Change the ports config if you want to expose this container on different interfaces or ports. By default it is set to only be exposed through traefik, but you can change it to be exposed on localhost (all interfaces) or tailscale IP only. If you change it to localhost or tailscale, it will also be exposed through traefik if enabled.
+          service: ${BZ_BESZEL_PORT_CONFIG:-traefik} # traefik = only through traefik, all = bind to all interfaces on the host & traefik (if enabled), localhost = bind to only localhost, only host machine can access the port and no other devices on the same network and traefik (if enabled), tailscale = bind to tailscale IP only & traefik (if enabled)
     volumes:
       - ${DIR_DATA}/${DIR_BESZEL:-beszel}/data:/beszel_data
       - ${DIR_DATA}/${DIR_BESZEL:-beszel}/socket:/beszel_socket
-    ports:
-      - ${IP_TAILSCALE}:${PORT_BZ_BESZEL_EXTERNAL:-3013}:${PORT_BZ_BESZEL_INTERNAL:-8090}
+    # The below comments are just for debugging, if you want to expose ports differently use the ports.yml file to change the exposed ports and interfaces above.
+    # ports:
+    #   - ${IP_TAILSCALE}:${PORT_BZ_BESZEL_EXTERNAL:-3013}:${PORT_BZ_BESZEL_INTERNAL:-8090}
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.${APP_NAME_BZ_BESZEL:-beszel}.entrypoints=http"

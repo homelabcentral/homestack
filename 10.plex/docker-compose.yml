@@ -35,16 +35,22 @@ services:
       - ${DIR_MEDIA}/TV:/media/tv
       - ${DIR_MEDIA}/Movies:/media/movies
       - ${DIR_MEDIA}/Music:/media/music
-    ports:
-      - ${IP_TAILSCALE}:${PORT_PS_PLEX_EXTERNAL:-32400}:${PORT_PS_PLEX_INTERNAL:-32400}/tcp
-      - ${IP_TAILSCALE}:1900:1900/udp
-      # - 5353:5353/udp
-      - ${IP_TAILSCALE}:8324:8324
-      - ${IP_TAILSCALE}:32410:32410/udp
-      - ${IP_TAILSCALE}:32412:32412/udp
-      - ${IP_TAILSCALE}:32413:32413/udp
-      - ${IP_TAILSCALE}:32414:32414/udp
-      - ${IP_TAILSCALE}:32469:32469
+    extends:
+      file: hw.yml # Change the hw config to select which hardware transcoding to use
+      service: ${PS_PLEX_HW_CONFIG:-cpu} # cpu = cpu transcoding, nvidia = transcoding using nvidia GPU, amd = transcoding using amd GPU, intel = transcoding using intel GPU
+    extends:
+      file: ports.yml # Change the ports config if you want to expose this container on different interfaces or ports. By default it is set to only be exposed through traefik, but you can change it to be exposed on localhost (all interfaces) or tailscale IP only. If you change it to localhost or tailscale, it will also be exposed through traefik if enabled.
+      service: ${PS_PLEX_PORT_CONFIG:-all} # traefik = only through traefik, all = bind to all interfaces on the host & traefik (if enabled), localhost = bind to only localhost, only host machine can access the port and no other devices on the same network and traefik (if enabled)
+    # ports:
+    #   - ${IP_TAILSCALE}:${PORT_PS_PLEX_EXTERNAL:-32400}:${PORT_PS_PLEX_INTERNAL:-32400}/tcp
+    #   - ${IP_TAILSCALE}:1900:1900/udp
+    #   # - 5353:5353/udp
+    #   - ${IP_TAILSCALE}:8324:8324
+    #   - ${IP_TAILSCALE}:32410:32410/udp
+    #   - ${IP_TAILSCALE}:32412:32412/udp
+    #   - ${IP_TAILSCALE}:32413:32413/udp
+    #   - ${IP_TAILSCALE}:32414:32414/udp
+    #   - ${IP_TAILSCALE}:32469:32469
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.${APP_NAME_PS_PLEX:-plex}.entrypoints=http"

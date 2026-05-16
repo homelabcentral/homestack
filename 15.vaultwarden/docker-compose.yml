@@ -17,6 +17,9 @@ services:
         reservations:
           cpus: ${CPU_MIN_VW_VAULTWARDEN:-0.05}
           memory: ${RAM_MIN_VW_VAULTWARDEN:-6M}
+    extends:
+      file: ports.yml # Change the ports config if you want to expose this container on different interfaces or ports. By default it is set to only be exposed through traefik, but you can change it to be exposed on localhost (all interfaces) or tailscale IP only. If you change it to localhost or tailscale, it will also be exposed through traefik if enabled.
+      service: ${VW_VAULTWARDEN_PORT_CONFIG:-traefik} # traefik = only through traefik, all = bind to all interfaces on the host & traefik (if enabled), localhost = bind to only localhost, only host machine can access the port and no other devices on the same network and traefik (if enabled)
     env_file:
       - .env
       - ../00.env/host.env
@@ -42,8 +45,8 @@ services:
       - SMTP_USERNAME=${SMTP_USERNAME}
       - SMTP_PASSWORD=${SMTP_PASSWORD}
       - SMTP_EMBED_IMAGES=yes
-    # Uncomment this if not running traefik or other reverse proxy and want to access gatus directly via http://<IP_PUBLIC>:3010 or http://<IP_TAILSCALE>:3010
     # You do not need to change the external port, it is designed to work nicely with other containers.
+    # The below comments are just for debugging, if you want to expose ports differently use the ports.yml file to change the exposed ports and interfaces above.
     # ports:
     #   - ${IP_TAILSCALE}:${PORT_VW_VAULTWARDEN_EXTERNAL:-3010}:${PORT_VW_VAULTWARDEN_INTERNAL:-80}
     # OR if you don't want to bind to a specific IP, you can use:

@@ -1,0 +1,36 @@
+services:
+  all:
+    ports:
+      - ${PORT_PS_PLEX_EXTERNAL:-32400}:${PORT_PS_PLEX_INTERNAL:-32400}/tcp
+      - 1900:1900/udp
+      # - 5353:5353/udp
+      - 8324:8324
+      - 32410:32410/udp
+      - 32412:32412/udp
+      - 32413:32413/udp
+      - 32414:32414/udp
+      - 32469:32469
+  
+  localhost:
+    ports:
+      - 127.0.0.1:${PORT_PS_PLEX_EXTERNAL:-32400}:${PORT_PS_PLEX_INTERNAL:-32400}/tcp
+      - 127.0.0.1:1900:1900/udp
+      # - 5353:5353/udp
+      - 127.0.0.1:8324:8324
+      - 127.0.0.1:32410:32410/udp
+      - 127.0.0.1:32412:32412/udp
+      - 127.0.0.1:32413:32413/udp
+      - 127.0.0.1:32414:32414/udp
+      - 127.0.0.1:32469:32469
+  
+  tailscale:
+    ports:
+      - ${IP_TAILSCALE}:${PORT_PS_PLEX_EXTERNAL:-32400}:${PORT_PS_PLEX_INTERNAL:-32400}/tcp
+      - ${IP_TAILSCALE}:1900:1900/udp
+      # - 5353:5353/udp
+      - ${IP_TAILSCALE}:8324:8324
+      - ${IP_TAILSCALE}:32410:32410/udp
+      - ${IP_TAILSCALE}:32412:32412/udp
+      - ${IP_TAILSCALE}:32413:32413/udp
+      - ${IP_TAILSCALE}:32414:32414/udp
+      - ${IP_TAILSCALE}:32469:32469

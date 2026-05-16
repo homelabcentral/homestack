@@ -1,0 +1,32 @@
+services:
+  # Plex transcoding using CPU, does not require any additional docker compose code
+  cpu: {}
+
+  # Plex transcoding using nvidia GPU, requires the below snippet to be added to docker compose
+  # You need to have nvidia docker installed
+  nvidia:
+    deploy:
+      resources:
+        limits:
+          cpus: ${CPU_MAX_PS_PLEX}
+          memory: ${RAM_MAX_PS_PLEX}
+        reservations:
+          cpus: ${CPU_MIN_PS_PLEX:-0.05}
+          memory: ${RAM_MIN_PS_PLEX:-6M}
+          devices:
+          - driver: nvidia
+            count: all
+            capabilities: [gpu]
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,video,utility
+  
+  # Plex transcoding using amd GPU, requires the below snippet to be added to docker compose
+  amd:
+    devices:
+      - /dev/dri:/dev/dri # required for hardware transcoding for intel and amd gpus.
+  
+  # Plex transcoding using the intel GPU, requires the below snippet to be added to docker compose
+  intel:
+    devices:
+      - /dev/dri:/dev/dri # required for hardware transcoding for intel and amd gpus.

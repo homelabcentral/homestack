@@ -38,8 +38,8 @@ services:
       # - ${UPLOAD_LOCATION}:/data
       - ${UPLOAD_LOCATION}:/data
       - /etc/localtime:/etc/localtime:ro
-    # Uncomment this if not running traefik or other reverse proxy and want to access gatus directly via http://<IP_PUBLIC>:3012 or http://<IP_TAILSCALE>:3012
     # You do not need to change the external port, it is designed to work nicely with other containers.
+    # The below comments are just for debugging, if you want to expose ports differently use the ports.yml file to change the exposed ports and interfaces above.
     # ports:
     #   - ${IP_TAILSCALE}:${PORT_IM_IMMICH_EXTERNAL:-3014}:${PORT_IM_IMMICH_INTERNAL:-2283}
     # OR if you don't want to bind to a specific IP, you can use:
