@@ -19,7 +19,6 @@ services:
     extends:
       file: ports.yml # Change the ports config if you want to expose this container on different interfaces or ports. By default it is set to only be exposed through traefik, but you can change it to be exposed on localhost (all interfaces) or tailscale IP only. If you change it to localhost or tailscale, it will also be exposed through traefik if enabled.
       service: ${KK_KARAKEEP_PORT_CONFIG:-traefik} # traefik = only through traefik, all = bind to all interfaces on the host & traefik (if enabled), localhost = bind to only localhost, only host machine can access the port and no other devices on the same network and traefik (if enabled)
-    env_file:
     environment:
       # MEILI_ADDR: http://karakeep-meilisearch:7700
       # BROWSER_WEB_URL: http://karakeep-chrome:9222

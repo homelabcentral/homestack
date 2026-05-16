@@ -1,4 +1,4 @@
-.PHONY: gen-env test test-cov test-verbose test-parser parser gen-all help install-parser uv-sync test-api test-cli test-all build-package run-init run-update run-list run-search run-info run-pull run-deploy run-upgrade build lint lint-fix format run-deploy-recommends run-init-force run-help run-completion run-install-completion run-rich-demos
+.PHONY: gen-env test test-cov test-verbose test-parser parser gen-all help install-parser uv-sync test-api test-cli test-all test-compose-config build-package run-init run-update run-list run-search run-info run-pull run-deploy run-upgrade build lint lint-fix format run-deploy-recommends run-init-force run-help run-completion run-install-completion run-rich-demos
 
 PYTHON_VERSION := 3.11
 
@@ -62,6 +62,11 @@ test-cli:
 test-all:
 	@echo "Running full test suite..."
 	@cd 00.homestack && .venv/bin/pytest tests/ -q
+
+## Validate all project compose files using real docker compose config
+test-compose-config:
+	@echo "Running strict docker compose config validation tests..."
+	@cd 00.homestack && .venv/bin/pytest tests/test_docker_runtime.py -k validate_with_real_docker_compose -q
 
 ## Run parser on all project readmes and generate JSON metadata
 parser:

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 import shutil
 from pathlib import Path
 from typing import Any
@@ -94,26 +95,6 @@ def _load_project_items() -> list[dict[str, Any]]:
     return json.loads(projects_path.read_text(encoding="utf-8"))
 
 
-def _render_env_template(template_path: Path, destination: Path) -> None:
-    lines: list[str] = []
-    in_metadata = False
-    for raw_line in template_path.read_text(encoding="utf-8").splitlines():
-        line = raw_line.rstrip("\n")
-        stripped = line.strip()
-        if stripped == "# METADATA --- START":
-            in_metadata = True
-            continue
-        if stripped == "# METADATA --- END":
-            in_metadata = False
-            continue
-        if in_metadata or not stripped or stripped.startswith("#"):
-            continue
-        value_part = line.split("#", 1)[0].rstrip()
-        if "=" in value_part:
-            lines.append(value_part)
-    destination.write_text("\n".join(lines) + "\n", encoding="utf-8")
-
-
 def _resolve_required_env_files(project: dict[str, Any], temp_root: Path) -> list[Path]:
     required_env_files = project.get("required_env_files")
     assert required_env_files is not None, (
@@ -129,8 +110,14 @@ def _resolve_required_env_files(project: dict[str, Any], temp_root: Path) -> lis
     return resolved
 
 
+def _slug_project_name(project_name: str) -> str:
+    slug = project_name.strip().lower()
+    slug = re.sub(r"[^a-z0-9]+", "-", slug)
+    return slug.strip("-")
+
+
 @pytest.mark.parametrize("project_item", _load_project_items())
-def test_project_compose_files_parse_with_docker_runtime(
+def test_project_compose_files_validate_with_real_docker_compose(
     tmp_path: Path, project_item: dict[str, Any]
 ):
     repo_root = _repo_root()
@@ -143,24 +130,29 @@ def test_project_compose_files_parse_with_docker_runtime(
     compose_path = project_dir / project_item["compose"]
     assert compose_path.exists(), f"Compose file missing for project: {project_name}"
 
-    generated_env_path = project_dir / ".env"
-    if not generated_env_path.exists():
-        template_path = project_dir / project_item["env"]
-        if template_path.exists():
-            _render_env_template(template_path, generated_env_path)
-        else:
-            generated_env_path.write_text("\n", encoding="utf-8")
-
-    env_files = [
-        generated_env_path.resolve(),
-        *_resolve_required_env_files(project_item, tmp_path),
-    ]
-    spec = docker_runtime.load_project_spec(
-        compose_path, env_files, project_item["dir_name"]
+    existing_env_path = project_dir / ".env"
+    assert existing_env_path.exists(), (
+        f"Project {project_name} is missing .env. "
+        "Strict compose validation requires an existing .env file."
     )
 
-    assert spec.services, f"No services parsed for project: {project_name}"
-    assert all(service.image for service in spec.services.values())
+    env_files = [
+        existing_env_path.resolve(),
+        *_resolve_required_env_files(project_item, tmp_path),
+    ]
+    project_slug = _slug_project_name(project_name)
+
+    try:
+        docker_runtime.validate_compose_config(
+            compose_path,
+            project_slug,
+            env_files,
+        )
+    except docker_runtime.DockerRuntimeError as exc:
+        pytest.fail(
+            f"Compose validation failed for project '{project_name}' "
+            f"({project_item['dir_name']}): {exc}"
+        )
 
 
 class FakeNetwork:
