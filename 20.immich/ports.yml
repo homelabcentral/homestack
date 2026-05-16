@@ -1,0 +1,18 @@
+services:
+  # This makes the service available only through traefik
+  traefik: {}
+
+  # This makes the service available on all network interfaces of the host, including the host IP and through traefik (if enabled)
+  all:
+    ports:
+      - ${PORT_IM_IMMICH_EXTERNAL:-3014}:${PORT_IM_IMMICH_INTERNAL:-2283}
+
+# This makes the service available on all network interfaces of the host, including the host IP and through traefik (if enabled)
+  localhost:
+     ports:
+       - 127.0.0.1:${PORT_IM_IMMICH_EXTERNAL:-3014}:${PORT_IM_IMMICH_INTERNAL:-2283}
+
+  # This makes the service available only on the Tailscale IP address of the host, allowing access over Tailscale VPN and through traefik (if enabled)
+  tailscale:
+    ports:
+      - ${IP_TAILSCALE}:${PORT_IM_IMMICH_EXTERNAL:-3014}:${PORT_IM_IMMICH_INTERNAL:-2283}

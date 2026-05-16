@@ -23,6 +23,13 @@ latest_versions:
 warning: none
 date: 2026-05-02
 last_updated: 2026-05-02
+config_files:
+  - config_file:
+      path: hwaccel.ml.yml
+      immutable: true
+  - config_file:
+      path: ports-hwaccel.transcoding.yml
+      immutable: true
 required_env_files:
   - host.env
   - network.env

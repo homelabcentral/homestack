@@ -1309,7 +1309,16 @@
       "arm64"
     ],
     "ready_to_deploy": true,
-    "config_files": null,
+    "config_files": [
+      {
+        "path": "hwaccel.ml.yml",
+        "constant": false
+      },
+      {
+        "path": "ports-hwaccel.transcoding.yml",
+        "constant": false
+      }
+    ],
     "pre_install_steps": null,
     "post_install_steps": null,
     "post_setup_steps": null

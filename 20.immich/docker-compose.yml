@@ -6,8 +6,8 @@ services:
     restart: ${RESTART_IM_IMMICH:-always}
     network_mode: service:immich-database
     extends:
-      file: hwaccel.transcoding.yml
-      service: ${HWACCEL_TRANSCODING_SERVICE:-cpu} # set to one of [nvenc, quicksync, rkmpp, vaapi, vaapi-wsl] for accelerated transcoding
+      file: ports-hwaccel.transcoding.yml
+      service: ${IM_IMMICH_PORT_CONFIG:-traefik}-${HWACCEL_TRANSCODING_SERVICE:-cpu} # combines ports mode (traefik|all|localhost|tailscale) with transcoding mode (cpu|nvenc|quicksync|rkmpp|vaapi|vaapi-wsl)
     depends_on:
       - immich-redis
       - immich-database

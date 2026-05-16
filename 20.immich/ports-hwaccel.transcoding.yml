@@ -1,0 +1,112 @@
+# Combined selectors for Immich service so one `extends` can control both
+# port exposure and transcoding acceleration.
+
+x-ports-traefik: &ports_traefik {}
+
+x-ports-all: &ports_all
+  ports:
+    - ${PORT_IM_IMMICH_EXTERNAL:-3014}:${PORT_IM_IMMICH_INTERNAL:-2283}
+
+x-ports-localhost: &ports_localhost
+  ports:
+    - 127.0.0.1:${PORT_IM_IMMICH_EXTERNAL:-3014}:${PORT_IM_IMMICH_INTERNAL:-2283}
+
+x-ports-tailscale: &ports_tailscale
+  ports:
+    - ${IP_TAILSCALE}:${PORT_IM_IMMICH_EXTERNAL:-3014}:${PORT_IM_IMMICH_INTERNAL:-2283}
+
+x-hw-cpu: &hw_cpu {}
+
+x-hw-nvenc: &hw_nvenc
+  deploy:
+    resources:
+      reservations:
+        devices:
+          - driver: nvidia
+            count: 1
+            capabilities:
+              - gpu
+              - compute
+              - video
+
+x-hw-quicksync: &hw_quicksync
+  devices:
+    - /dev/dri:/dev/dri
+
+x-hw-rkmpp: &hw_rkmpp
+  security_opt:
+    - systempaths=unconfined
+    - apparmor=unconfined
+  group_add:
+    - video
+  devices:
+    - /dev/rga:/dev/rga
+    - /dev/dri:/dev/dri
+    - /dev/dma_heap:/dev/dma_heap
+    - /dev/mpp_service:/dev/mpp_service
+
+x-hw-vaapi: &hw_vaapi
+  devices:
+    - /dev/dri:/dev/dri
+
+x-hw-vaapi-wsl: &hw_vaapi_wsl
+  devices:
+    - /dev/dri:/dev/dri
+    - /dev/dxg:/dev/dxg
+  volumes:
+    - /usr/lib/wsl:/usr/lib/wsl
+  environment:
+    - LIBVA_DRIVER_NAME=d3d12
+
+services:
+  traefik-cpu:
+    <<: [*ports_traefik, *hw_cpu]
+  traefik-nvenc:
+    <<: [*ports_traefik, *hw_nvenc]
+  traefik-quicksync:
+    <<: [*ports_traefik, *hw_quicksync]
+  traefik-rkmpp:
+    <<: [*ports_traefik, *hw_rkmpp]
+  traefik-vaapi:
+    <<: [*ports_traefik, *hw_vaapi]
+  traefik-vaapi-wsl:
+    <<: [*ports_traefik, *hw_vaapi_wsl]
+
+  all-cpu:
+    <<: [*ports_all, *hw_cpu]
+  all-nvenc:
+    <<: [*ports_all, *hw_nvenc]
+  all-quicksync:
+    <<: [*ports_all, *hw_quicksync]
+  all-rkmpp:
+    <<: [*ports_all, *hw_rkmpp]
+  all-vaapi:
+    <<: [*ports_all, *hw_vaapi]
+  all-vaapi-wsl:
+    <<: [*ports_all, *hw_vaapi_wsl]
+
+  localhost-cpu:
+    <<: [*ports_localhost, *hw_cpu]
+  localhost-nvenc:
+    <<: [*ports_localhost, *hw_nvenc]
+  localhost-quicksync:
+    <<: [*ports_localhost, *hw_quicksync]
+  localhost-rkmpp:
+    <<: [*ports_localhost, *hw_rkmpp]
+  localhost-vaapi:
+    <<: [*ports_localhost, *hw_vaapi]
+  localhost-vaapi-wsl:
+    <<: [*ports_localhost, *hw_vaapi_wsl]
+
+  tailscale-cpu:
+    <<: [*ports_tailscale, *hw_cpu]
+  tailscale-nvenc:
+    <<: [*ports_tailscale, *hw_nvenc]
+  tailscale-quicksync:
+    <<: [*ports_tailscale, *hw_quicksync]
+  tailscale-rkmpp:
+    <<: [*ports_tailscale, *hw_rkmpp]
+  tailscale-vaapi:
+    <<: [*ports_tailscale, *hw_vaapi]
+  tailscale-vaapi-wsl:
+    <<: [*ports_tailscale, *hw_vaapi_wsl]
