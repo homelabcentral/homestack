@@ -1,0 +1,72 @@
+services:
+  # DNS on all interfaces
+  all-traefik:
+    ports:
+      - 53:53/tcp
+      - 53:53/udp
+
+  all-all:
+    ports:
+      - 53:53/tcp
+      - 53:53/udp
+      - ${PORT_PH_PIHOLE:-8000}:${PORT_PH_PIHOLE:-8000}/tcp
+
+  all-localhost:
+    ports:
+      - 53:53/tcp
+      - 53:53/udp
+      - 127.0.0.1:${PORT_PH_PIHOLE:-8000}:${PORT_PH_PIHOLE:-8000}/tcp
+
+  all-tailscale:
+    ports:
+      - 53:53/tcp
+      - 53:53/udp
+      - ${IP_TAILSCALE}:${PORT_PH_PIHOLE:-8000}:${PORT_PH_PIHOLE:-8000}/tcp
+
+  # DNS only on localhost
+  localhost-traefik:
+    ports:
+      - 127.0.0.1:53:53/tcp
+      - 127.0.0.1:53:53/udp
+
+  localhost-all:
+    ports:
+      - 127.0.0.1:53:53/tcp
+      - 127.0.0.1:53:53/udp
+      - ${PORT_PH_PIHOLE:-8000}:${PORT_PH_PIHOLE:-8000}/tcp
+
+  localhost-localhost:
+    ports:
+      - 127.0.0.1:53:53/tcp
+      - 127.0.0.1:53:53/udp
+      - 127.0.0.1:${PORT_PH_PIHOLE:-8000}:${PORT_PH_PIHOLE:-8000}/tcp
+
+  localhost-tailscale:
+    ports:
+      - 127.0.0.1:53:53/tcp
+      - 127.0.0.1:53:53/udp
+      - ${IP_TAILSCALE}:${PORT_PH_PIHOLE:-8000}:${PORT_PH_PIHOLE:-8000}/tcp
+
+  # DNS only on tailscale
+  tailscale-traefik:
+    ports:
+      - ${IP_TAILSCALE}:53:53/tcp
+      - ${IP_TAILSCALE}:53:53/udp
+
+  tailscale-all:
+    ports:
+      - ${IP_TAILSCALE}:53:53/tcp
+      - ${IP_TAILSCALE}:53:53/udp
+      - ${PORT_PH_PIHOLE:-8000}:${PORT_PH_PIHOLE:-8000}/tcp
+
+  tailscale-localhost:
+    ports:
+      - ${IP_TAILSCALE}:53:53/tcp
+      - ${IP_TAILSCALE}:53:53/udp
+      - 127.0.0.1:${PORT_PH_PIHOLE:-8000}:${PORT_PH_PIHOLE:-8000}/tcp
+
+  tailscale-tailscale:
+    ports:
+      - ${IP_TAILSCALE}:53:53/tcp
+      - ${IP_TAILSCALE}:53:53/udp
+      - ${IP_TAILSCALE}:${PORT_PH_PIHOLE:-8000}:${PORT_PH_PIHOLE:-8000}/tcp

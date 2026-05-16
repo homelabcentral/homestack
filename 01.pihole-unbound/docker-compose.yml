@@ -17,11 +17,8 @@ services:
           cpus: ${CPU_MIN_PH_PIHOLE:-0.05}
           memory: ${RAM_MIN_PH_PIHOLE:-6M}
     extends:
-      file: ports.yml # Change the ports config if you want to expose this container on different interfaces or ports. By default it is set to only be exposed through traefik, but you can change it to be exposed on localhost (all interfaces) or tailscale IP only.
-      service: ${PH_PIHOLE_PORT_CONFIG:-localhost} # all = bind to all interfaces on the host, localhost = bind to localhost (only accesible from the local computer, not accessible from any other comptuers on the network), tailscale = bind to tailscale IP only
-    extends:
-      file: dashboard.yml # Change the dashboard config if you want to expose the pihole dashboard on different interfaces or ports. By default it is set to only be exposed through traefik, but you can change it to be exposed on localhost (all interfaces) or tailscale IP only.
-      service: ${PH_PIHOLE_DASHBOARD_CONFIG:-localhost} # traefik = only through traefik, localhost = bind to all interfaces on the host, tailscale = bind to tailscale IP only
+      file: ports-dashboard.yml # Combines DNS port exposure and dashboard exposure choices into one valid extends target.
+      service: ${PH_PIHOLE_PORT_CONFIG:-localhost}-${PH_PIHOLE_DASHBOARD_CONFIG:-localhost} # DNS choices: all|localhost|tailscale. Dashboard choices: traefik|all|localhost|tailscale.
     env_file:
       - .env
       - ../00.env/host.env

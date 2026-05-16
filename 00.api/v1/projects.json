@@ -41,11 +41,7 @@
     "ready_to_deploy": true,
     "config_files": [
       {
-        "path": "ports.yml",
-        "constant": false
-      },
-      {
-        "path": "dashboard.yml",
+        "path": "ports-dashboard.yml",
         "constant": false
       }
     ],

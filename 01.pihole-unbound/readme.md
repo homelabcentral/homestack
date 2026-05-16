@@ -24,10 +24,7 @@ required_env_files:
     - network.env
 config_files:
   - config_file:
-      path: ports.yml
-      immutable: true
-  - config_file:
-      path: dashboard.yml
+      path: ports-dashboard.yml
       immutable: true
 supported_architecture:
     - x86_64
