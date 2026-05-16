@@ -22,6 +22,9 @@
 			"username": "vscode",
 			"userShell": "zsh",
 			"nerdFont": "JetBrainsMono"
+		},
+		"ghcr.io/devcontainers/features/docker-outside-of-docker:1": {
+			"moby": false
 		}
 	},
 
@@ -34,7 +37,8 @@
 		// The below binds the host's SSH agent socket into the container.
 		// "source=${localEnv:SSH_AUTH_SOCK},target=/ssh-agent,type=bind",
 		// The below binds the remote SSH agent socket into the container.
-		"source=${localEnv:HOME}/ssh-agent.sock,target=/ssh-agent,type=bind"
+		"source=${localEnv:HOME}/ssh-agent.sock,target=/ssh-agent,type=bind",
+		"source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind"
 	],
 
 	"remoteEnv": {
