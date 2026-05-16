@@ -1,13 +1,18 @@
 services:
-  # This makes the homepage available only through traefik
+  # This makes the it-tools available only through traefik
   traefik: {}
 
-  # This makes the homepage available on all network interfaces of the host, including the host IP and through traefik (if enabled)
-  localhost:
+  # This makes the it-tools available on all network interfaces of the host, including the host IP and through traefik (if enabled)
+  all:
     ports:
       - ${PORT_IT_TOOLS_EXTERNAL:-3007}:${PORT_IT_TOOLS_INTERNAL:-8080}
 
-  # This makes the homepage available only on the Tailscale IP address of the host, allowing access over Tailscale VPN and through traefik (if enabled)
+  # This makes the it-tools available only on the host computer, not to any other computers on the same network and through traefik (if enabled)
+  localhost:
+    ports:
+      - 127.0.0.1:${PORT_IT_TOOLS_EXTERNAL:-3007}:${PORT_IT_TOOLS_INTERNAL:-8080}
+
+  # This makes the it-tools available only on the Tailscale IP address of the host, allowing access over Tailscale VPN and through traefik (if enabled)
   tailscale:
     ports:
       - ${IP_TAILSCALE}:${PORT_IT_TOOLS_EXTERNAL:-3007}:${PORT_IT_TOOLS_INTERNAL:-8080}

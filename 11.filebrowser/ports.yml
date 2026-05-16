@@ -1,13 +1,18 @@
 services:
-  # This makes the homepage available only through traefik
+  # This makes the filebrowser available only through traefik
   traefik: {}
 
   # This makes the homepage available on all network interfaces of the host, including the host IP and through traefik (if enabled)
+  all:
+    ports:
+      - ${PORT_FB_FILEBROWSER_EXTERNAL:-3006}:${PORT_FB_FILEBROWSER_INTERNAL:-80}
+  
+  # This makes the filebrowser available only on the host computer, not to any other computers on the same network and through traefik (if enabled)
   localhost:
     ports:
-      - ${PORT_LW_LINKWARDEN_EXTERNAL:-3006}:${PORT_LW_LINKWARDEN_INTERNAL:-80}
+      - 127.0.0.1:${PORT_FB_FILEBROWSER_EXTERNAL:-3006}:${PORT_FB_FILEBROWSER_INTERNAL:-80}
 
-  # This makes the homepage available only on the Tailscale IP address of the host, allowing access over Tailscale VPN and through traefik (if enabled)
+  # This makes the filebrowser available only on the Tailscale IP address of the host, allowing access over Tailscale VPN and through traefik (if enabled)
   tailscale:
     ports:
-      - ${IP_TAILSCALE}:${PORT_LW_LINKWARDEN_EXTERNAL:-3006}:${PORT_LW_LINKWARDEN_INTERNAL:-80}
+      - ${IP_TAILSCALE}:${PORT_FB_FILEBROWSER_EXTERNAL:-3006}:${PORT_FB_FILEBROWSER_INTERNAL:-80}

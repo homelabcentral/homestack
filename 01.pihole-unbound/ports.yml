@@ -1,9 +1,16 @@
 services:
-  localhost:
+  # This makes pihole available on all network interfaces of the host, including the host IP and through Traefik (if enabled)
+  all:
     ports:
       - 53:53/tcp
       - 53:53/udp
   
+  # This makes pihole available only on the host computer, not to any other computers on the same network
+  localhost:
+    - 127.0.0.1:53:53/tcp
+    - 127.0.0.1:53:53/udp
+  
+  # This makes Traefik available only on the Tailscale IP address of the host, allowing access over Tailscale VPN and through Traefik (if enabled)
   tailscale:
     ports:
       - ${IP_TAILSCALE}:53:53/tcp

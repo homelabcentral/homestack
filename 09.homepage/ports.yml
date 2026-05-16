@@ -3,11 +3,16 @@ services:
   traefik: {}
 
   # This makes the homepage available on all network interfaces of the host, including the host IP and through traefik (if enabled)
+  all:
+    ports:
+      - ${PORT_HP_HOMEPAGE_EXTERNAL:-3005}:${PORT_HP_HOMEPAGE_INTERNAL:-3000}
+  
+  # This makes the homepage available only on the host computer, not to any other computers on the same network and through traefik (if enabled)
   localhost:
     ports:
-      - ${PORT_LW_LINKWARDEN_EXTERNAL:-3005}:${PORT_LW_LINKWARDEN_INTERNAL:-3000}
+      - 127.0.0.1:${PORT_HP_HOMEPAGE_EXTERNAL:-3005}:${PORT_HP_HOMEPAGE_INTERNAL:-3000}
 
   # This makes the homepage available only on the Tailscale IP address of the host, allowing access over Tailscale VPN and through traefik (if enabled)
   tailscale:
     ports:
-      - ${IP_TAILSCALE}:${PORT_LW_LINKWARDEN_EXTERNAL:-3005}:${PORT_LW_LINKWARDEN_INTERNAL:-3000}
+      - ${IP_TAILSCALE}:${PORT_HP_HOMEPAGE_EXTERNAL:-3005}:${PORT_HP_HOMEPAGE_INTERNAL:-3000}

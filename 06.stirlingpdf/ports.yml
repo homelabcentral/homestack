@@ -3,9 +3,14 @@ services:
   traefik: {}
 
   # This makes StirlingPDF available on all network interfaces of the host, including the host IP and through traefik (if enabled)
-  localhost:
+  all:
     ports:
       - ${PORT_SP_STIRLINGPDF_EXTERNAL:-3002}:${PORT_SP_STIRLINGPDF_INTERNAL:-8080}
+
+  # This makes StirlingPDF available only on the host computer, not to any other computers on the same network
+  localhost:
+    ports:
+      - 127.0.0.1:${PORT_SP_STIRLINGPDF_EXTERNAL:-3002}:${PORT_SP_STIRLINGPDF_INTERNAL:-8080}
 
   # This makes StirlingPDF available only on the Tailscale IP address of the host, allowing access over Tailscale VPN and through traefik (if enabled)
   tailscale:

@@ -1,5 +1,11 @@
 services:
+  all:
   # This makes Traefik available on all network interfaces of the host, including the host IP and through Traefik (if enabled)
+    ports:
+      - 80:80
+      - 443:443
+  
+  # This makes Traefik available only on the host computer, not to any other computers on the same network
   localhost:
     ports:
       - 80:80

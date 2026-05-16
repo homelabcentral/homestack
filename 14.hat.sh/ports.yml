@@ -1,13 +1,18 @@
 services:
-  # This makes the homepage available only through traefik
+  # This makes the hat.sh available only through traefik
   traefik: {}
 
-  # This makes the homepage available on all network interfaces of the host, including the host IP and through traefik (if enabled)
-  localhost:
+  # This makes the hat.sh available on all network interfaces of the host, including the host IP and through traefik (if enabled)
+  all:
     ports:
       - ${PORT_HT_HATSH_EXTERNAL:-3009}:${PORT_HT_HATSH_INTERNAL:-80}
 
-  # This makes the homepage available only on the Tailscale IP address of the host, allowing access over Tailscale VPN and through traefik (if enabled)
+  # This makes the hat.sh available only on the host comupter, not to any other computers on the same network and through traefik (if enabled)
+  localhost:
+    ports:
+      - 127.0.0.1:${PORT_HT_HATSH_EXTERNAL:-3009}:${PORT_HT_HATSH_INTERNAL:-80}
+
+  # This makes the hat.sh available only on the Tailscale IP address of the host, allowing access over Tailscale VPN and through traefik (if enabled)
   tailscale:
     ports:
       - ${IP_TAILSCALE}:${PORT_HT_HATSH_EXTERNAL:-3009}:${PORT_HT_HATSH_INTERNAL:-80}

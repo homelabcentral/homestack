@@ -3,9 +3,14 @@ services:
   traefik: {}
 
   # This makes gatus available on all network interfaces of the host, including the host IP and through traefik (if enabled)
-  localhost:
+  all:
     ports:
       - ${PORT_GA_GATUS_EXTERNAL:-3000}:${PORT_GA_GATUS_INTERNAL:-8080}
+
+  # This makes gatus available only on the host computer, not to any other computers on the same network 
+  localhost:
+    ports:
+      - 127.0.0.1:${PORT_GA_GATUS_EXTERNAL:-3000}:${PORT_GA_GATUS_INTERNAL:-8080}
   
   # This makes gatus available only on the Tailscale IP address of the host, allowing access over Tailscale VPN and through traefik (if enabled)
   tailscale:

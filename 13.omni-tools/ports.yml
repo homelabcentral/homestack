@@ -3,9 +3,14 @@ services:
   traefik: {}
 
   # This makes the homepage available on all network interfaces of the host, including the host IP and through traefik (if enabled)
-  localhost:
+  all:
     ports:
       - ${PORT_OT_OMNI_TOOLS_EXTERNAL:-3008}:${PORT_OT_OMNI_TOOLS_INTERNAL:-80}
+
+  # This makes the homepage available on all network interfaces of the host, including the host IP and through traefik (if enabled)
+  localhost:
+    ports:
+      - 127.0.0.1:${PORT_OT_OMNI_TOOLS_EXTERNAL:-3008}:${PORT_OT_OMNI_TOOLS_INTERNAL:-80}
 
   # This makes the homepage available only on the Tailscale IP address of the host, allowing access over Tailscale VPN and through traefik (if enabled)
   tailscale:
