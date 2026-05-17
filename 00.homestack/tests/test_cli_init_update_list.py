@@ -1086,3 +1086,33 @@ def test_generate_env_files_from_templates_skips_missing_template(
     assert (env_dir / "network.env").read_text(
         encoding="utf-8"
     ) == "IP_PRIVATE=10.0.0.1\n"
+
+
+def test_download_env_templates_falls_back_to_local_templates(tmp_path: Path) -> None:
+    import logging
+
+    compose_dir = tmp_path / "install" / "compose"
+    local_root = tmp_path / "repo"
+    local_env_dir = local_root / "00.env"
+    local_env_dir.mkdir(parents=True, exist_ok=True)
+    (local_env_dir / "host.env.template").write_text("HOST_NAME=\n", encoding="utf-8")
+    (local_env_dir / "network.env.template").write_text(
+        "IP_PRIVATE=\n", encoding="utf-8"
+    )
+
+    with (
+        patch("cli.cli.APIClient") as mock_api_client_cls,
+        patch("cli.cli.settings") as mock_settings,
+    ):
+        mock_api_client_cls.return_value.fetch_env_sync.side_effect = APINetworkError(
+            "unreachable"
+        )
+        mock_settings.root_dir = local_root
+
+        cli_module._download_env_templates(
+            compose_dir, logging.getLogger("test-download-fallback")
+        )
+
+    target_env_dir = compose_dir / "00.env"
+    assert (target_env_dir / "host.env.template").exists()
+    assert (target_env_dir / "network.env.template").exists()

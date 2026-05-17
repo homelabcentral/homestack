@@ -452,18 +452,62 @@ def _download_env_templates(
         error_msg = _friendly_api_error_message(
             exc, "Downloading environment templates"
         )
+        copied = _copy_local_env_templates(compose_dir, logger)
         logger.warning("Failed to download environment templates: %s", error_msg)
-        typer.echo(f"⚠ {error_msg} (You can retry with 'homestack update')", err=False)
+        if copied > 0:
+            typer.echo(f"⚠ {error_msg}. Falling back to local templates.", err=False)
+            typer.echo(f"✓ Copied {copied} local environment template(s)")
+        else:
+            typer.echo(
+                f"⚠ {error_msg} (You can retry with 'homestack update')", err=False
+            )
     except Exception as exc:
         # Catch any other unexpected errors (filesystem, etc.)
         logger.warning(
             "Unexpected error while downloading environment templates: %s", exc
         )
-        typer.echo(
-            f"⚠ Could not download environment templates: {exc} "
-            "(You can retry with 'homestack update')",
-            err=False,
-        )
+        copied = _copy_local_env_templates(compose_dir, logger)
+        if copied > 0:
+            typer.echo(
+                f"⚠ Could not download environment templates: {exc}. "
+                "Falling back to local templates.",
+                err=False,
+            )
+            typer.echo(f"✓ Copied {copied} local environment template(s)")
+        else:
+            typer.echo(
+                f"⚠ Could not download environment templates: {exc} "
+                "(You can retry with 'homestack update')",
+                err=False,
+            )
+
+
+def _copy_local_env_templates(compose_dir: Path, logger: logging.Logger) -> int:
+    """Copy local repository 00.env templates into the target compose dir.
+
+    This fallback helps local/dev runs where remote API access is unavailable.
+    """
+    source_env_dir = settings.root_dir / "00.env"
+    if not source_env_dir.exists():
+        return 0
+
+    source_templates = sorted(source_env_dir.glob("*.env.template"))
+    if not source_templates:
+        return 0
+
+    target_env_dir = compose_dir / "00.env"
+    target_env_dir.mkdir(parents=True, exist_ok=True)
+
+    copied = 0
+    for source in source_templates:
+        destination = target_env_dir / source.name
+        try:
+            shutil.copy2(source, destination)
+            copied += 1
+        except OSError as exc:
+            logger.warning("Failed to copy local env template %s: %s", source, exc)
+
+    return copied
 
 
 async def _download_jobs(
@@ -1138,6 +1182,7 @@ def init(
                 ram_mb=_collect_ram_mb(),
                 install_dir=str(install_dir),
                 install_dir_total_gb=disk_total_gb,
+                hostname=platform.node() or None,
             )
 
             prefs.set_host_preferences(host_prefs)

@@ -18,6 +18,7 @@ from utils.shared_pref import HostPreferences
 def _host_prefs(
     *,
     username: str = "alice",
+    hostname: str | None = "homelab",
     uid: int | None = 1000,
     gid: int | None = 1000,
     docker_gid: int | None = 998,
@@ -34,12 +35,14 @@ def _host_prefs(
         ram_mb=ram_mb,
         install_dir="/tmp/homestack",
         install_dir_total_gb=128.0,
+        hostname=hostname,
     )
 
 
 def test_allowed_resolvers_is_expected_allow_list():
     assert allowed_resolvers() == (
         "username",
+        "hostname",
         "uid",
         "gid",
         "docker_gid",
@@ -56,6 +59,7 @@ def test_allowed_resolvers_is_expected_allow_list():
     ("resolver_name", "expected"),
     [
         ("username", "alice"),
+        ("hostname", "homelab"),
         ("uid", "1000"),
         ("gid", "1000"),
         ("docker_gid", "998"),
@@ -86,7 +90,7 @@ def test_resolve_computed_value_rejects_command_like_names(resolver_name: str):
 def test_resolve_computed_value_rejects_unknown_name():
     context = ComputeContext(host_preferences=_host_prefs())
     with pytest.raises(ComputeResolverError, match="Unknown compute resolver"):
-        resolve_computed_value("hostname", context)
+        resolve_computed_value("definitely_unknown", context)
 
 
 def test_resolve_computed_value_requires_host_preferences():

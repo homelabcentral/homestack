@@ -792,7 +792,7 @@ All per-variable inline metadata keys are optional except `prompt` for mutable v
 | `immutable` | `false` | No | Skip prompting for this variable and keep the resolved value as-is. | `immutable=true` |
 | `remember` | `false` | No | For generated secrets, include plaintext in the end-of-run summary so the user can save it. | `remember=true` |
 | `description` | `None` | No | Human-readable variable description used in docs and summaries. | `description=Public web port` |
-| `compute` | `None` | No | Compute default value from a safe built-in resolver. Base resolvers: `username`, `uid`, `gid`, `docker_gid`, `private_ip`, `public_ip`, `tailscale_ip`, `host_ram`, `host_cpu`. Percentage variants: `host_ram_<n>`, `host_cpu_<n>` where `<n>` is 0–100. | `compute=uid` or `compute=host_ram_80` |
+| `compute` | `None` | No | Compute default value from a safe built-in resolver. Base resolvers: `username`, `hostname`, `uid`, `gid`, `docker_gid`, `private_ip`, `public_ip`, `tailscale_ip`, `host_ram`, `host_cpu`. Percentage variants: `host_ram_<n>`, `host_cpu_<n>` where `<n>` is 0–100. | `compute=uid` or `compute=host_ram_80` |
 
 Composite example:
 
@@ -823,7 +823,7 @@ JWT_SECRET= # type=password(32,64) | remember=true
 
 `compute=` is intentionally strict and fail-closed:
 
-- Only exact resolver names are accepted: `username`, `uid`, `gid`, `docker_gid`, `private_ip`, `public_ip`, `tailscale_ip`, `host_ram`, `host_cpu`.
+- Only exact resolver names are accepted: `username`, `hostname`, `uid`, `gid`, `docker_gid`, `private_ip`, `public_ip`, `tailscale_ip`, `host_ram`, `host_cpu`.
 - **Host resource resolvers** enable safe defaults based on system capacity:
   - `host_ram`: Returns total available RAM on the host (e.g., `"16G"`, `"512M"`).
   - `host_cpu`: Returns total CPU thread count (e.g., `"8"`).

@@ -40,6 +40,7 @@ class HostPreferences:
     ram_mb: int | None
     install_dir: str
     install_dir_total_gb: float | None
+    hostname: str | None = None
 
 
 class SharedPreferences:
@@ -106,6 +107,7 @@ class SharedPreferences:
         self.set_many(
             {
                 "host.username": prefs.username,
+                "host.hostname": prefs.hostname,
                 "host.uid": prefs.uid,
                 "host.gid": prefs.gid,
                 "host.docker_gid": prefs.docker_gid,
@@ -135,6 +137,7 @@ class SharedPreferences:
 
         return HostPreferences(
             username=str(self.get("host.username")),
+            hostname=self.get("host.hostname"),
             uid=self.get("host.uid"),
             gid=self.get("host.gid"),
             docker_gid=self.get("host.docker_gid"),

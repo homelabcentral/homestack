@@ -73,6 +73,16 @@ def _resolve_username(context: ComputeContext) -> str:
     return _require_host_prefs(context, "username").username
 
 
+def _resolve_hostname(context: ComputeContext) -> str:
+    prefs = _require_host_prefs(context, "hostname")
+    if prefs.hostname and prefs.hostname.strip():
+        return prefs.hostname.strip()
+    fallback = socket.gethostname().strip()
+    if fallback:
+        return fallback
+    raise ComputeResolverError("Resolver 'hostname' is unavailable on this platform")
+
+
 def _resolve_uid(context: ComputeContext) -> str:
     uid = _require_host_prefs(context, "uid").uid
     if uid is None:
@@ -342,6 +352,7 @@ def _resolve_host_cpu_percent(percent: int, context: ComputeContext) -> str:
 _RESOLVERS = MappingProxyType(
     {
         "username": _resolve_username,
+        "hostname": _resolve_hostname,
         "uid": _resolve_uid,
         "gid": _resolve_gid,
         "docker_gid": _resolve_docker_gid,

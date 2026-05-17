@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import ipaddress
 import re
+from pathlib import Path
 from typing import Callable
 
 import questionary
@@ -137,7 +138,11 @@ def ask_path(
     validate: Callable[[str], bool | str] | None = None,
 ) -> str:
     """Ask a file-path question and return the answer."""
-    kwargs: dict = {"default": default, "only_files": only_files}
+    kwargs: dict = {"default": default}
+    if only_files:
+        # questionary.path does not support an only_files flag. Restrict
+        # selections to files by filtering out directories.
+        kwargs["file_filter"] = lambda path: Path(path).is_file()
     if instruction:
         kwargs["instruction"] = instruction
     if validate:

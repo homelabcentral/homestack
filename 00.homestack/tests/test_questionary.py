@@ -483,7 +483,7 @@ class TestBuildFormUseRecommended:
             )
 
     def test_compute_unknown_name_fails_closed(self):
-        var = _var("UID", extra_metadata={"compute": "hostname"})
+        var = _var("UID", extra_metadata={"compute": "definitely_unknown"})
         with pytest.raises(ValueError, match="Unknown compute resolver"):
             build_form_from_template(
                 _parsed(var),
